@@ -24,7 +24,21 @@ export const clients = pgTable("clients", {
   email: text("email"),
   avatar: text("avatar"),
   notes: text("notes"),
+  cpf: text("cpf"),
+  birthday: text("birthday"),
+  gender: text("gender"),
+  tags: text("tags").array().default(sql`'{}'::text[]`),
+  vip: boolean("vip").default(false),
+  status: text("status").notNull().default("ativo"),
+  totalSpend: integer("total_spend").default(0),
+  purchaseCount: integer("purchase_count").default(0),
+  lastPurchaseAt: timestamp("last_purchase_at"),
+  channel: text("channel").default("whatsapp"),
+  city: text("city"),
+  state: text("state"),
+  address: text("address"),
   lastContact: timestamp("last_contact"),
+  createdAt: timestamp("created_at").defaultNow(),
 });
 
 export const conversations = pgTable("conversations", {
@@ -32,9 +46,11 @@ export const conversations = pgTable("conversations", {
   clientId: varchar("client_id").notNull(),
   attendantId: varchar("attendant_id"),
   status: text("status").notNull().default("nova"),
+  channel: text("channel").default("whatsapp"),
   startedAt: timestamp("started_at").notNull().defaultNow(),
   endedAt: timestamp("ended_at"),
   duration: integer("duration"),
+  finishReason: text("finish_reason"),
 });
 
 export const messages = pgTable("messages", {
@@ -42,7 +58,13 @@ export const messages = pgTable("messages", {
   conversationId: varchar("conversation_id").notNull(),
   sender: text("sender").notNull(),
   content: text("content").notNull(),
+  type: text("type").notNull().default("text"),
+  mediaUrl: text("media_url"),
+  mediaMimeType: text("media_mime_type"),
+  status: text("status").notNull().default("sent"),
   sentAt: timestamp("sent_at").notNull().defaultNow(),
+  deliveredAt: timestamp("delivered_at"),
+  readAt: timestamp("read_at"),
 });
 
 export const quickReplies = pgTable("quick_replies", {
@@ -51,6 +73,9 @@ export const quickReplies = pgTable("quick_replies", {
   content: text("content").notNull(),
   category: text("category").notNull().default("geral"),
   shortcut: text("shortcut"),
+  active: boolean("active").default(true),
+  sortOrder: integer("sort_order").default(0),
+  usageCount: integer("usage_count").default(0),
 });
 
 export const products = pgTable("products", {
@@ -72,14 +97,23 @@ export const activities = pgTable("activities", {
   attendantName: text("attendant_name"),
 });
 
+export const clientNotes = pgTable("client_notes", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  clientId: varchar("client_id").notNull(),
+  content: text("content").notNull(),
+  author: text("author").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
 export const insertUserSchema = createInsertSchema(users).pick({ username: true, password: true });
 export const insertAttendantSchema = createInsertSchema(attendants).omit({ id: true });
-export const insertClientSchema = createInsertSchema(clients).omit({ id: true });
+export const insertClientSchema = createInsertSchema(clients).omit({ id: true, createdAt: true });
 export const insertConversationSchema = createInsertSchema(conversations).omit({ id: true, startedAt: true });
 export const insertMessageSchema = createInsertSchema(messages).omit({ id: true, sentAt: true });
 export const insertQuickReplySchema = createInsertSchema(quickReplies).omit({ id: true });
 export const insertProductSchema = createInsertSchema(products).omit({ id: true });
 export const insertActivitySchema = createInsertSchema(activities).omit({ id: true, timestamp: true });
+export const insertClientNoteSchema = createInsertSchema(clientNotes).omit({ id: true, createdAt: true });
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
@@ -97,3 +131,5 @@ export type InsertProduct = z.infer<typeof insertProductSchema>;
 export type Product = typeof products.$inferSelect;
 export type InsertActivity = z.infer<typeof insertActivitySchema>;
 export type Activity = typeof activities.$inferSelect;
+export type InsertClientNote = z.infer<typeof insertClientNoteSchema>;
+export type ClientNote = typeof clientNotes.$inferSelect;

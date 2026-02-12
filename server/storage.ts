@@ -7,10 +7,11 @@ import {
   type QuickReply, type InsertQuickReply,
   type Product, type InsertProduct,
   type Activity, type InsertActivity,
-  users, attendants, clients, conversations, messages, quickReplies, products, activities,
+  type ClientNote, type InsertClientNote,
+  users, attendants, clients, conversations, messages, quickReplies, products, activities, clientNotes,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, sql, and, gte } from "drizzle-orm";
+import { eq, desc, sql, and, gte, or, ilike, inArray } from "drizzle-orm";
 
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
@@ -19,19 +20,29 @@ export interface IStorage {
   getAttendants(): Promise<Attendant[]>;
   getAttendant(id: string): Promise<Attendant | undefined>;
   createAttendant(data: InsertAttendant): Promise<Attendant>;
-  getClients(): Promise<Client[]>;
+  getClients(params?: { search?: string; status?: string; vip?: boolean; tag?: string; sortBy?: string; sortDir?: string; page?: number; limit?: number }): Promise<{ data: Client[]; total: number }>;
   getClient(id: string): Promise<Client | undefined>;
   createClient(data: InsertClient): Promise<Client>;
-  getConversations(): Promise<(Conversation & { clientName: string; attendantName: string; clientPhone: string; lastMessage: string })[]>;
+  updateClient(id: string, data: Partial<InsertClient>): Promise<Client | undefined>;
+  deleteClient(id: string): Promise<void>;
+  getClientNotes(clientId: string): Promise<ClientNote[]>;
+  createClientNote(data: InsertClientNote): Promise<ClientNote>;
+  getClientConversations(clientId: string): Promise<any[]>;
+  getConversations(statusFilter?: string): Promise<any[]>;
   getConversation(id: string): Promise<Conversation | undefined>;
   createConversation(data: InsertConversation): Promise<Conversation>;
+  updateConversation(id: string, data: Partial<{ status: string; attendantId: string | null; endedAt: Date; duration: number; finishReason: string }>): Promise<Conversation | undefined>;
   getMessages(conversationId: string): Promise<Message[]>;
   createMessage(data: InsertMessage): Promise<Message>;
   getQuickReplies(): Promise<QuickReply[]>;
   createQuickReply(data: InsertQuickReply): Promise<QuickReply>;
+  updateQuickReply(id: string, data: Partial<InsertQuickReply>): Promise<QuickReply | undefined>;
   deleteQuickReply(id: string): Promise<void>;
+  incrementQuickReplyUsage(id: string): Promise<void>;
   getProducts(): Promise<Product[]>;
   createProduct(data: InsertProduct): Promise<Product>;
+  updateProduct(id: string, data: Partial<InsertProduct>): Promise<Product | undefined>;
+  deleteProduct(id: string): Promise<void>;
   getActivities(): Promise<Activity[]>;
   createActivity(data: InsertActivity): Promise<Activity>;
   getStats(): Promise<{
@@ -83,8 +94,50 @@ export class DatabaseStorage implements IStorage {
     return att;
   }
 
-  async getClients() {
-    return db.select().from(clients).orderBy(desc(clients.lastContact));
+  async getClients(params?: { search?: string; status?: string; vip?: boolean; tag?: string; sortBy?: string; sortDir?: string; page?: number; limit?: number }) {
+    const conditions: any[] = [];
+
+    if (params?.search) {
+      const term = `%${params.search}%`;
+      conditions.push(or(ilike(clients.name, term), ilike(clients.phone, term), ilike(clients.email, term)));
+    }
+
+    if (params?.status) {
+      conditions.push(eq(clients.status, params.status));
+    }
+
+    if (params?.vip !== undefined) {
+      conditions.push(eq(clients.vip, params.vip));
+    }
+
+    if (params?.tag) {
+      conditions.push(sql`${params.tag} = ANY(${clients.tags})`);
+    }
+
+    const where = conditions.length > 0 ? and(...conditions) : undefined;
+
+    const [countResult] = await db.select({ count: sql<number>`count(*)::int` }).from(clients).where(where);
+    const total = countResult?.count ?? 0;
+
+    const sortColumn = params?.sortBy === "name" ? clients.name
+      : params?.sortBy === "totalSpend" ? clients.totalSpend
+      : params?.sortBy === "lastPurchaseAt" ? clients.lastPurchaseAt
+      : params?.sortBy === "createdAt" ? clients.createdAt
+      : clients.lastContact;
+
+    const sortDir = params?.sortDir === "asc" ? sql`ASC` : sql`DESC`;
+
+    const page = params?.page ?? 1;
+    const limit = params?.limit ?? 50;
+    const offset = (page - 1) * limit;
+
+    const data = await db.select().from(clients)
+      .where(where)
+      .orderBy(params?.sortDir === "asc" ? sortColumn : desc(sortColumn))
+      .limit(limit)
+      .offset(offset);
+
+    return { data, total };
   }
 
   async getClient(id: string) {
@@ -97,15 +150,67 @@ export class DatabaseStorage implements IStorage {
     return client;
   }
 
-  async getConversations() {
+  async updateClient(id: string, data: Partial<InsertClient>) {
+    const [client] = await db.update(clients).set(data).where(eq(clients.id, id)).returning();
+    return client;
+  }
+
+  async deleteClient(id: string) {
+    await db.delete(clients).where(eq(clients.id, id));
+  }
+
+  async getClientNotes(clientId: string) {
+    return db.select().from(clientNotes).where(eq(clientNotes.clientId, clientId)).orderBy(desc(clientNotes.createdAt));
+  }
+
+  async createClientNote(data: InsertClientNote) {
+    const [note] = await db.insert(clientNotes).values(data).returning();
+    return note;
+  }
+
+  async getClientConversations(clientId: string) {
+    const result = await db
+      .select({
+        id: conversations.id,
+        status: conversations.status,
+        startedAt: conversations.startedAt,
+        endedAt: conversations.endedAt,
+        attendantName: sql<string>`COALESCE(${attendants.name}, '')`,
+      })
+      .from(conversations)
+      .leftJoin(attendants, eq(conversations.attendantId, attendants.id))
+      .where(eq(conversations.clientId, clientId))
+      .orderBy(desc(conversations.startedAt));
+    return result;
+  }
+
+  async getConversations(statusFilter?: string) {
     const lastMessageSubquery = db
       .select({
         conversationId: messages.conversationId,
         content: sql<string>`(array_agg(${messages.content} ORDER BY ${messages.sentAt} DESC))[1]`.as("content"),
+        lastAt: sql<Date>`MAX(${messages.sentAt})`.as("last_at"),
       })
       .from(messages)
       .groupBy(messages.conversationId)
       .as("last_msg");
+
+    const unreadSubquery = db
+      .select({
+        conversationId: messages.conversationId,
+        count: sql<number>`count(*)::int`.as("unread_count"),
+      })
+      .from(messages)
+      .where(and(eq(messages.sender, "client"), eq(messages.status, "sent")))
+      .groupBy(messages.conversationId)
+      .as("unread");
+
+    const conditions: any[] = [];
+    if (statusFilter && statusFilter !== "todas") {
+      conditions.push(eq(conversations.status, statusFilter));
+    }
+
+    const where = conditions.length > 0 ? and(...conditions) : undefined;
 
     const result = await db
       .select({
@@ -116,15 +221,21 @@ export class DatabaseStorage implements IStorage {
         startedAt: conversations.startedAt,
         endedAt: conversations.endedAt,
         duration: conversations.duration,
+        channel: conversations.channel,
         clientName: clients.name,
         clientPhone: clients.phone,
+        clientAvatar: clients.avatar,
         attendantName: sql<string>`COALESCE(${attendants.name}, '')`,
         lastMessage: sql<string>`COALESCE(${lastMessageSubquery.content}, '')`,
+        lastMessageAt: lastMessageSubquery.lastAt,
+        unreadCount: sql<number>`COALESCE(${unreadSubquery.count}, 0)`,
       })
       .from(conversations)
       .leftJoin(clients, eq(conversations.clientId, clients.id))
       .leftJoin(attendants, eq(conversations.attendantId, attendants.id))
       .leftJoin(lastMessageSubquery, eq(conversations.id, lastMessageSubquery.conversationId))
+      .leftJoin(unreadSubquery, eq(conversations.id, unreadSubquery.conversationId))
+      .where(where)
       .orderBy(desc(conversations.startedAt));
 
     return result.map((r) => ({
@@ -133,6 +244,7 @@ export class DatabaseStorage implements IStorage {
       clientPhone: r.clientPhone || "",
       attendantName: r.attendantName || "",
       lastMessage: r.lastMessage || "",
+      unreadCount: r.unreadCount || 0,
     }));
   }
 
@@ -146,6 +258,11 @@ export class DatabaseStorage implements IStorage {
     return conv;
   }
 
+  async updateConversation(id: string, data: Partial<{ status: string; attendantId: string | null; endedAt: Date; duration: number; finishReason: string }>) {
+    const [conv] = await db.update(conversations).set(data).where(eq(conversations.id, id)).returning();
+    return conv;
+  }
+
   async getMessages(conversationId: string) {
     return db.select().from(messages).where(eq(messages.conversationId, conversationId)).orderBy(messages.sentAt);
   }
@@ -156,7 +273,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getQuickReplies() {
-    return db.select().from(quickReplies).orderBy(quickReplies.title);
+    return db.select().from(quickReplies).orderBy(quickReplies.sortOrder);
   }
 
   async createQuickReply(data: InsertQuickReply) {
@@ -164,8 +281,17 @@ export class DatabaseStorage implements IStorage {
     return reply;
   }
 
+  async updateQuickReply(id: string, data: Partial<InsertQuickReply>) {
+    const [reply] = await db.update(quickReplies).set(data).where(eq(quickReplies.id, id)).returning();
+    return reply;
+  }
+
   async deleteQuickReply(id: string) {
     await db.delete(quickReplies).where(eq(quickReplies.id, id));
+  }
+
+  async incrementQuickReplyUsage(id: string) {
+    await db.update(quickReplies).set({ usageCount: sql`${quickReplies.usageCount} + 1` }).where(eq(quickReplies.id, id));
   }
 
   async getProducts() {
@@ -175,6 +301,15 @@ export class DatabaseStorage implements IStorage {
   async createProduct(data: InsertProduct) {
     const [product] = await db.insert(products).values(data).returning();
     return product;
+  }
+
+  async updateProduct(id: string, data: Partial<InsertProduct>) {
+    const [product] = await db.update(products).set(data).where(eq(products.id, id)).returning();
+    return product;
+  }
+
+  async deleteProduct(id: string) {
+    await db.delete(products).where(eq(products.id, id));
   }
 
   async getActivities() {
