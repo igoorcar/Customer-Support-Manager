@@ -1,9 +1,13 @@
 # Ótica Suellen - Painel de Atendimento
 
 ## Overview
-WhatsApp customer service management panel for an optical shop called "Ótica Suellen". Built with React + TypeScript frontend, Express backend, and PostgreSQL database.
+WhatsApp customer service management panel for an optical shop called "Ótica Suellen". Built with React + TypeScript frontend, Express backend, and PostgreSQL database. Features authentication, product catalog, client management, conversation handling, analytics, and settings.
 
 ## Recent Changes
+- 2026-02-12: Enhanced Products page with 53 products, grid/list views, filters, detail/edit modals, expanded schema
+- 2026-02-12: Multi-tab Reports page (5 tabs: Visão Geral, Atendimento, Vendas, Atendentes, Clientes)
+- 2026-02-12: Multi-section Settings page (8 sections with sidebar navigation, localStorage persistence)
+- 2026-02-12: Authentication system (passport.js + express-session, login/register, protected routes)
 - 2026-02-12: Initial MVP implementation with all core pages and features
 
 ## Architecture
@@ -15,33 +19,48 @@ WhatsApp customer service management panel for an optical shop called "Ótica Su
 - **State/Data**: TanStack React Query
 - **Charts**: Recharts
 - **Icons**: Lucide React
+- **Auth**: AuthProvider context with useAuth hook
 
 ### Pages
 - `/` - Dashboard with metrics, chart, conversations table, activity feed
-- `/conversas` - Conversations list with search and status filters
-- `/clientes` - Client management (CRUD)
-- `/respostas` - Quick replies management (CRUD)
-- `/produtos` - Product catalog (CRUD)
-- `/relatorios` - Reports with charts and analytics
-- `/configuracoes` - Business settings
+- `/conversas` - 3-panel WhatsApp-style conversations (list, chat, client info)
+- `/clientes` - Client management with grid/list views, profile modals, filters
+- `/respostas` - Quick replies management with categories and usage tracking
+- `/produtos` - Enhanced product catalog with 53 products, grid/list views, stats cards, filters, detail/edit modals
+- `/relatorios` - Multi-tab reports (Visão Geral, Atendimento, Vendas, Atendentes, Clientes)
+- `/configuracoes` - Multi-section settings (Perfil, Conta, Notificações, Atendimento, Horário, Equipe, Aparência, Segurança)
+- Login/Register page with branded split-screen layout
 
 ### Backend (server/)
 - **Framework**: Express.js
 - **Database**: PostgreSQL with Drizzle ORM
+- **Auth**: Passport.js with LocalStrategy, express-session, connect-pg-simple
 - **Storage**: DatabaseStorage class implementing IStorage interface
 
+### Authentication (server/auth.ts)
+- Passport.js LocalStrategy with scrypt password hashing
+- Express-session with PostgreSQL session store (connect-pg-simple)
+- All /api/* routes (except /api/auth/*) protected by requireAuth middleware
+- Cookie-based sessions with 24h expiry
+
 ### Data Model (shared/schema.ts)
-- users, attendants, clients, conversations, messages, quickReplies, products, activities
+- users, attendants, clients, conversations, messages, quickReplies, products, activities, clientNotes
+- Products schema: id, name, description, sku, brand, price, promoPrice, costPrice, category, stock, stockAlert, soldCount, image, format, material, color, gender, active, createdAt
 
 ### API Routes (all prefixed with /api)
+- POST /api/auth/register - User registration
+- POST /api/auth/login - User login
+- POST /api/auth/logout - User logout
+- GET /api/auth/me - Current user
 - GET /api/stats - Dashboard metrics
 - GET /api/stats/chart - Hourly conversation chart data
-- GET/POST /api/conversations - Conversation management
-- GET/POST /api/clients - Client management
-- GET/POST/DELETE /api/quick-replies - Quick reply management
-- GET/POST /api/products - Product management
+- GET/POST/PATCH /api/conversations - Conversation management
+- GET/POST/PATCH/DELETE /api/clients - Client management (paginated with filters)
+- GET/POST/PATCH/DELETE /api/quick-replies - Quick reply management
+- GET/POST/PATCH/DELETE /api/products - Product management
 - GET /api/activities - Recent activity feed
 - GET /api/reports - Reports data
+- GET /api/attendants - Attendants list
 
 ## User Preferences
 - Language: Portuguese (Brazilian)

@@ -1,0 +1,402 @@
+Crie a tela de CONFIGURAÇÕES completa para gerenciar todas as preferências do sistema.
+
+LAYOUT:
+Sidebar esquerda com menu de seções + Conteúdo à direita
+
+SIDEBAR (fixa, 240px):
+Menu vertical com ícones:
+- Perfil (ícone User)
+- Conta (ícone Settings)
+- Notificações (ícone Bell)
+- Atendimento (ícone MessageSquare)
+- WhatsApp (ícone Phone)
+- Horário (ícone Clock)
+- Equipe (ícone Users)
+- Integrações (ícone Plug)
+- Aparência (ícone Palette)
+- Segurança (ícone Shield)
+- Avançado (ícone Sliders)
+
+Item selecionado: background azul claro, borda esquerda azul
+
+---
+
+SEÇÃO "PERFIL":
+
+Card "Foto de Perfil":
+- Avatar grande (120px)
+- Botão "Alterar foto" (overlay no hover)
+- Upload com crop
+- Sugestões: "Use uma foto profissional"
+
+Form:
+- Nome completo* (required)
+- Email* (required, readonly se login social)
+- Telefone (input mask)
+- Cargo (input)
+- Bio (textarea, max 200 chars, "Conte sobre você")
+- Redes sociais (opcional):
+  * Instagram (@)
+  * LinkedIn (URL)
+  * WhatsApp pessoal
+
+Botões:
+- "Cancelar" (reseta form)
+- "Salvar alterações" (primary)
+
+Toast de sucesso ao salvar
+
+---
+
+SEÇÃO "CONTA":
+
+Card "Informações da Conta":
+- ID da conta (readonly, copyable)
+- Plano atual (badge: Gratuito/Pro/Enterprise)
+- Data de criação
+- Se pago: próxima cobrança (date + valor)
+
+Card "Alterar Senha":
+- Senha atual (password input)
+- Nova senha (password input, strength meter)
+- Confirmar senha (password input, validação match)
+- Requisitos (checklist):
+  * Mínimo 8 caracteres
+  * Letra maiúscula
+  * Letra minúscula
+  * Número
+  * Caractere especial
+- Botão "Atualizar senha"
+
+Card "Autenticação de Dois Fatores":
+- Toggle on/off
+- Se ativo: QR code + código backup
+- Botão "Configurar"
+
+Card "Sessões Ativas":
+- Tabela de dispositivos logados:
+  * Dispositivo/Browser
+  * IP
+  * Localização
+  * Último acesso
+  * Botão "Encerrar" por sessão
+- Botão "Encerrar todas as outras sessões"
+
+Card "Zona de Perigo":
+- Botão "Desativar conta" (outline vermelho)
+- Botão "Excluir conta" (vermelho, confirmação dupla)
+
+---
+
+SEÇÃO "NOTIFICAÇÕES":
+
+Card "Email":
+Checkboxes:
+- Nova conversa atribuída
+- Mensagem recebida
+- Conversa pausada por >1h
+- Conversa finalizada
+- Novo cliente cadastrado
+- Relatório diário (select de horário)
+- Relatório semanal (select de dia + horário)
+
+Card "Push (navegador)":
+- Botão "Ativar notificações push"
+- Se ativo: checkboxes similares ao email
+
+Card "Sons":
+- Toggle "Sons de notificação"
+- Select de som (preview ao selecionar):
+  * Padrão
+  * Sutil
+  * Profissional
+  * Desativado
+- Volume (slider 0-100%)
+
+Card "Não Perturbe":
+- Toggle "Modo Não Perturbe"
+- Se ativo:
+  * Horário início (time picker)
+  * Horário fim (time picker)
+  * Dias da semana (multi-select pills)
+
+---
+
+SEÇÃO "ATENDIMENTO":
+
+Card "Respostas Automáticas":
+- Toggle "Mensagem de ausência"
+- Se ativo:
+  * Textarea com mensagem
+  * Quando enviar (multi-select):
+    - Fora do horário
+    - Fim de semana
+    - Feriados
+    - Quando inativo
+- Toggle "Mensagem de boas-vindas"
+- Se ativo: textarea com mensagem
+
+Card "Distribuição":
+- Radio buttons "Como distribuir conversas":
+  * Automática (round-robin)
+  * Por carga (menor número de conversas ativas)
+  * Por especialidade (tags do cliente)
+  * Manual (atendente escolhe)
+- Input "Máximo de conversas simultâneas" (number, default 5)
+- Toggle "Redistribuir se atendente ficar inativo por:" (number + "minutos")
+
+Card "Priorização":
+- Toggle "Priorizar clientes VIP"
+- Toggle "Priorizar conversas antigas (>15 min sem resposta)"
+- Select "Ordenar lista de conversas por":
+  * Mais recentes
+  * Mais antigas
+  * Maior prioridade
+  * Não lidas primeiro
+
+Card "Encerramento":
+- Toggle "Finalizar automaticamente conversas inativas por:" (number + "horas")
+- Toggle "Solicitar avaliação ao finalizar"
+- Se ativo: textarea com mensagem de pedido de avaliação
+
+---
+
+SEÇÃO "WHATSAPP":
+
+Card "Conexão":
+- Status: Conectado ✓ (badge verde) ou Desconectado (badge vermelho)
+- QR Code para conectar (se desconectado)
+- Número conectado (readonly)
+- Botão "Desconectar"
+- Botão "Reconectar"
+
+Card "Configurações de Envio":
+- Toggle "Confirmação de leitura (checkmarks azuis)"
+- Toggle "Status online/offline"
+- Toggle "Digitando..."
+- Input "Tempo entre mensagens em sequência" (number + "segundos", evitar spam)
+
+Card "Webhook":
+- Input "URL do webhook" (readonly, copyable)
+- Botão "Testar webhook" (envia mensagem teste)
+- Log de últimas requisições (tabela):
+  * Timestamp
+  * Tipo (mensagem recebida, status)
+  * Status HTTP (200, 500, etc)
+
+Card "Mídia":
+- Toggle "Compressão automática de imagens"
+- Select "Qualidade" (Alta, Média, Baixa)
+- Input "Tamanho máximo de upload" (MB)
+
+---
+
+SEÇÃO "HORÁRIO":
+
+Card "Horário de Atendimento":
+Tabela editável (7 linhas = dias da semana):
+- Dia (readonly)
+- Toggle "Ativo"
+- Horário início (time picker)
+- Horário fim (time picker)
+- Botão "Copiar para todos os dias"
+
+Sugestão padrão:
+- Seg-Sex: 08:00 - 18:00
+- Sáb: 09:00 - 13:00
+- Dom: Fechado
+
+Card "Feriados":
+- Botão "Adicionar feriado" (ícone Plus)
+- Tabela de feriados:
+  * Data (date picker)
+  * Nome (input)
+  * Tipo (select: Nacional, Estadual, Municipal)
+  * Mensagem automática (textarea)
+  * Ações (editar, excluir)
+- Botão "Importar feriados nacionais" (importa 2025/2026 automaticamente)
+
+---
+
+SEÇÃO "EQUIPE":
+
+Card "Membros da Equipe":
+Tabela:
+- Avatar + Nome
+- Email
+- Papel (badge: Admin, Atendente, Supervisor)
+- Status (badge: Ativo, Inativo)
+- Último login (relativo)
+- Ações (dropdown):
+  * Editar permissões
+  * Desativar
+  * Remover
+
+Botão "Convidar membro" (ícone UserPlus):
+- Modal com form:
+  * Nome
+  * Email
+  * Papel (select)
+  * Permissões customizadas (checkboxes)
+- Envia convite por email
+
+Card "Papéis e Permissões":
+- Lista de papéis existentes (Admin, Atendente, Supervisor)
+- Botão "Criar papel customizado"
+- Click em papel: abre modal com matriz de permissões:
+  * Módulos: Dashboard, Conversas, Clientes, Produtos, etc
+  * Ações: Ver, Criar, Editar, Excluir
+  * Checkboxes em grid
+
+---
+
+SEÇÃO "INTEGRAÇÕES":
+
+Grid de cards de integrações disponíveis:
+
+Card "n8n":
+- Logo + nome
+- Descrição: "Conecte seu backend e automações"
+- Status: Conectado ✓ ou Não conectado
+- Botão "Configurar"
+- Modal de config:
+  * URL da instância n8n
+  * Tokens/credenciais
+  * Webhooks ativos (lista)
+  * Botão "Testar conexão"
+
+Card "Google Drive":
+- Logo + nome
+- Descrição: "Armazene documentos e backups"
+- Botão "Conectar com Google"
+
+Card "Supabase":
+- Logo + nome
+- Descrição: "Banco de dados"
+- Status + botão config
+
+Card "Zapier/Make":
+- Logos + nomes
+- Descrição: "Integre com 1000+ apps"
+- Botão "Ver documentação"
+
+Cada card tem toggle on/off para ativar/desativar
+
+---
+
+SEÇÃO "APARÊNCIA":
+
+Card "Tema":
+- Radio buttons com preview:
+  * Claro (imagem de preview)
+  * Escuro (imagem de preview)
+  * Automático (segue sistema)
+
+Card "Cores":
+- Color pickers para cores primárias:
+  * Primária (azul)
+  * Secundária (verde)
+  * Destaque (roxo)
+- Botão "Restaurar padrão"
+- Preview ao lado (card exemplo)
+
+Card "Fonte":
+- Select de fonte:
+  * Inter (padrão)
+  * Roboto
+  * Poppins
+  * System UI
+- Slider de tamanho base (12-18px)
+
+Card "Densidade":
+- Radio buttons:
+  * Compacta
+  * Confortável (padrão)
+  * Espaçosa
+- Afeta espaçamentos globais
+
+Card "Idioma":
+- Select:
+  * Português (BR)
+  * English (US)
+  * Español
+- Aviso: "Recurso em desenvolvimento"
+
+---
+
+SEÇÃO "SEGURANÇA":
+
+Card "Auditoria":
+- Tabela de atividades:
+  * Timestamp
+  * Usuário
+  * Ação (Login, Alteração, Exclusão, etc)
+  * IP
+  * Dispositivo
+- Filtros: por usuário, por tipo de ação, por período
+- Paginação
+- Exportar log (CSV)
+
+Card "Permissões de API":
+- Tabela de tokens/keys:
+  * Nome
+  * Criado em
+  * Último uso
+  * Permissões (badges)
+  * Ações (copiar, revogar)
+- Botão "Gerar novo token"
+
+Card "Backup":
+- Último backup: timestamp
+- Botão "Fazer backup agora"
+- Toggle "Backup automático diário"
+- Botão "Restaurar de backup" (upload de arquivo)
+
+---
+
+SEÇÃO "AVANÇADO":
+
+Card "Dados e Privacidade":
+- Botão "Exportar todos os dados" (GDPR compliance)
+- Botão "Limpar cache"
+- Botão "Limpar dados de navegação"
+
+Card "Modo Desenvolvedor":
+- Toggle "Ativar modo desenvolvedor"
+- Se ativo:
+  * Mostra IDs em todos os registros
+  * Console de debug
+  * Logs de requisições
+  * Acesso a webhooks
+
+Card "Banco de Dados":
+- Estatísticas:
+  * Total de registros (X conversas, Y clientes, Z mensagens)
+  * Espaço usado (MB/GB)
+- Botão "Otimizar banco de dados"
+- Botão "Limpar dados antigos" (>1 ano)
+
+Card "Reset":
+- Botão "Restaurar configurações padrão" (vermelho, confirmação)
+
+---
+
+FUNCIONALIDADES GERAIS:
+
+- Auto-save em campos editáveis (debounce 2s)
+- Toast de "Salvo automaticamente" (discreto)
+- Indicador de mudanças não salvas (dot laranja)
+- Validação em tempo real
+- Estados de loading
+- Responsivo: sidebar vira tabs no mobile
+- Busca global nas configurações (Cmd+K)
+
+DADOS MOCK:
+- Perfil preenchido com dados do atendente logado
+- Equipe com 3-5 membros
+- Feriados de 2026
+- Algumas integrações conectadas, outras não
+- Log de auditoria com 50+ eventos
+- Tokens de API mockados
+
+Por favor, implemente tudo completamente funcional. Todos os toggles, selects, inputs devem funcionar e persistir (localStorage). Modais de confirmação para ações destrutivas.

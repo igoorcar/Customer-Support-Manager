@@ -82,10 +82,22 @@ export const products = pgTable("products", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   name: text("name").notNull(),
   description: text("description"),
+  sku: text("sku"),
+  brand: text("brand"),
   price: integer("price").notNull(),
+  promoPrice: integer("promo_price"),
+  costPrice: integer("cost_price"),
   category: text("category").notNull(),
   stock: integer("stock").notNull().default(0),
+  stockAlert: integer("stock_alert").default(10),
+  soldCount: integer("sold_count").default(0),
   image: text("image"),
+  format: text("format"),
+  material: text("material"),
+  color: text("color"),
+  gender: text("gender"),
+  active: boolean("active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
 });
 
 export const activities = pgTable("activities", {
@@ -111,7 +123,7 @@ export const insertClientSchema = createInsertSchema(clients).omit({ id: true, c
 export const insertConversationSchema = createInsertSchema(conversations).omit({ id: true, startedAt: true });
 export const insertMessageSchema = createInsertSchema(messages).omit({ id: true, sentAt: true });
 export const insertQuickReplySchema = createInsertSchema(quickReplies).omit({ id: true });
-export const insertProductSchema = createInsertSchema(products).omit({ id: true });
+export const insertProductSchema = createInsertSchema(products).omit({ id: true, createdAt: true });
 export const insertActivitySchema = createInsertSchema(activities).omit({ id: true, timestamp: true });
 export const insertClientNoteSchema = createInsertSchema(clientNotes).omit({ id: true, createdAt: true });
 

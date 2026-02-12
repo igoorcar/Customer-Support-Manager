@@ -1,0 +1,156 @@
+Crie a tela de PRODUTOS completa para gerenciar o catálogo de produtos da ótica.
+
+LAYOUT PRINCIPAL:
+
+Header:
+- Título "Produtos" (text-2xl font-bold)
+- Subtítulo com stats: "342 produtos • R$ 2,8M em estoque"
+- Botão "Novo Produto" (primary, ícone Plus)
+
+Filtros e ações:
+- Input de busca (ícone Search, placeholder: "Buscar produtos...")
+- Filtros rápidos (pills):
+  * Todos
+  * Em estoque (badge verde com total)
+  * Estoque baixo (badge laranja, <10 unidades)
+  * Sem estoque (badge vermelho)
+  * Novidades (últimos 30 dias)
+- Dropdown "Categoria":
+  * Óculos de Grau
+  * Óculos de Sol
+  * Lentes de Contato
+  * Acessórios
+  * Lentes Avulsas
+- Dropdown "Ordenar por":
+  * Nome (A-Z)
+  * Preço (menor → maior)
+  * Preço (maior → menor)
+  * Estoque (maior → menor)
+  * Mais vendidos
+  * Recentes
+- Botões:
+  * "Importar" (ícone Upload, tooltip: "Importar CSV/Excel")
+  * "Exportar" (ícone Download)
+- Switch de visualização: Grid / Lista
+
+VISUALIZAÇÃO GRID:
+Grid 4 colunas (desktop), 2 (tablet), 1 (mobile)
+
+Card de produto:
+- Imagem principal (quadrada, 240px, object-cover)
+  * Galeria de miniaturas sobreposta (bottom, 4 dots max)
+  * Hover: mostrar próxima imagem
+  * Badge "NOVO" (canto superior esquerdo, se <30 dias)
+  * Badge de estoque (canto superior direito):
+    - Verde: "Em estoque (X un)"
+    - Laranja: "Estoque baixo (X un)"
+    - Vermelho: "Sem estoque"
+- Nome do produto (text-lg font-semibold, truncate 2 lines)
+- Categoria (badge pill)
+- SKU (text-xs text-gray-500, ícone Hash)
+- Preço (text-2xl font-bold, verde):
+  * Se tem desconto: preço original riscado (cinza, menor) + novo preço
+  * Desconto em % (badge vermelho)
+- Ações (aparecem no hover):
+  * Ver detalhes (ícone Eye)
+  * Editar (ícone Edit)
+  * Enviar via WhatsApp (ícone Send)
+  * Menu (ícone MoreVertical):
+    - Duplicar
+    - Ajustar estoque
+    - Ativar/Desativar
+    - Excluir
+- Hover: shadow-lg, scale 1.03
+
+VISUALIZAÇÃO LISTA (tabela):
+Colunas:
+- Checkbox (seleção múltipla)
+- Imagem (thumbnail 48px)
+- Nome + SKU (sortable)
+- Categoria (badge, filterable)
+- Preço (sortable, formatado)
+- Estoque (sortable, badge colorido)
+- Status (toggle ativo/inativo)
+- Vendas (total vendido, sortable)
+- Ações (dropdown)
+
+Features:
+- Ordenação por coluna
+- Paginação (10/25/50/100)
+- Seleção múltipla com ações em lote:
+  * Exportar selecionados
+  * Mudar categoria
+  * Ajustar preços (% ou R$)
+  * Ativar/Desativar
+  * Excluir
+- Loading skeleton
+- Empty state com ilustração
+
+MODAL "NOVO PRODUTO":
+Form com abas (esquerda) + Preview ao vivo (direita)
+
+ABA "Informações Básicas":
+- Upload de imagens (múltiplas, drag & drop, crop):
+  * Área de drop com preview
+  * Galeria de thumbnails (reordenar com drag)
+  * Máximo 8 imagens
+  * Formatos: JPG, PNG, WEBP
+  * Tamanho max: 5MB por imagem
+  * Primeira imagem = principal
+- Nome do produto* (required, max 100 chars)
+- SKU* (auto-gerado ou manual, validação de único)
+- Categoria* (select com ícones)
+- Marca (select criável: Ray-Ban, Oakley, Prada, etc)
+- Descrição (rich text editor, max 500 chars):
+  * Negrito, itálico, lista
+  * Preview em tempo real
+- Tags (multi-select criável): Esportivo, Feminino, Masculino, Unissex, etc
+
+ABA "Preço e Estoque":
+- Preço de custo (R$, opcional)
+- Preço de venda* (R$, required, formatação automática)
+- Preço promocional (R$, opcional):
+  * Se preenchido: mostra % de desconto calculado
+  * Data início/fim da promoção (date range)
+- Estoque:
+  * Quantidade* (number, min 0)
+  * Alerta de estoque baixo (number, default 10)
+  * Checkbox "Controlar estoque" (se desmarcado: sempre disponível)
+- Código de barras (input, validação EAN-13)
+
+ABA "Especificações" (campos dinâmicos por categoria):
+
+Se "Óculos de Grau" ou "Óculos de Sol":
+- Formato (select: Aviador, Wayfarer, Redondo, Quadrado, Gatinho, Esportivo)
+- Material da armação (select: Acetato, Metal, TR90, Titânio, Madeira)
+- Cor da armação (color picker + campo texto)
+- Tamanho (select: P, M, G ou medidas em mm)
+- Gênero (select: Masculino, Feminino, Unissex, Infantil)
+- Proteção UV (checkbox + %)
+- Polarizado (checkbox, se Sol)
+
+Se "Lentes de Contato":
+- Tipo (select: Descartável, Mensal, Anual)
+- Grau (range: -20 a +20)
+- Diâmetro (number + "mm")
+- Curvatura (number)
+- Cor (se colorida)
+
+Campos personalizados:
+- Botão "+ Adicionar campo"
+- Nome do campo + Valor
+- Pode adicionar quantos quiser
+
+ABA "SEO e Marketing" (avançado):
+- URL amigável (auto-gerado, editável)
+- Meta título (max 60 chars, contador)
+- Meta descrição (max 160 chars, contador)
+- Palavras-chave (tags)
+
+ABA "Template WhatsApp":
+- Checkbox "Usar template customizado"
+- Editor de mensagem template:
+  * Texto que será enviado quando clicar "Enviar via WhatsApp"
+  * Variáveis disponíveis: {{nome}}, {{preco}}, {{descricao}}, {{sku}}
+  * Preview em tempo real (bolha verde WhatsApp)
+- Exemplo padrão:

@@ -1,0 +1,318 @@
+Crie o sistema de LOGIN e AUTENTICAÇÃO completo, com telas de login, registro, recuperação de senha e onboarding.
+
+TELA DE LOGIN:
+
+Layout split 50/50 (desktop), full (mobile):
+
+LADO ESQUERDO - Branding:
+- Background: gradiente azul (#2563EB → #8B5CF6)
+- Logo da Ótica Suellen (grande, branca)
+- Slogan: "Atendimento WhatsApp Profissional"
+- Ilustração vetorial (atendente + WhatsApp + óculos)
+- Carrossel de benefícios (auto-rotate 5s):
+  * "⚡ Respostas automáticas inteligentes"
+  * "📊 Relatórios e analytics completos"
+  * "👥 Gestão de equipe eficiente"
+  * "🔄 Integração total com WhatsApp"
+
+LADO DIREITO - Form de Login:
+- Container centralizado (max 400px)
+- Logo pequena (topo)
+- Título "Bem-vindo de volta!" (text-2xl font-bold)
+- Subtítulo "Entre na sua conta" (text-gray-600)
+
+Form:
+- Input Email:
+  * Label "Email"
+  * Placeholder "seu@email.com"
+  * Validação de formato
+  * Ícone Mail leading
+  * Estado de erro (borda vermelha + mensagem)
+  
+- Input Senha:
+  * Label "Senha"
+  * Placeholder "••••••••"
+  * Ícone Lock leading
+  * Toggle mostrar/esconder senha (ícone Eye/EyeOff trailing)
+  
+- Checkbox "Lembrar de mim"
+- Link "Esqueceu a senha?" (à direita, text-sm)
+
+- Botão "Entrar" (primary, full width):
+  * Loading spinner quando processando
+  * Disabled se campos vazios
+  
+- Divider "ou"
+
+- Botões de login social (outline, full width):
+  * "Continuar com Google" (logo Google)
+  * "Continuar com Microsoft" (logo Microsoft)
+
+- Link para registro:
+  * "Não tem uma conta? Cadastre-se" (centralizado, bottom)
+
+Validações:
+- Email inválido: "Digite um email válido"
+- Senha vazia: "Digite sua senha"
+- Credenciais incorretas: "Email ou senha incorretos"
+- Toast de erro se falha no login
+
+---
+
+TELA DE REGISTRO:
+
+Layout similar ao login (split 50/50)
+
+LADO ESQUERDO - Branding:
+Similar ao login, mas carrossel diferente:
+- "💰 7 dias grátis, sem cartão"
+- "🚀 Setup em menos de 5 minutos"
+- "💬 Suporte 24/7 em português"
+- "📈 Escalável para qualquer tamanho"
+
+LADO DIREITO - Form de Registro:
+
+Stepper (3 etapas):
+- Step 1: Informações pessoais
+- Step 2: Informações da empresa
+- Step 3: Configuração inicial
+
+STEP 1 - Informações Pessoais:
+- Título "Crie sua conta" (text-2xl)
+- Input Nome completo*
+- Input Email* (validação + check de email já cadastrado)
+- Input Senha* (validação de força, requisitos)
+- Input Confirmar senha* (validação de match)
+- Checkbox "Aceito os Termos de Uso e Política de Privacidade"*
+- Botão "Continuar" (disabled se inválido)
+- Link "Já tem conta? Entre"
+
+STEP 2 - Informações da Empresa:
+- Input Nome da empresa*
+- Select Segmento:
+  * Ótica/Óptica
+  * Varejo
+  * Serviços
+  * E-commerce
+  * Outros
+- Input CNPJ (opcional, mask, validação)
+- Input Telefone comercial (mask)
+- Input Número de atendentes (number, 1-100+)
+- Botões: "Voltar", "Continuar"
+
+STEP 3 - Configuração Inicial:
+- Título "Quase lá!"
+- Select Fuso horário (auto-detectado)
+- Select Moeda (BRL - Real brasileiro)
+- Toggle "Receber emails de novidades"
+- Botão "Criar conta e começar" (primary, loading)
+
+Após criação:
+- Redirect para onboarding
+- Email de confirmação enviado (toast)
+
+---
+
+TELA DE RECUPERAÇÃO DE SENHA:
+
+Layout similar, lado esquerdo igual
+
+LADO DIREITO:
+
+Título "Esqueceu sua senha?"
+Subtítulo "Sem problemas! Enviaremos um link de recuperação."
+
+Form:
+- Input Email*
+- Botão "Enviar link de recuperação"
+- Link "Voltar para login"
+
+Estados:
+1. Inicial (form vazio)
+2. Loading (enviando email)
+3. Sucesso:
+   - Ícone de check grande (verde)
+   - Título "Email enviado!"
+   - Texto "Verifique sua caixa de entrada. O link expira em 1 hora."
+   - Botão "Voltar para login"
+4. Erro (email não encontrado):
+   - Mensagem "Email não cadastrado"
+   - Link "Criar nova conta"
+
+---
+
+TELA DE REDEFINIR SENHA (via link do email):
+
+Layout similar
+
+Form:
+- Título "Crie uma nova senha"
+- Input Nova senha* (com strength meter)
+- Input Confirmar senha*
+- Requisitos de senha (checklist visual)
+- Botão "Redefinir senha"
+
+Estados:
+1. Inicial
+2. Loading (processando)
+3. Sucesso:
+   - Ícone check
+   - Título "Senha redefinida!"
+   - Botão "Ir para login"
+4. Erro:
+   - Link expirado: "Link expirado ou inválido. Solicite um novo."
+   - Senhas não coincidem: validação inline
+
+---
+
+ONBOARDING (após primeiro login):
+
+Modal/tela full-screen com 4 etapas (wizard):
+
+STEP 1 - Conectar WhatsApp:
+- Título "Conecte seu WhatsApp"
+- Ilustração de celular com WhatsApp
+- Instruções numeradas:
+  1. Abra o WhatsApp no seu celular
+  2. Toque em Menu > Dispositivos conectados
+  3. Toque em "Conectar dispositivo"
+  4. Escaneie o QR code abaixo
+- QR Code grande (512px)
+- Status: "Aguardando leitura..." → "Conectado ✓"
+- Botões: "Pular por agora", "Continuar" (disabled até conectar)
+
+STEP 2 - Configurar Horário:
+- Título "Defina seu horário de atendimento"
+- Subtítulo "Enviaremos mensagens automáticas fora desse horário"
+- Form simplificado:
+  * Checkbox "Mesmo horário todos os dias"
+  * Se não: mini grid de horários (Seg-Dom)
+  * Time pickers (início/fim)
+- Sugestão padrão preenchida
+- Botões: "Voltar", "Continuar"
+
+STEP 3 - Criar Primeiro Botão:
+- Título "Crie sua primeira resposta rápida"
+- Subtítulo "Economize tempo com respostas prontas"
+- Form mini:
+  * Input Label (ex: "Saudação")
+  * Textarea Mensagem (ex: "Olá! Como posso ajudar?")
+  * Preview ao vivo (bolha WhatsApp)
+- Botões: "Voltar", "Criar e Continuar"
+
+STEP 4 - Tour Rápido:
+- Título "Tudo pronto!"
+- Subtítulo "Conheça as principais funcionalidades"
+- Carrossel de 5 slides (com ilustrações):
+  1. Dashboard: "Veja suas métricas em tempo real"
+  2. Conversas: "Atenda seus clientes via WhatsApp"
+  3. Botões: "Respostas rápidas e personalizadas"
+  4. Clientes: "Gestão completa da sua base"
+  5. Relatórios: "Analytics profissionais"
+- Dots de progresso
+- Botões: "Anterior", "Próximo", "Começar a usar" (último slide)
+
+Após concluir onboarding:
+- Marca flag `onboarding_completed` no user
+- Redirect para Dashboard
+- Toast "Bem-vindo! 🎉"
+- Primeiro tour: spotlight nos elementos principais
+
+---
+
+COMPONENTES DE AUTH:
+
+PrivateRoute:
+- Wrapper para rotas protegidas
+- Verifica autenticação
+- Redirect para login se não autenticado
+
+PublicRoute:
+- Wrapper para login/registro
+- Redirect para dashboard se já autenticado
+
+AuthContext:
+- Provider React Context
+- State: user, loading, authenticated
+- Methods:
+  * login(email, password)
+  * logout()
+  * register(data)
+  * resetPassword(email)
+  * updateProfile(data)
+
+Mock de autenticação:
+- Simular login bem-sucedido
+- User mock:
+```js
+  {
+    id: "1",
+    name: "Ana Santos",
+    email: "ana@teste.com",
+    avatar: "...",
+    role: "admin",
+    company: "Ótica Suellenn",
+    onboarding_completed: false
+  }
+```
+- Salvar em localStorage
+- Token mock JWT
+
+---
+
+ESTADOS E VALIDAÇÕES:
+
+Email:
+- Regex de validação
+- Feedback em tempo real
+- Debounce de 500ms
+
+Senha:
+- Strength meter (fraca/média/forte):
+  * Cor do indicador muda
+  * Barra de progresso
+- Requisitos visíveis:
+  * ✓ Mínimo 8 caracteres
+  * ✓ Letra maiúscula
+  * ✓ Letra minúscula
+  * ✓ Número
+  * ✓ Caractere especial
+
+Loading states:
+- Skeleton em inputs durante auto-complete
+- Spinner em botões durante submit
+- Blur de fundo durante processamento
+
+Error states:
+- Borders vermelhas em inputs inválidos
+- Mensagens de erro abaixo dos campos
+- Ícones de alerta
+- Toast de erro global
+
+Success states:
+- Borders verdes em inputs válidos
+- Ícones de check
+- Toast de sucesso
+- Animações de transição
+
+---
+
+ACESSIBILIDADE:
+
+- Todos os inputs com labels
+- Placeholders descritivos
+- Focus visível (outline azul)
+- Tab navigation funcional
+- ARIA labels apropriados
+- Error announcements para screen readers
+- Contraste WCAG AA
+
+SEGURANÇA:
+
+- Password não visível por padrão
+- Inputs do tipo "password"
+- Proteção contra auto-complete malicioso
+- Rate limiting visual (após 5 tentativas: "Tente novamente em 1 minuto")
+- Mensagens genéricas para erros de auth (não revelar se email existe)
+
+Por favor, implemente tudo completamente funcional. Mock de autenticação deve funcionar (salvar user no context + localStorage). Validações em tempo real. Onboarding deve ser possível pular ou completar. Responsivo em todos os breakpoints.

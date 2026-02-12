@@ -365,10 +365,10 @@ export class DatabaseStorage implements IStorage {
       .groupBy(sql`EXTRACT(HOUR FROM ${conversations.startedAt})`)
       .orderBy(sql`EXTRACT(HOUR FROM ${conversations.startedAt})`);
 
-    const countsByHour = new Map(result.map((r) => [r.hour, r.count]));
-    const hours = [];
+    const countsByHour = new Map(result.map((r: any) => [r.hour, r.count]));
+    const hours: { hour: string; conversas: number }[] = [];
     for (let i = 8; i <= 20; i++) {
-      hours.push({ hour: `${i}:00`, conversas: countsByHour.get(i) ?? 0 });
+      hours.push({ hour: `${i}:00`, conversas: (countsByHour.get(i) ?? 0) as number });
     }
     return hours;
   }
@@ -381,22 +381,22 @@ export class DatabaseStorage implements IStorage {
       .from(conversations)
       .where(eq(conversations.status, "finalizada"));
 
-    const allConvs = await db.select().from(conversations);
-    const finished = allConvs.filter((c) => c.status === "finalizada").length;
+    const allConvs: any[] = await db.select().from(conversations);
+    const finished = allConvs.filter((c: any) => c.status === "finalizada").length;
     const total = allConvs.length;
     const rate = total > 0 ? Math.round((finished / total) * 100) : 0;
 
     const days = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
     const weeklyData = days.map((day, i) => {
-      const dayConvs = allConvs.filter((c) => new Date(c.startedAt).getDay() === i);
-      const dayFinished = dayConvs.filter((c) => c.status === "finalizada");
+      const dayConvs = allConvs.filter((c: any) => new Date(c.startedAt).getDay() === i);
+      const dayFinished = dayConvs.filter((c: any) => c.status === "finalizada");
       return { day, conversas: dayConvs.length, finalizadas: dayFinished.length };
     });
 
     const statusCounts = {
-      Nova: allConvs.filter((c) => c.status === "nova").length,
-      "Em atendimento": allConvs.filter((c) => c.status === "em_atendimento").length,
-      Pausada: allConvs.filter((c) => c.status === "pausada").length,
+      Nova: allConvs.filter((c: any) => c.status === "nova").length,
+      "Em atendimento": allConvs.filter((c: any) => c.status === "em_atendimento").length,
+      Pausada: allConvs.filter((c: any) => c.status === "pausada").length,
       Finalizada: finished,
     };
 

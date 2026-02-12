@@ -1,0 +1,897 @@
+# 🚀 PROMPT - INTEGRAÇÃO SUPABASE + BOTÕES COM MÍDIAS
+
+**Cole este prompt no Lovable/Replit:**
+
+```
+PARTE 1 - INTEGRAÇÃO COMPLETA COM SUPABASE
+
+Instale a dependência do Supabase:
+```
+npm install @supabase/supabase-js
+```
+
+1. CONFIGURAÇÃO DO SUPABASE:
+
+Crie o arquivo `src/lib/supabase.ts`:
+```typescript
+import { createClient } from '@supabase/supabase-js';
+
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://SEU_PROJETO.supabase.co';
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'SUA_CHAVE_PUBLICA';
+
+export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
+// Tipos TypeScript para o banco
+export type Conversa = {
+  id: string;
+  cliente_id: string;
+  atendente_id: string | null;
+  status: 'nova' | 'em_atendimento' | 'pausada' | 'finalizada';
+  canal: string;
+  prioridade: number;
+  iniciada_em: string;
+  atribuida_em: string | null;
+  finalizada_em: string | null;
+  clientes: {
+    id: string;
+    nome: string;
+    whatsapp: string;
+    email: string | null;
+    avatar_url: string | null;
+  };
+  atendentes: {
+    id: string;
+    nome: string;
+    avatar_url: string | null;
+  } | null;
+};
+
+export type Mensagem = {
+  id: string;
+  conversa_id: string;
+  whatsapp_message_id: string | null;
+  direcao: 'enviada' | 'recebida';
+  tipo: 'text' | 'image' | 'video' | 'audio' | 'document';
+  conteudo: string | null;
+  midia_url: string | null;
+  midia_mime_type: string | null;
+  status: 'enviada' | 'entregue' | 'lida' | 'falha';
+  enviada_em: string;
+  entregue_em: string | null;
+  lida_em: string | null;
+  enviada_por: string | null;
+  atendentes: {
+    nome: string;
+    avatar_url: string | null;
+  } | null;
+};
+
+export type Cliente = {
+  id: string;
+  nome: string;
+  whatsapp: string;
+  email: string | null;
+  avatar_url: string | null;
+  status: string;
+  tags: string[];
+  total_conversas: number;
+  total_compras: number;
+  valor_total_compras: number;
+  criado_em: string;
+};
+
+export type BotaoResposta = {
+  id: number;
+  label: string;
+  tipo: string;
+  texto_mensagem: string | null;
+  contexto: string | null;
+  ordem: number;
+  cor: string | null;
+  icone: string | null;
+  ativo: boolean;
+  produto_id: number | null;
+  ordenacao: 'texto_primeiro' | 'midias_primeiro' | 'caption_primeira_midia' | 'intercalado';
+  usar_caption: boolean;
+  preview_config: any;
+};
+
+export type BotaoMidia = {
+  id: string;
+  botao_id: number;
+  tipo: 'image' | 'video' | 'audio' | 'document';
+  url: string;
+  mime_type: string | null;
+  tamanho: number | null;
+  nome_arquivo: string | null;
+  ordem: number;
+};
+```
+
+Crie arquivo `.env.local` na raiz:
+```
+VITE_SUPABASE_URL=https://seu-projeto.supabase.co
+VITE_SUPABASE_ANON_KEY=sua-chave-publica-aqui
+```
+
+2. SERVIÇO DE API COM SUPABASE:
+
+Crie `src/services/api.ts`:
+```typescript
+import { supabase } from '@/lib/supabase';
+import type { Conversa, Mensagem, Cliente, BotaoResposta, BotaoMidia } from '@/lib/supabase';
+
+const N8N_BASE_URL = 'https://n8n-n8n-otica-suellenn.gycquy.easypanel.host';
+
+export const api = {
+  // ====== CONVERSAS ======
+  async getConversas(filtro?: 'todas' | 'aguardando' | 'minhas' | 'finalizadas', atendenteId?: string) {
+    let query = supabase
+      .from('conversas')
+      .select(`
+        *,
+        clientes (
+          id,
+          nome,
+          whatsapp,
+          email,
+          avatar_url
+        ),
+        atendentes (
+          id,
+          nome,
+          avatar_url
+        )
+      `)
+      .order('iniciada_em', { ascending: false });
+
+    if (filtro === 'aguardando') {
+      query = query.eq('status', 'nova');
+    } else if (filtro === 'minhas' && atendenteId) {
+      query = query.eq('atendente_id', atendenteId).in('status', ['em_atendimento', 'pausada']);
+    } else if (filtro === 'finalizadas') {
+      query = query.eq('status', 'finalizada');
+    } else {
+      query = query.in('status', ['nova', 'em_atendimento', 'pausada']);
+    }
+
+    const { data, error } = await query;
+    if (error) throw error;
+    return data as Conversa[];
+  },
+
+  async getConversa(id: string) {
+    const { data, error } = await supabase
+      .from('conversas')
+      .select(`
+        *,
+        clientes (*),
+        atendentes (*)
+      `)
+      .eq('id', id)
+      .single();
+
+    if (error) throw error;
+    return data as Conversa;
+  },
+
+  async getMensagens(conversaId: string) {
+    const { data, error } = await supabase
+      .from('mensagens')
+      .select(`
+        *,
+        atendentes (
+          nome,
+          avatar_url
+        )
+      `)
+      .eq('conversa_id', conversaId)
+      .order('enviada_em', { ascending: true });
+
+    if (error) throw error;
+    return data as Mensagem[];
+  },
+
+  async enviarMensagem(conversaId: string, numero: string, tipo: string, mensagem?: string, midiaUrl?: string) {
+    const response = await fetch(`${N8N_BASE_URL}/webhook/whatsapp/send`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        numero,
+        conversaId,
+        tipo,
+        mensagem: mensagem || '',
+        midiaUrl: midiaUrl || null
+      })
+    });
+
+    if (!response.ok) throw new Error('Erro ao enviar mensagem');
+    return response.json();
+  },
+
+  async transferirConversa(conversaId: string, novoAtendenteId: string, atendenteOrigemId: string, motivo: string) {
+    const response = await fetch(`${N8N_BASE_URL}/webhook/whatsapp/transferir`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        conversaId,
+        novoAtendenteId,
+        atendenteOrigemId,
+        motivo
+      })
+    });
+
+    if (!response.ok) throw new Error('Erro ao transferir conversa');
+    return response.json();
+  },
+
+  async finalizarConversa(conversaId: string, motivo: string, observacoes?: string) {
+    const { error } = await supabase
+      .from('conversas')
+      .update({
+        status: 'finalizada',
+        finalizada_em: new Date().toISOString(),
+        motivo_finalizacao: motivo
+      })
+      .eq('id', conversaId);
+
+    if (error) throw error;
+  },
+
+  // ====== CLIENTES ======
+  async getClientes(busca?: string) {
+    let query = supabase
+      .from('clientes')
+      .select('*')
+      .eq('status', 'ativo')
+      .order('nome');
+
+    if (busca) {
+      query = query.or(`nome.ilike.%${busca}%,whatsapp.ilike.%${busca}%,email.ilike.%${busca}%`);
+    }
+
+    const { data, error } = await query;
+    if (error) throw error;
+    return data as Cliente[];
+  },
+
+  async getCliente(id: string) {
+    const { data, error } = await supabase
+      .from('clientes')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (error) throw error;
+    return data as Cliente;
+  },
+
+  // ====== BOTÕES ======
+  async getBotoes() {
+    const { data, error } = await supabase
+      .from('botoes_resposta')
+      .select('*')
+      .order('ordem');
+
+    if (error) throw error;
+    return data as BotaoResposta[];
+  },
+
+  async getBotaoMidias(botaoId: number) {
+    const { data, error } = await supabase
+      .from('botoes_midias')
+      .select('*')
+      .eq('botao_id', botaoId)
+      .order('ordem');
+
+    if (error) throw error;
+    return data as BotaoMidia[];
+  },
+
+  async criarBotao(botao: {
+    label: string;
+    tipo: string;
+    textoMensagem?: string;
+    ordenacao: string;
+    usarCaption: boolean;
+    midias?: Array<{
+      tipo: string;
+      url: string;
+      mimeType: string;
+      tamanho: number;
+      nomeArquivo: string;
+    }>;
+  }) {
+    const response = await fetch(`${N8N_BASE_URL}/webhook/botao/criar`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(botao)
+    });
+
+    if (!response.ok) throw new Error('Erro ao criar botão');
+    return response.json();
+  },
+
+  async enviarBotao(botaoId: number, conversaId: string, numero: string, atendenteId: string) {
+    const response = await fetch(`${N8N_BASE_URL}/webhook/botao/enviar`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        botaoId,
+        conversaId,
+        numero,
+        atendenteId
+      })
+    });
+
+    if (!response.ok) throw new Error('Erro ao enviar botão');
+    return response.json();
+  },
+
+  // ====== UPLOAD DE MÍDIAS ======
+  async uploadMidia(file: File, tipo: 'conversas' | 'botoes') {
+    const fileName = `${tipo}/${Date.now()}_${file.name}`;
+    
+    const { data, error } = await supabase.storage
+      .from('midias')
+      .upload(fileName, file, {
+        cacheControl: '3600',
+        upsert: false
+      });
+
+    if (error) throw error;
+
+    const { data: { publicUrl } } = supabase.storage
+      .from('midias')
+      .getPublicUrl(fileName);
+
+    return {
+      url: publicUrl,
+      path: data.path,
+      mimeType: file.type,
+      tamanho: file.size,
+      nomeArquivo: file.name
+    };
+  }
+};
+```
+
+3. ATUALIZAR COMPONENTE DE CONVERSAS:
+
+No componente de Conversas, substitua dados mock por dados reais:
+
+```typescript
+import { useEffect, useState } from 'react';
+import { api } from '@/services/api';
+import type { Conversa, Mensagem } from '@/lib/supabase';
+
+export function ConversasPage() {
+  const [conversas, setConversas] = useState<Conversa[]>([]);
+  const [conversaSelecionada, setConversaSelecionada] = useState<Conversa | null>(null);
+  const [mensagens, setMensagens] = useState<Mensagem[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // Carregar conversas
+  useEffect(() => {
+    loadConversas();
+    
+    // Polling a cada 10 segundos
+    const interval = setInterval(loadConversas, 10000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Carregar mensagens quando seleciona conversa
+  useEffect(() => {
+    if (conversaSelecionada) {
+      loadMensagens(conversaSelecionada.id);
+    }
+  }, [conversaSelecionada]);
+
+  async function loadConversas() {
+    try {
+      const data = await api.getConversas('todas');
+      setConversas(data);
+    } catch (error) {
+      console.error('Erro ao carregar conversas:', error);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function loadMensagens(conversaId: string) {
+    try {
+      const data = await api.getMensagens(conversaId);
+      setMensagens(data);
+    } catch (error) {
+      console.error('Erro ao carregar mensagens:', error);
+    }
+  }
+
+  async function enviarMensagem(texto: string) {
+    if (!conversaSelecionada || !texto.trim()) return;
+
+    try {
+      await api.enviarMensagem(
+        conversaSelecionada.id,
+        conversaSelecionada.clientes.whatsapp,
+        'text',
+        texto
+      );
+      
+      // Recarregar mensagens
+      await loadMensagens(conversaSelecionada.id);
+    } catch (error) {
+      console.error('Erro ao enviar mensagem:', error);
+      alert('Erro ao enviar mensagem');
+    }
+  }
+
+  // ... resto do componente
+}
+```
+
+---
+
+PARTE 2 - BOTÕES DE RESPOSTA COM UPLOAD DE MÍDIAS
+
+Crie um componente completo para criar/editar botões com mídias:
+
+```typescript
+import { useState } from 'react';
+import { Upload, X, Image, Video, Music, File, Eye } from 'lucide-react';
+import { api } from '@/services/api';
+
+type MidiaUpload = {
+  id: string;
+  tipo: 'image' | 'video' | 'audio' | 'document';
+  file: File;
+  url: string; // URL temporária para preview
+  preview?: string;
+  uploading?: boolean;
+  uploaded?: boolean;
+  urlFinal?: string; // URL após upload no Supabase
+};
+
+export function CriarBotaoModal({ onClose, onSuccess }: any) {
+  const [label, setLabel] = useState('');
+  const [textoMensagem, setTextoMensagem] = useState('');
+  const [ordenacao, setOrdenacao] = useState<'texto_primeiro' | 'midias_primeiro' | 'caption_primeira_midia' | 'intercalado'>('texto_primeiro');
+  const [usarCaption, setUsarCaption] = useState(false);
+  const [midias, setMidias] = useState<MidiaUpload[]>([]);
+  const [salvando, setSalvando] = useState(false);
+
+  // Upload de arquivo
+  const handleFileSelect = async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+
+    const novaMidias: MidiaUpload[] = [];
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      const tipo = detectarTipoMidia(file.type);
+      
+      const midia: MidiaUpload = {
+        id: Math.random().toString(36),
+        tipo,
+        file,
+        url: URL.createObjectURL(file),
+        uploading: false,
+        uploaded: false
+      };
+
+      // Gerar preview para imagens
+      if (tipo === 'image') {
+        midia.preview = URL.createObjectURL(file);
+      }
+
+      novaMidias.push(midia);
+    }
+
+    setMidias([...midias, ...novaMidias]);
+  };
+
+  // Detectar tipo de mídia
+  const detectarTipoMidia = (mimeType: string): 'image' | 'video' | 'audio' | 'document' => {
+    if (mimeType.startsWith('image/')) return 'image';
+    if (mimeType.startsWith('video/')) return 'video';
+    if (mimeType.startsWith('audio/')) return 'audio';
+    return 'document';
+  };
+
+  // Remover mídia
+  const removerMidia = (id: string) => {
+    setMidias(midias.filter(m => m.id !== id));
+  };
+
+  // Reordenar mídias (drag and drop)
+  const reordenarMidias = (fromIndex: number, toIndex: number) => {
+    const novasMidias = [...midias];
+    const [removed] = novasMidias.splice(fromIndex, 1);
+    novasMidias.splice(toIndex, 0, removed);
+    setMidias(novasMidias);
+  };
+
+  // Salvar botão
+  const salvarBotao = async () => {
+    if (!label.trim()) {
+      alert('Preencha o label do botão');
+      return;
+    }
+
+    setSalvando(true);
+
+    try {
+      // 1. Fazer upload de todas as mídias para o Supabase
+      const midiasComUrl = await Promise.all(
+        midias.map(async (midia, index) => {
+          const resultado = await api.uploadMidia(midia.file, 'botoes');
+          
+          return {
+            tipo: midia.tipo,
+            url: resultado.url,
+            mimeType: resultado.mimeType,
+            tamanho: resultado.tamanho,
+            nomeArquivo: resultado.nomeArquivo,
+            ordem: index
+          };
+        })
+      );
+
+      // 2. Criar botão no backend via n8n
+      const resultado = await api.criarBotao({
+        label,
+        tipo: 'customizado',
+        textoMensagem: textoMensagem || null,
+        ordenacao,
+        usarCaption,
+        midias: midiasComUrl
+      });
+
+      alert('Botão criado com sucesso!');
+      onSuccess();
+      onClose();
+
+    } catch (error) {
+      console.error('Erro ao criar botão:', error);
+      alert('Erro ao criar botão');
+    } finally {
+      setSalvando(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg w-full max-w-6xl max-h-[90vh] overflow-hidden flex">
+        {/* COLUNA ESQUERDA - FORMULÁRIO */}
+        <div className="flex-1 overflow-y-auto p-6">
+          <h2 className="text-2xl font-bold mb-6">Criar Botão de Resposta</h2>
+
+          {/* Label */}
+          <div className="mb-4">
+            <label className="block text-sm font-medium mb-2">
+              Label do Botão *
+            </label>
+            <input
+              type="text"
+              value={label}
+              onChange={(e) => setLabel(e.target.value)}
+              placeholder="Ex: Catálogo Óculos Esportivos"
+              className="w-full px-3 py-2 border rounded-lg"
+              maxLength={50}
+            />
+            <p className="text-xs text-gray-500 mt-1">{label.length}/50</p>
+          </div>
+
+          {/* Texto da Mensagem */}
+          <div className="mb-4">
+            <label className="block text-sm font-medium mb-2">
+              Texto da Mensagem
+            </label>
+            <textarea
+              value={textoMensagem}
+              onChange={(e) => setTextoMensagem(e.target.value)}
+              placeholder="Digite o texto que será enviado..."
+              className="w-full px-3 py-2 border rounded-lg h-24 resize-none"
+              maxLength={1000}
+            />
+            <p className="text-xs text-gray-500 mt-1">{textoMensagem.length}/1000</p>
+          </div>
+
+          {/* Upload de Mídias */}
+          <div className="mb-4">
+            <label className="block text-sm font-medium mb-2">
+              Mídias (Imagens, Vídeos, Áudios, Documentos)
+            </label>
+            
+            {/* Botão de Upload */}
+            <label className="border-2 border-dashed border-gray-300 rounded-lg p-8 flex flex-col items-center justify-center cursor-pointer hover:border-blue-500 transition">
+              <Upload className="w-12 h-12 text-gray-400 mb-2" />
+              <p className="text-sm text-gray-600 mb-1">
+                Clique para selecionar ou arraste arquivos
+              </p>
+              <p className="text-xs text-gray-400">
+                Imagens, vídeos (max 16MB), áudios, PDFs, documentos
+              </p>
+              <input
+                type="file"
+                multiple
+                accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx"
+                onChange={(e) => handleFileSelect(e.target.files)}
+                className="hidden"
+              />
+            </label>
+
+            {/* Lista de Mídias */}
+            {midias.length > 0 && (
+              <div className="mt-4 space-y-2">
+                {midias.map((midia, index) => (
+                  <div
+                    key={midia.id}
+                    className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border"
+                    draggable
+                  >
+                    {/* Ícone do tipo */}
+                    <div className="flex-shrink-0">
+                      {midia.tipo === 'image' && <Image className="w-5 h-5 text-blue-500" />}
+                      {midia.tipo === 'video' && <Video className="w-5 h-5 text-purple-500" />}
+                      {midia.tipo === 'audio' && <Music className="w-5 h-5 text-green-500" />}
+                      {midia.tipo === 'document' && <File className="w-5 h-5 text-orange-500" />}
+                    </div>
+
+                    {/* Preview (se imagem) */}
+                    {midia.preview && (
+                      <img
+                        src={midia.preview}
+                        alt="Preview"
+                        className="w-12 h-12 object-cover rounded"
+                      />
+                    )}
+
+                    {/* Info do arquivo */}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">
+                        {midia.file.name}
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        {(midia.file.size / 1024 / 1024).toFixed(2)} MB
+                      </p>
+                    </div>
+
+                    {/* Ordem */}
+                    <div className="text-xs text-gray-500">
+                      #{index + 1}
+                    </div>
+
+                    {/* Botão remover */}
+                    <button
+                      onClick={() => removerMidia(midia.id)}
+                      className="p-1 hover:bg-gray-200 rounded"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Ordenação */}
+          <div className="mb-4">
+            <label className="block text-sm font-medium mb-2">
+              Como enviar?
+            </label>
+            <div className="space-y-2">
+              <label className="flex items-center gap-2 p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
+                <input
+                  type="radio"
+                  name="ordenacao"
+                  value="texto_primeiro"
+                  checked={ordenacao === 'texto_primeiro'}
+                  onChange={(e) => setOrdenacao(e.target.value as any)}
+                />
+                <div>
+                  <p className="font-medium">Texto primeiro, depois mídias</p>
+                  <p className="text-xs text-gray-500">Envia o texto, depois todas as mídias</p>
+                </div>
+              </label>
+
+              <label className="flex items-center gap-2 p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
+                <input
+                  type="radio"
+                  name="ordenacao"
+                  value="midias_primeiro"
+                  checked={ordenacao === 'midias_primeiro'}
+                  onChange={(e) => setOrdenacao(e.target.value as any)}
+                />
+                <div>
+                  <p className="font-medium">Mídias primeiro, depois texto</p>
+                  <p className="text-xs text-gray-500">Envia todas as mídias, depois o texto</p>
+                </div>
+              </label>
+
+              <label className="flex items-center gap-2 p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
+                <input
+                  type="radio"
+                  name="ordenacao"
+                  value="caption_primeira_midia"
+                  checked={ordenacao === 'caption_primeira_midia'}
+                  onChange={(e) => setOrdenacao(e.target.value as any)}
+                />
+                <div>
+                  <p className="font-medium">Texto como legenda na primeira mídia</p>
+                  <p className="text-xs text-gray-500">Primeira mídia com caption, resto sem texto</p>
+                </div>
+              </label>
+
+              <label className="flex items-center gap-2 p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
+                <input
+                  type="radio"
+                  name="ordenacao"
+                  value="intercalado"
+                  checked={ordenacao === 'intercalado'}
+                  onChange={(e) => setOrdenacao(e.target.value as any)}
+                />
+                <div>
+                  <p className="font-medium">Intercalado</p>
+                  <p className="text-xs text-gray-500">1ª mídia → texto → demais mídias</p>
+                </div>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        {/* COLUNA DIREITA - PREVIEW */}
+        <div className="w-96 bg-gray-50 p-6 border-l">
+          <div className="flex items-center gap-2 mb-4">
+            <Eye className="w-5 h-5" />
+            <h3 className="font-semibold">Preview do Envio</h3>
+          </div>
+
+          <div className="bg-[#E5DDD5] rounded-lg p-4 space-y-2">
+            {/* Simular mensagens */}
+            {ordenacao === 'texto_primeiro' && (
+              <>
+                {textoMensagem && (
+                  <div className="bg-[#DCF8C6] rounded-lg p-3 ml-auto max-w-[80%]">
+                    <p className="text-sm whitespace-pre-wrap">{textoMensagem}</p>
+                  </div>
+                )}
+                {midias.map((midia, i) => (
+                  <div key={i} className="bg-[#DCF8C6] rounded-lg p-2 ml-auto max-w-[80%]">
+                    {midia.preview ? (
+                      <img src={midia.preview} className="rounded max-h-40" />
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        {midia.tipo === 'video' && <Video className="w-4 h-4" />}
+                        {midia.tipo === 'audio' && <Music className="w-4 h-4" />}
+                        {midia.tipo === 'document' && <File className="w-4 h-4" />}
+                        <span className="text-xs">{midia.file.name}</span>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </>
+            )}
+
+            {ordenacao === 'midias_primeiro' && (
+              <>
+                {midias.map((midia, i) => (
+                  <div key={i} className="bg-[#DCF8C6] rounded-lg p-2 ml-auto max-w-[80%]">
+                    {midia.preview ? (
+                      <img src={midia.preview} className="rounded max-h-40" />
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        {midia.tipo === 'video' && <Video className="w-4 h-4" />}
+                        {midia.tipo === 'audio' && <Music className="w-4 h-4" />}
+                        {midia.tipo === 'document' && <File className="w-4 h-4" />}
+                        <span className="text-xs">{midia.file.name}</span>
+                      </div>
+                    )}
+                  </div>
+                ))}
+                {textoMensagem && (
+                  <div className="bg-[#DCF8C6] rounded-lg p-3 ml-auto max-w-[80%]">
+                    <p className="text-sm whitespace-pre-wrap">{textoMensagem}</p>
+                  </div>
+                )}
+              </>
+            )}
+
+            {ordenacao === 'caption_primeira_midia' && midias.length > 0 && (
+              <>
+                <div className="bg-[#DCF8C6] rounded-lg p-2 ml-auto max-w-[80%]">
+                  {midias[0].preview && (
+                    <img src={midias[0].preview} className="rounded max-h-40" />
+                  )}
+                  {textoMensagem && (
+                    <p className="text-sm mt-2">{textoMensagem}</p>
+                  )}
+                </div>
+                {midias.slice(1).map((midia, i) => (
+                  <div key={i} className="bg-[#DCF8C6] rounded-lg p-2 ml-auto max-w-[80%]">
+                    {midia.preview && (
+                      <img src={midia.preview} className="rounded max-h-40" />
+                    )}
+                  </div>
+                ))}
+              </>
+            )}
+
+            {!textoMensagem && midias.length === 0 && (
+              <p className="text-sm text-gray-500 text-center py-8">
+                Adicione texto ou mídias para ver o preview
+              </p>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Footer com botões */}
+      <div className="absolute bottom-0 left-0 right-0 bg-white border-t p-4 flex justify-end gap-3">
+        <button
+          onClick={onClose}
+          className="px-4 py-2 border rounded-lg hover:bg-gray-50"
+          disabled={salvando}
+        >
+          Cancelar
+        </button>
+        <button
+          onClick={salvarBotao}
+          disabled={salvando || !label.trim()}
+          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+        >
+          {salvando ? 'Salvando...' : 'Criar Botão'}
+        </button>
+      </div>
+    </div>
+  );
+}
+```
+
+Adicione também suporte para DRAG AND DROP de arquivos:
+
+```typescript
+const [isDragging, setIsDragging] = useState(false);
+
+const handleDragOver = (e: React.DragEvent) => {
+  e.preventDefault();
+  setIsDragging(true);
+};
+
+const handleDragLeave = () => {
+  setIsDragging(false);
+};
+
+const handleDrop = (e: React.DragEvent) => {
+  e.preventDefault();
+  setIsDragging(false);
+  handleFileSelect(e.dataTransfer.files);
+};
+
+// No componente:
+<div
+  onDragOver={handleDragOver}
+  onDragLeave={handleDragLeave}
+  onDrop={handleDrop}
+  className={`border-2 border-dashed rounded-lg p-8 ${
+    isDragging ? 'border-blue-500 bg-blue-50' : 'border-gray-300'
+  }`}
+>
+  {/* conteúdo do upload */}
+</div>
+```
+
+Por favor, implemente:
+1. A configuração completa do Supabase
+2. A integração de todas as telas com dados reais do banco
+3. O componente de criação de botões com upload de mídias
+4. Suporte a drag and drop de arquivos
+5. Preview em tempo real da ordem de envio
+6. Upload para Supabase Storage antes de criar o botão
+
+Todos os uploads devem ir para o bucket 'midias' do Supabase Storage e gerar URLs públicas que serão salvas no banco.
+```
+
+---
+
+**Cole isso no Replit e me avisa quando estiver pronto!** 🚀

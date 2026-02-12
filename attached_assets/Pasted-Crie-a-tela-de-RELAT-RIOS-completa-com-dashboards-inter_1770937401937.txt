@@ -1,0 +1,333 @@
+Crie a tela de RELATÓRIOS completa com dashboards interativos e analytics do atendimento.
+
+LAYOUT PRINCIPAL:
+
+Header:
+- Título "Relatórios" (text-2xl font-bold)
+- Seletor de período (date range picker):
+  * Hoje
+  * Ontem
+  * Últimos 7 dias (padrão)
+  * Últimos 30 dias
+  * Este mês
+  * Mês passado
+  * Personalizado (date range)
+- Botão "Exportar Relatório" (dropdown: PDF, Excel, CSV)
+- Botão "Agendar Email" (ícone Calendar, tooltip: "Receber relatório por email periodicamente")
+
+Abas de categorias:
+- Visão Geral (ícone LayoutDashboard)
+- Atendimento (ícone MessageSquare)
+- Vendas (ícone DollarSign)
+- Atendentes (ícone Users)
+- Clientes (ícone UserCheck)
+
+---
+
+ABA "VISÃO GERAL":
+
+Row 1 - KPIs principais (4 cards):
+1. Total de Conversas:
+   - Número grande
+   - Comparação com período anterior (% + seta)
+   - Mini gráfico sparkline
+   
+2. Taxa de Conversão:
+   - Percentual (conversas → vendas)
+   - Comparação anterior
+   - Meta visual (progress bar)
+   
+3. Ticket Médio:
+   - Valor em R$
+   - Comparação anterior
+   - Tendência (ícone)
+   
+4. Satisfação do Cliente:
+   - Média de avaliações (⭐ 4.8/5.0)
+   - Total de avaliações
+   - Distribuição de estrelas (mini bar chart)
+
+Row 2 - Gráfico Principal:
+"Conversas e Vendas ao Longo do Tempo"
+- Gráfico de linha (Recharts)
+- 2 linhas: Conversas (azul) e Vendas (verde)
+- Eixo X: dias/semanas/meses (conforme período)
+- Eixo Y duplo (quantidade + valor R$)
+- Tooltip interativo
+- Legendas
+- Grid sutil
+- Zoom/pan se período longo
+
+Row 3 - Grid 3 colunas:
+
+Gráfico 1: "Distribuição por Canal"
+- Donut chart (Recharts)
+- Fatias: WhatsApp (95%), Loja Física (3%), Site (2%)
+- Cores distintas
+- Legenda com totais
+- Percentuais nas fatias
+
+Gráfico 2: "Status das Conversas"
+- Bar chart horizontal
+- Barras: Nova, Em Atendimento, Pausada, Finalizada
+- Cores por status
+- Valores absolutos
+
+Gráfico 3: "Horários de Pico"
+- Heatmap ou bar chart vertical
+- Eixo X: horas (0-23h)
+- Eixo Y: quantidade de conversas
+- Destacar picos (vermelho/laranja)
+- Média (linha tracejada)
+
+Row 4 - Tabela "Top 10 Produtos Mais Vendidos":
+- Colunas: Rank, Produto, Categoria, Vendas, Receita
+- Thumbnails pequenas
+- Badges coloridos
+- Ordenável
+- Paginação se >10
+
+---
+
+ABA "ATENDIMENTO":
+
+Row 1 - Métricas de atendimento (5 cards):
+1. Tempo Médio de Resposta:
+   - Em minutos
+   - Meta: <5min (progress bar)
+   - Comparação anterior
+   
+2. Tempo Médio de Atendimento:
+   - Em minutos
+   - Distribuição (box plot simples)
+   
+3. Taxa de Resolução:
+   - % conversas finalizadas com sucesso
+   - Comparação anterior
+   
+4. Conversas Simultâneas (média):
+   - Número
+   - Carga atual vs capacidade
+   
+5. Abandono:
+   - % conversas sem resposta >24h
+   - Tendência
+
+Row 2: "Funil de Atendimento"
+- Sankey diagram ou funnel chart
+- Etapas:
+  * Nova → Em Atendimento → Finalizada
+  * Pausada → Retomada → Finalizada
+  * Nova → Abandonada
+- Números em cada etapa
+- Taxa de conversão entre etapas
+
+Row 3 - Grid 2 colunas:
+
+Gráfico 1: "Motivos de Finalização"
+- Pie chart
+- Fatias: Atendido, Sem interesse, Não respondeu, Outros
+- Legendas com %
+
+Gráfico 2: "Conversas por Dia da Semana"
+- Bar chart
+- Seg a Dom
+- Identificar dias mais/menos movimentados
+
+Row 4: "Evolução de Métricas"
+- Multi-line chart
+- Linhas: Tempo resposta, Tempo atendimento, Taxa resolução
+- Período: diário
+- Legendas
+- Tooltip rico
+
+---
+
+ABA "VENDAS":
+
+Row 1 - Métricas financeiras (4 cards):
+1. Receita Total:
+   - Valor em R$
+   - Comparação anterior
+   - Meta do mês (progress)
+   
+2. Vendas:
+   - Quantidade
+   - Comparação anterior
+   
+3. Ticket Médio:
+   - Valor em R$
+   - Tendência
+   
+4. Conversão:
+   - % conversas → vendas
+   - Meta
+
+Row 2: "Receita ao Longo do Tempo"
+- Area chart (Recharts)
+- Área preenchida (gradiente verde)
+- Line chart sobreposto
+- Meta do período (linha tracejada horizontal)
+
+Row 3 - Grid 2 colunas:
+
+Gráfico 1: "Vendas por Categoria"
+- Bar chart horizontal
+- Categorias de produtos
+- Valores em R$
+- % do total
+
+Gráfico 2: "Métodos de Pagamento"
+- Donut chart
+- Fatias: PIX, Cartão Crédito, Cartão Débito, Boleto, Dinheiro
+- % de cada
+
+Row 4: "Performance por Período"
+- Tabela comparativa
+- Linhas: Hoje, Ontem, Esta semana, Semana passada, Este mês, Mês passado
+- Colunas: Conversas, Vendas, Receita, Ticket Médio, Taxa Conversão
+- Destaque diferenças (verde/vermelho)
+- Ícones de tendência
+
+---
+
+ABA "ATENDENTES":
+
+Row 1 - Ranking de atendentes (tabela):
+Colunas:
+- Rank (1, 2, 3... com medal icons para top 3)
+- Avatar + Nome
+- Conversas atendidas
+- Tempo médio de resposta
+- Taxa de resolução (%)
+- Satisfação média (⭐)
+- Vendas realizadas
+- Receita gerada (R$)
+- Performance geral (score 0-100 com progress bar)
+
+Sortable por qualquer coluna
+Top 3 com destaque visual (gold, silver, bronze)
+
+Row 2 - Grid 3 colunas:
+
+Card 1: "Distribuição de Carga"
+- Bar chart horizontal
+- Barras: cada atendente
+- Conversas ativas vs capacidade
+- Cores: verde (OK), laranja (quase cheio), vermelho (cheio)
+
+Card 2: "Horários Ativos"
+- Heatmap
+- Eixo X: horas do dia
+- Eixo Y: dias da semana
+- Cor: intensidade de atendimentos
+
+Card 3: "Evolução Individual"
+- Select de atendente
+- Line chart multi-métrica
+- Linhas: conversas, vendas, satisfação
+- Período: últimos 30 dias
+
+Row 3: "Comparativo de Atendentes"
+- Radar/Spider chart
+- Métricas: Velocidade, Qualidade, Vendas, Satisfação, Produtividade
+- 2-3 atendentes comparados (select)
+- Sobreposição de polígonos
+
+---
+
+ABA "CLIENTES":
+
+Row 1 - Métricas de base (4 cards):
+1. Novos Clientes:
+   - Quantidade no período
+   - % crescimento
+   
+2. Clientes Ativos:
+   - Com compra nos últimos 30 dias
+   - % da base total
+   
+3. Taxa de Retenção:
+   - % clientes com 2+ compras
+   - Tendência
+   
+4. LTV Médio:
+   - Lifetime value
+   - Segmentação (novo vs recorrente)
+
+Row 2: "Crescimento da Base"
+- Area chart
+- Clientes acumulados ao longo do tempo
+- Linha de novos clientes (overlay)
+
+Row 3 - Grid 2 colunas:
+
+Gráfico 1: "Segmentação RFM"
+- Scatter plot ou heatmap
+- Eixos: Recência, Frequência, Valor
+- Quadrantes: VIP, Frequentes, Novos, Em risco, Perdidos
+- Tooltips com detalhes
+
+Gráfico 2: "Canais de Aquisição"
+- Funnel chart
+- Etapas: Origem → Cadastro → 1ª compra → 2ª compra
+- Taxa de conversão entre etapas
+
+Row 4: "Top 20 Clientes VIP"
+- Tabela rica
+- Colunas: Rank, Cliente, Total gasto (R$), Compras, Última compra, LTV
+- Avatar + nome
+- Badges (VIP gold/platinum)
+- Ação: Ver perfil
+
+---
+
+COMPONENTES INTERATIVOS GERAIS:
+
+Filtros globais (sidebar esquerda, colapsável):
+- Período (date range)
+- Atendentes (multi-select)
+- Canais (multi-select)
+- Status de conversa
+- Categorias de produto
+- Tags de cliente
+- Botão "Limpar filtros"
+- Botão "Aplicar filtros"
+
+Exportação:
+- Botão "Exportar" gera arquivo com:
+  * Todos os gráficos como imagens
+  * Tabelas em formato tabular
+  * Logo da empresa
+  * Período selecionado
+  * Data de geração
+- Formatos: PDF (relatório visual), Excel (dados tabulares), CSV (dados brutos)
+
+Comparação de períodos:
+- Toggle "Comparar com período anterior"
+- Quando ativo: todos os gráficos mostram 2 períodos sobrepostos
+- Cores distintas (azul vs cinza)
+- Delta % em todos os KPIs
+
+Atualização:
+- Botão "Atualizar" (ícone RefreshCw)
+- Auto-refresh a cada 5 minutos (opcional, toggle)
+- Timestamp da última atualização
+
+DADOS MOCK:
+Gere dados realistas para 90 dias:
+- 500+ conversas
+- 200+ vendas
+- 5 atendentes com performances variadas
+- 300+ clientes
+- Mix de produtos
+- Tendências: crescimento de ~10% ao mês
+- Sazonalidade: picos fim de semana
+- Horários: pico 10-12h e 14-16h
+
+Use bibliotecas:
+- Recharts para todos os gráficos
+- react-datepicker para date range
+- Cores consistentes com design system
+
+Por favor, implemente tudo completamente funcional e interativo. Todos os gráficos devem ter tooltips ricos, legendas, e ser responsivos.

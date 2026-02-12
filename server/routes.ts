@@ -2,11 +2,21 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertClientSchema, insertQuickReplySchema, insertProductSchema, insertClientNoteSchema, insertMessageSchema } from "@shared/schema";
+import { requireAuth } from "./auth";
 
 export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
+
+  app.use("/api/stats", requireAuth);
+  app.use("/api/conversations", requireAuth);
+  app.use("/api/clients", requireAuth);
+  app.use("/api/attendants", requireAuth);
+  app.use("/api/quick-replies", requireAuth);
+  app.use("/api/products", requireAuth);
+  app.use("/api/activities", requireAuth);
+  app.use("/api/reports", requireAuth);
 
   app.get("/api/stats", async (_req, res) => {
     const stats = await storage.getStats();
