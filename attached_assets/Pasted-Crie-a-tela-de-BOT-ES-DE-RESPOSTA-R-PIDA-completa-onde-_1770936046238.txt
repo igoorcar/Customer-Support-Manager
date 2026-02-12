@@ -1,0 +1,193 @@
+Crie a tela de BOTÕES DE RESPOSTA RÁPIDA completa, onde atendentes podem criar e gerenciar botões customizados.
+
+LAYOUT PRINCIPAL:
+
+Header:
+- Título "Botões de Resposta Rápida" (text-2xl font-bold)
+- Subtítulo: "Configure respostas automáticas com mídias"
+- Botão "Criar Botão" (primary, ícone Plus) à direita
+
+Abas de categorias (pills horizontais):
+- Todos (badge com total)
+- Saudações (ícone Hand)
+- Produtos (ícone Package)
+- Informações (ícone Info)
+- Despedidas (ícone Smile)
+- Inativos (ícone EyeOff)
+
+Barra de ações:
+- Input de busca (ícone Search)
+- Filtro de ordenação (Ordem manual, Nome A-Z, Mais usados, Criados recentemente)
+- Switch "Mostrar inativos"
+
+LISTA DE BOTÕES (grid 3 colunas):
+Cada card de botão mostra:
+- Handle de drag (ícone GripVertical) para reordenar
+- Ícone do botão (editável, grande, 48px)
+- Label do botão (text-lg font-semibold)
+- Categoria (badge)
+- Preview do conteúdo:
+  * Se texto: primeiras 2 linhas (truncate)
+  * Se tem mídias: thumbnails em row (max 3 + contador)
+  * Mix: texto + thumbnails
+- Tipo de ordenação (badge pequeno):
+  * "Texto → Mídias"
+  * "Mídias → Texto"  
+  * "Caption"
+  * "Intercalado"
+- Estatísticas:
+  * Usado X vezes (ícone BarChart)
+  * Última vez: há X dias (ícone Clock)
+- Badge de status: Ativo (verde) / Inativo (cinza)
+- Toggle ativo/inativo (switch)
+- Botões de ação (aparecem no hover):
+  * Usar agora (ícone Send) - envia para última conversa aberta
+  * Editar (ícone Edit)
+  * Duplicar (ícone Copy)
+  * Excluir (ícone Trash)
+- Hover: shadow-md, scale 1.02
+- Drag & drop: reordenar posição (salva ordem customizada)
+
+Empty state:
+- Ilustração de bot com mensagens
+- Texto: "Nenhum botão cadastrado"
+- Sugestão: "Crie seu primeiro botão de resposta rápida"
+- Botão CTA: "Criar Primeiro Botão"
+
+MODAL/DRAWER "CRIAR/EDITAR BOTÃO":
+Layout em 2 colunas (esquerda: form, direita: preview ao vivo)
+
+COLUNA ESQUERDA - FORMULÁRIO:
+
+Seção "Básico":
+- Ícone do botão (picker com 100+ ícones, busca)
+- Label* (required, max 30 chars, contador)
+- Categoria* (select: Saudações, Produtos, Informações, Despedidas)
+- Cor do botão (color picker, 8 cores predefinidas)
+
+Seção "Conteúdo":
+- Texto da mensagem (textarea, auto-expand, max 1000 chars, contador)
+- Suporte a emojis (botão de emoji picker)
+- Variáveis dinâmicas (botões para inserir):
+  * {{nome_cliente}}
+  * {{nome_atendente}}
+  * {{horario}}
+  * {{data}}
+
+Seção "Mídias" (opcional):
+- Botão "Adicionar Mídia" (ícone Plus)
+- Tipos suportados:
+  * Imagem (JPG, PNG, WEBP, max 5MB)
+  * Vídeo (MP4, max 16MB)
+  * Áudio (MP3, OGG, max 16MB)
+  * Documento (PDF, DOC, XLSX, max 10MB)
+
+Para cada mídia adicionada:
+- Thumbnail/preview
+- Nome do arquivo
+- Tamanho
+- Handle de drag para reordenar
+- Campo "Legenda" (opcional)
+- Botão remover (ícone X)
+
+Drag & drop: arraste para reordenar mídias
+
+Seção "Configurações de Envio":
+- Radio buttons "Como enviar?":
+  * ○ Texto primeiro, depois mídias
+  * ○ Mídias primeiro, depois texto
+  * ○ Texto como legenda na primeira mídia
+  * ○ Intercalado (mídia → texto → mídias restantes)
+- Preview da ordem atualiza em tempo real
+
+Seção "Produto Vinculado" (opcional):
+- Checkbox "Vincular a um produto"
+- Select de produto (busca, com thumbnail)
+- Se vinculado: pode usar template do produto
+
+Seção "Avançado" (colapsável):
+- Contexto de uso (multi-select):
+  * Todas as conversas
+  * Apenas conversas novas
+  * Apenas conversas ativas
+  * Apenas conversas pausadas
+- Atalho de teclado (input, ex: "/catalogo")
+
+Footer:
+- Toggle "Ativo/Inativo"
+- Botão "Cancelar"
+- Botão "Salvar" (validação)
+- Se editando: Botão "Salvar e Usar" (salva + envia para conversa aberta)
+
+COLUNA DIREITA - PREVIEW AO VIVO:
+Simulação de chat WhatsApp mostrando:
+- Como o botão aparece no painel lateral
+- Como as mensagens aparecem no chat (ordem, formato)
+- Atualiza em tempo real conforme edita
+
+Mostra:
+- Label do botão (como aparece na lista)
+- Preview das mensagens na ordem configurada:
+  * Bolhas de texto (verde WhatsApp)
+  * Thumbnails de mídias
+  * Captions
+- Indicadores: "1ª mensagem", "2ª mensagem", etc.
+
+Título da preview: "Preview do Envio"
+Subtítulo: "Veja como ficará no chat"
+
+FUNCIONALIDADES EXTRAS:
+
+Ações em lote:
+- Checkbox para selecionar múltiplos
+- Barra aparece quando algo selecionado:
+  * Ativar selecionados
+  * Desativar selecionados
+  * Mudar categoria
+  * Excluir selecionados (confirmação)
+
+Importação/Exportação:
+- Botão "Importar" (ícone Upload):
+  * Upload de JSON com botões
+  * Validação de formato
+  * Preview antes de importar
+- Botão "Exportar" (ícone Download):
+  * Exporta todos ou selecionados
+  * Formato JSON
+
+Templates prontos:
+- Botão "Usar Templates" (ícone Sparkles):
+  * Modal com 20+ templates prontos
+  * Categorias: Ótica, Varejo, Atendimento Geral
+  * Preview de cada template
+  * Botão "Usar este template" (importa e permite editar)
+
+DADOS MOCK:
+Crie 15-20 botões de exemplo:
+
+Saudações:
+- "👋 Olá! Como posso ajudar?" (só texto)
+- "Bem-vindo!" (texto + imagem do logo)
+
+Produtos:
+- "📸 Catálogo Óculos Esportivos" (3 imagens + texto)
+- "🕶️ Linha Solar 2024" (vídeo + texto)
+- "👓 Óculos de Grau" (4 imagens em sequência)
+
+Informações:
+- "⏰ Horário de Atendimento" (texto formatado)
+- "💳 Formas de Pagamento" (texto + imagem)
+- "📍 Localização" (texto + link do mapa)
+
+Despedidas:
+- "Obrigado! 😊" (só texto)
+- "Até breve!" (texto + GIF animado)
+
+Mix de:
+- Diferentes ordenações (texto primeiro, mídia primeiro, caption, intercalado)
+- Alguns com produto vinculado
+- Alguns com atalhos (/cat, /hora, /pag)
+- Mix de ativos/inativos
+- Estatísticas variadas de uso
+
+Por favor, implemente tudo completamente funcional. O preview ao vivo deve atualizar em tempo real. O drag & drop deve funcionar tanto para reordenar botões quanto mídias dentro de um botão.

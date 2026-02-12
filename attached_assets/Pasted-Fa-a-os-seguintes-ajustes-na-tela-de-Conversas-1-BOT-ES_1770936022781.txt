@@ -1,0 +1,125 @@
+Faça os seguintes ajustes na tela de Conversas:
+
+1. **BOTÕES DE RESPOSTA RÁPIDA - REPOSICIONAR:**
+
+REMOVA os botões de resposta rápida de baixo do input.
+
+CRIE um painel lateral ESQUERDO fixo (240px de largura) entre a lista de conversas e o chat, contendo:
+
+Header:
+- Título "Respostas Rápidas" (text-sm font-semibold)
+- Ícone Zap
+
+Lista de botões (scroll vertical):
+Cada botão ocupa largura total e mostra:
+- Ícone à esquerda (conforme tipo)
+- Label do botão (font-medium)
+- Preview do texto/conteúdo (text-xs text-gray-500, truncate)
+- Hover: background azul claro
+- Click: envia a resposta automaticamente para o chat
+
+Categorias de botões:
+- Saudações (ícone: Hand)
+  * "Olá! Como posso ajudar?" 
+  * "Bem-vindo à Ótica Suellen!"
+  
+- Informações (ícone: Info)
+  * "Nosso horário: Seg-Sex 8h-18h"
+  * "Aceitamos cartão e PIX"
+  
+- Catálogo (ícone: Package)
+  * "📸 Enviar Catálogo" (envia imagens)
+  * "Modelos Esportivos"
+  * "Modelos Solares"
+  
+- Despedidas (ícone: Smile)
+  * "Obrigado pelo contato!"
+  * "Fico à disposição!"
+
+Adicione separadores visuais entre categorias.
+
+2. **PAINEL DIREITO - TORNAR COLAPSÁVEL:**
+
+Adicione botão toggle no header do chat (ícone: PanelRight ou SidebarClose):
+- Ao clicar: painel direito desliza para fora (animação suave)
+- Ícone muda para PanelRightOpen
+- Click novamente: reabre o painel
+- Salvar estado no localStorage
+
+Quando colapsado:
+- Chat ocupa toda largura disponível
+- Transição suave (duration-300)
+
+3. **FAZER BOTÕES FUNCIONAREM:**
+
+Botões do header do chat:
+- **Transferir** (UserPlus): 
+  * Abre modal com lista de atendentes online
+  * Select do novo atendente
+  * Campo de motivo (textarea)
+  * Botões: Cancelar, Transferir
+  
+- **Pausar** (Pause):
+  * Muda status da conversa para "Pausada"
+  * Badge muda para amarelo
+  * Toast de confirmação
+  
+- **Finalizar** (Check):
+  * Abre modal de finalização
+  * Select de motivo: Atendido, Sem interesse, Não respondeu, Outros
+  * Campo de observações (opcional)
+  * Botões: Cancelar, Finalizar
+  
+- **Menu** (MoreVertical):
+  * Dropdown com opções:
+    - Ver histórico completo
+    - Adicionar anotação
+    - Marcar como importante
+    - Bloquear contato
+    - Exportar conversa
+
+Botão "Editar informações" no painel direito:
+- Abre modal com form
+- Campos: Nome, Email, Tags
+- Botões: Cancelar, Salvar
+
+Botão "Ver perfil completo":
+- Abre modal maior ou redireciona para página de cliente
+
+4. **MELHORIAS VISUAIS:**
+
+Lista de conversas:
+- Adicionar indicador visual quando conversa está sendo digitada (3 dots animados)
+- Mostrar preview de imagem/arquivo na última mensagem
+
+Área do chat:
+- Adicionar botão "Rolar para baixo" (seta) quando não estiver no fim
+- Mostrar "digitando..." quando cliente está digitando (3 dots animados)
+
+Input de mensagem:
+- Adicionar suporte a arrastar e soltar arquivos
+- Preview de arquivo antes de enviar (com opção de remover)
+- Atalho visual: "Enter para enviar, Shift+Enter para quebra"
+
+5. **RESPONSIVIDADE MOBILE:**
+
+Em telas pequenas (<768px):
+- Esconder painel de respostas rápidas por padrão
+- Adicionar botão flutuante (ícone Zap) para abrir drawer com respostas
+- Painel direito vira modal full-screen
+- Bottom sheet para ações rápidas
+
+6. **ESTADOS E FEEDBACK:**
+
+Adicionar loading states:
+- Skeleton na lista enquanto carrega conversas
+- Spinner no chat enquanto carrega mensagens
+- Loading no botão enviar durante envio
+
+Adicionar toast notifications:
+- "Mensagem enviada com sucesso" (success)
+- "Erro ao enviar mensagem" (error)
+- "Conversa transferida" (success)
+- "Conversa finalizada" (success)
+
+Por favor, implemente todas essas melhorias mantendo o design limpo e profissional. Os botões e interações devem funcionar com feedback visual claro.

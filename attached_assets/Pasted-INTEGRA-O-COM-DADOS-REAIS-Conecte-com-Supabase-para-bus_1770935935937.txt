@@ -1,0 +1,293 @@
+INTEGRAÇÃO COM DADOS REAIS:
+
+Conecte com Supabase para buscar dados reais:
+
+1. LISTA DE CONVERSAS:
+Query SQL:
+```sql
+SELECT 
+    c.id,
+    c.status,
+    c.iniciada_em,
+    cl.nome as cliente_nome,
+    cl.whatsapp as cliente_whatsapp,
+    cl.avatar_url,
+    a.nome as atendente_nome,
+    a.avatar_url as atendente_avatar,
+    (SELECT conteudo FROM mensagens 
+     WHERE conversa_id = c.id 
+     ORDER BY enviada_em DESC LIMIT 1) as ultima_mensagem,
+    (SELECT enviada_em FROM mensagens 
+     WHERE conversa_id = c.id 
+     ORDER BY enviada_em DESC LIMIT 1) as ultima_mensagem_em,
+    (SELECT COUNT(*) FROM mensagens 
+     WHERE conversa_id = c.id 
+     AND direcao = 'recebida' 
+     AND status != 'lida') as nao_lidas
+FROM conversas c
+JOIN clientes cl ON c.cliente_id = cl.id
+LEFT JOIN atendentes a ON c.atendente_id = a.id
+WHERE c.status IN ('nova', 'em_atendimento', 'pausada')
+ORDER BY ultima_mensagem_em DESC;
+```
+
+2. MENSAGENS DO CHAT:
+Query SQL:
+```sql
+SELECT 
+    m.id,
+    m.direcao,
+    m.tipo,
+    m.conteudo,
+    m.midia_url,
+    m.midia_mime_type,
+    m.status,
+    m.enviada_em,
+    m.entregue_em,
+    m.lida_em,
+    a.nome as atendente_nome,
+    a.avatar_url as atendente_avatar
+FROM mensagens m
+LEFT JOIN atendentes a ON m.enviada_por = a.id
+WHERE m.conversa_id = $1
+ORDER BY m.enviada_em ASC;
+```
+
+3. RENDERIZAÇÃO DE MÍDIAS:
+
+ÁUDIO:
+- Usar componente <audio> nativo do HTML5
+- URL vem do campo `midia_url`
+- Se URL é do WhatsApp: buscar via API Graph do Facebook primeiro
+- Se URL é do Supabase Storage: usar diretamente
+- Player customizado com:
+  * Play/pause button
+  * Waveform visual (usar biblioteca wavesurfer.js)
+  * Timestamp (0:00 / 1:23)
+  * Speed control (1x, 1.5x, 2x)
+
+Código:
+```tsx
+import WaveSurfer from 'wavesurfer.js';
+
+const AudioMessage = ({ url }: { url: string }) => {
+  const waveformRef = useRef(null);
+  const [playing, setPlaying] = useState(false);
+  const [duration, setDuration] = useState('0:00');
+  
+  useEffect(() => {
+    const wavesurfer = WaveSurfer.create({
+      container: waveformRef.current,
+      waveColor: '#E5DDD5',
+      progressColor: '#128C7E',
+      height: 40,
+      barWidth: 2
+    });
+    
+    wavesurfer.load(url);
+    
+    wavesurfer.on('ready', () => {
+      setDuration(formatTime(wavesurfer.getDuration()));
+    });
+    
+    return () => wavesurfer.destroy();
+  }, [url]);
+  
+  return (
+    <div className="audio-message">
+      <button onClick={() => setPlaying(!playing)}>
+        {playing ? <Pause /> : <Play />}
+      </button>
+      <div ref={waveformRef} />
+      <span>{duration}</span>
+    </div>
+  );
+};
+```
+
+IMAGEM:
+- Thumbnail no chat (max 240px width)
+- Click: abre lightbox fullscreen
+- Suporta zoom, pan, download
+- Usar biblioteca react-image-lightbox
+
+Código:
+```tsx
+import Lightbox from 'react-image-lightbox';
+
+const ImageMessage = ({ url, caption }: { url: string; caption?: string }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  
+  return (
+    <>
+      <div className="image-message" onClick={() => setIsOpen(true)}>
+        <img 
+          src={url} 
+          alt="Imagem enviada"
+          className="rounded-lg max-w-[240px] cursor-pointer hover:opacity-90"
+        />
+        {caption && <p className="mt-1 text-sm">{caption}</p>}
+      </div>
+      
+      {isOpen && (
+        <Lightbox
+          mainSrc={url}
+          onCloseRequest={() => setIsOpen(false)}
+          imageCaption={caption}
+        />
+      )}
+    </>
+  );
+};
+```
+
+VÍDEO:
+- Thumbnail com botão play sobreposto
+- Click: abre modal com player HTML5
+- Controles: play/pause, volume, fullscreen, progresso
+- Suporta MP4, MOV
+
+Código:
+```tsx
+const VideoMessage = ({ url, caption }: { url: string; caption?: string }) => {
+  const [showPlayer, setShowPlayer] = useState(false);
+  
+  return (
+    <>
+      <div className="video-message relative" onClick={() => setShowPlayer(true)}>
+        <video src={url} className="rounded-lg max-w-[240px]" />
+        <div className="absolute inset-0 flex items-center justify-center">
+          <Play className="w-12 h-12 text-white bg-black/50 rounded-full p-3" />
+        </div>
+      </div>
+      
+      {showPlayer && (
+        <Modal onClose={() => setShowPlayer(false)}>
+          <video 
+            src={url} 
+            controls 
+            autoPlay 
+            className="w-full max-h-[80vh]"
+          />
+          {caption && <p className="mt-2">{caption}</p>}
+        </Modal>
+      )}
+    </>
+  );
+};
+```
+
+DOCUMENTO:
+- Card com ícone do tipo de arquivo
+- Nome do arquivo + tamanho
+- Botão de download
+- PDF: visualizador inline (react-pdf)
+
+Código:
+```tsx
+import { Document, Page } from 'react-pdf';
+
+const DocumentMessage = ({ url, filename, mimeType, size }: any) => {
+  const [showPreview, setShowPreview] = useState(false);
+  const isPdf = mimeType === 'application/pdf';
+  
+  return (
+    <>
+      <div className="document-message p-3 bg-white rounded-lg border">
+        <FileIcon type={mimeType} />
+        <div className="ml-3">
+          <p className="font-medium">{filename}</p>
+          <p className="text-xs text-gray-500">{formatBytes(size)}</p>
+        </div>
+        <div className="ml-auto flex gap-2">
+          {isPdf && (
+            <button onClick={() => setShowPreview(true)}>
+              <Eye />
+            </button>
+          )}
+          <a href={url} download={filename}>
+            <Download />
+          </a>
+        </div>
+      </div>
+      
+      {isPdf && showPreview && (
+        <Modal onClose={() => setShowPreview(false)}>
+          <Document file={url}>
+            <Page pageNumber={1} />
+          </Document>
+        </Modal>
+      )}
+    </>
+  );
+};
+```
+
+4. UPLOAD DE MÍDIAS:
+
+Ao anexar arquivo:
+- Upload para Supabase Storage
+- Obter URL pública
+- Enviar via webhook n8n com URL
+
+Código:
+```tsx
+const handleFileUpload = async (file: File) => {
+  // 1. Upload para Supabase Storage
+  const { data, error } = await supabase.storage
+    .from('midias')
+    .upload(`${conversaId}/${Date.now()}_${file.name}`, file);
+  
+  if (error) throw error;
+  
+  // 2. Obter URL pública
+  const { data: { publicUrl } } = supabase.storage
+    .from('midias')
+    .getPublicUrl(data.path);
+  
+  // 3. Enviar via API
+  await api.enviarMensagem({
+    conversaId,
+    tipo: detectFileType(file),
+    midiaUrl: publicUrl,
+    midiaMimeType: file.type,
+    conteudo: caption || ''
+  });
+};
+```
+
+5. STATUS DAS MENSAGENS (Checkmarks):
+
+Ícones:
+- 1 check cinza: enviada
+- 2 checks cinza: entregue
+- 2 checks azuis: lida
+
+Código:
+```tsx
+const MessageStatus = ({ status, entregueEm, lidaEm }: any) => {
+  if (status === 'enviada') {
+    return <Check className="w-4 h-4 text-gray-400" />;
+  }
+  
+  if (status === 'entregue') {
+    return (
+      <div className="flex -space-x-1">
+        <Check className="w-4 h-4 text-gray-400" />
+        <Check className="w-4 h-4 text-gray-400" />
+      </div>
+    );
+  }
+  
+  if (status === 'lida') {
+    return (
+      <div className="flex -space-x-1">
+        <Check className="w-4 h-4 text-blue-500" />
+        <Check className="w-4 h-4 text-blue-500" />
+      </div>
+    );
+  }
+  
+  return null;
+};
+```

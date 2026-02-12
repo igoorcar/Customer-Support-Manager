@@ -1,0 +1,184 @@
+Crie a tela de CLIENTES completa para gerenciar toda a base de clientes da ótica.
+
+LAYOUT PRINCIPAL:
+
+Header da página:
+- Título "Clientes" (text-2xl font-bold)
+- Subtítulo com total: "1.247 clientes cadastrados"
+- Botão "Novo Cliente" (primary, ícone UserPlus) à direita
+
+Barra de filtros (logo abaixo do header):
+- Input de busca global (ícone Search, placeholder: "Buscar por nome, telefone, email...")
+- Filtros rápidos (pills clicáveis):
+  * Todos (badge com total)
+  * Ativos (verde)
+  * Inativos (cinza)
+  * VIP (dourado, estrela)
+  * Novos (azul, últimos 30 dias)
+- Botão "Filtros avançados" (ícone Filter):
+  * Abre drawer lateral com filtros:
+    - Data de cadastro (date range picker)
+    - Última compra (date range picker)
+    - Valor total gasto (range slider)
+    - Tags (multi-select)
+    - Canal de origem (WhatsApp, Loja Física, Site)
+    - Ordenar por: Nome, Data cadastro, Última compra, Valor total
+- Botão "Exportar" (ícone Download):
+  * Dropdown: CSV, Excel, PDF
+- Switch "Visualização": Grid / Lista
+
+VISUALIZAÇÃO GRID (cards):
+Grid responsivo (4 colunas desktop, 2 tablet, 1 mobile)
+
+Cada card mostra:
+- Avatar grande (80px, centralizado)
+- Nome (text-lg font-semibold, centralizado)
+- WhatsApp (text-sm, ícone Phone)
+- Email (text-sm, ícone Mail)
+- Tags (pills pequenas, max 2 visíveis + contador)
+- Stats rápidas (em row):
+  * Total gasto: R$ X.XXX (ícone DollarSign, verde)
+  * Compras: X (ícone ShoppingBag, azul)
+  * Última compra: X dias (ícone Calendar, cinza)
+- Badge de status: Ativo/Inativo (canto superior direito)
+- Badge VIP se aplicável (ícone Crown, dourado, canto superior esquerdo)
+- Botões de ação (aparecem no hover):
+  * Ver perfil (ícone Eye)
+  * Iniciar conversa (ícone MessageCircle)
+  * Editar (ícone Edit)
+  * Menu (ícone MoreVertical)
+- Hover: elevação (shadow-md), scale 1.02
+- Click no card: abre modal de perfil
+
+VISUALIZAÇÃO LISTA (tabela):
+Tabela responsiva com colunas:
+- Checkbox (seleção múltipla)
+- Avatar + Nome (sortable)
+- WhatsApp (copyable, ícone de copiar no hover)
+- Email (copyable)
+- Tags (pills, scroll horizontal se muitas)
+- Total Gasto (sortable, formatado R$)
+- Última Compra (sortable, relativa: "há X dias")
+- Status (badge Ativo/Inativo, filterable)
+- Ações (dropdown com ícone MoreHorizontal):
+  * Ver perfil
+  * Iniciar conversa
+  * Editar
+  * Adicionar tag
+  * Marcar como VIP
+  * Desativar/Ativar
+  * Excluir
+
+Features da tabela:
+- Ordenação por coluna (click no header)
+- Paginação (10, 25, 50, 100 por página)
+- Seleção múltipla (ações em lote):
+  * Exportar selecionados
+  * Adicionar tag
+  * Enviar mensagem em massa
+  * Excluir selecionados (com confirmação)
+- Loading skeleton durante carregamento
+- Empty state: "Nenhum cliente encontrado" (ilustração + sugestão de limpar filtros)
+
+MODAL "NOVO CLIENTE":
+Form completo com abas:
+
+ABA "Informações Básicas":
+- Upload de foto (circular, click para trocar)
+- Nome completo* (required)
+- WhatsApp* (input mask, validação)
+- Email (validação de formato)
+- CPF (input mask, validação)
+- Data de nascimento (date picker)
+- Sexo (radio: Masculino, Feminino, Outro, Prefiro não informar)
+
+ABA "Endereço":
+- CEP (busca automática de endereço via API)
+- Rua/Avenida
+- Número
+- Complemento
+- Bairro
+- Cidade
+- Estado (select)
+
+ABA "Preferências":
+- Tags (multi-select criável, pode criar novas tags)
+- Canal de origem (select: WhatsApp, Loja Física, Site, Indicação, Outros)
+- Tipo de cliente (select: Comum, VIP, Revendedor)
+- Observações (textarea)
+
+Footer do modal:
+- Botão "Cancelar" (secondary)
+- Botão "Salvar" (primary, validação de campos obrigatórios)
+
+MODAL "PERFIL DO CLIENTE":
+Layout em 2 colunas:
+
+COLUNA ESQUERDA (fixa, 320px):
+- Avatar grande (120px)
+- Nome (text-2xl font-bold)
+- WhatsApp (copyable, botão de iniciar conversa)
+- Email (copyable)
+- Tags (pills editáveis)
+- Badge VIP (se aplicável)
+- Botões de ação:
+  * Iniciar conversa (primary, ícone MessageCircle)
+  * Editar perfil (secondary, ícone Edit)
+  * Mais ações (menu dropdown)
+
+Stats cards (grid 2x2):
+- Total gasto (ícone DollarSign, verde, R$ X.XXX)
+- Total de compras (ícone ShoppingBag, azul, X compras)
+- Ticket médio (ícone TrendingUp, roxo, R$ XXX)
+- Última compra (ícone Calendar, laranja, há X dias)
+
+COLUNA DIREITA (scroll):
+Abas:
+- Histórico de Compras
+- Conversas
+- Anotações
+- Atividades
+
+ABA "Histórico de Compras":
+- Timeline vertical
+- Cada compra mostra:
+  * Data (badge)
+  * Produtos (lista com thumbnail + nome + quantidade)
+  * Valor total (destaque, verde)
+  * Forma de pagamento
+  * Vendedor/Atendente
+  * Status (Paga, Pendente, Cancelada)
+  * Botão "Ver detalhes"
+- Filtros: Por período, Por status
+- Empty state: "Nenhuma compra registrada"
+
+ABA "Conversas":
+- Lista de conversas com este cliente
+- Cada item: Data, Canal, Atendente, Status, Última mensagem
+- Click: abre conversa na tela de Conversas
+
+ABA "Anotações":
+- Timeline de notas internas
+- Cada nota: Autor, Data, Conteúdo
+- Input para nova nota (só texto, privado)
+- Botão "Adicionar nota"
+
+ABA "Atividades":
+- Log de todas as interações
+- Tipos: Cadastro, Atualização, Compra, Conversa iniciada, Tag adicionada, etc.
+- Filtros: Por tipo, Por período
+
+DADOS MOCK:
+Crie 50+ clientes variados com:
+- Nomes brasileiros realistas
+- WhatsApps formatados
+- Emails variados
+- Mix de status (maioria ativo)
+- Alguns VIPs (5-10%)
+- Tags: Presbiopia, Miopia, Astigmatismo, Grau Alto, Esportivo, Solar, Infantil, Óculos de Grau, Lentes de Contato
+- Valores gastos: R$ 0 até R$ 15.000
+- Compras: 0 a 20
+- Datas variadas (últimos 2 anos)
+- Mix de canais de origem
+
+Por favor, implemente tudo completamente funcional com dados mock realistas. Todas as interações (botões, filtros, ordenação, paginação, modais) devem funcionar.
