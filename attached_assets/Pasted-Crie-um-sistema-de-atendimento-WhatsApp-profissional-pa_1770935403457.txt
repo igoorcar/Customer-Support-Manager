@@ -1,0 +1,158 @@
+Crie um sistema de atendimento WhatsApp profissional para óticas chamado "Ótica Suellen - Painel de Atendimento".
+
+DESIGN SYSTEM E IDENTIDADE VISUAL:
+
+Cores principais:
+- Primária (azul confiável): #2563EB
+- Secundária (verde online): #10B981  
+- Destaque (roxo moderno): #8B5CF6
+- Alerta (laranja): #F59E0B
+- Perigo (vermelho): #EF4444
+- Fundo claro: #F9FAFB
+- Texto principal: #111827
+- Cinza médio: #6B7280
+- Branco: #FFFFFF
+
+Tipografia:
+- Família principal: Inter ou system-ui
+- Títulos: font-bold
+- Corpo: font-normal
+- Tamanhos: text-xs até text-2xl
+
+Componentes de UI necessários (criar biblioteca reutilizável):
+
+1. **Botões**:
+   - Primary (azul): hover com sombra, transition suave
+   - Secondary (outline azul)
+   - Success (verde)
+   - Danger (vermelho)
+   - Ghost (transparente)
+   - Tamanhos: sm, md, lg
+   - Estados: default, hover, active, disabled, loading
+
+2. **Cards**:
+   - Sombra sutil (shadow-sm)
+   - Border radius arredondado (rounded-lg)
+   - Padding generoso
+   - Hover elevação
+
+3. **Badges/Tags**:
+   - Cores por status: nova (azul), em_atendimento (verde), pausada (amarelo), finalizada (cinza)
+   - Pill shaped (rounded-full)
+   - Tamanhos variados
+
+4. **Inputs**:
+   - Border azul no focus
+   - Placeholder cinza claro
+   - Ícones internos (leading/trailing)
+   - Estados de erro com borda vermelha
+   - Label flutuante opcional
+
+5. **Avatar**:
+   - Circular
+   - Fallback com iniciais
+   - Indicador de status online (verde), offline (cinza), ocupado (amarelo)
+   - Tamanhos: xs, sm, md, lg, xl
+
+6. **Loading States**:
+   - Skeleton loaders para listas
+   - Spinner para botões
+   - Shimmer effect para cards
+
+7. **Toast/Notifications**:
+   - Posição: top-right
+   - Auto-dismiss em 3s
+   - Tipos: success, error, warning, info
+   - Ícones apropriados
+
+LAYOUT BASE:
+
+Estrutura geral:
+- Sidebar fixa à esquerda (256px de largura, bg branco, sombra sutil)
+- Header fixo no topo (64px altura, bg branco, sombra bottom)
+- Área de conteúdo principal (bg #F9FAFB, padding generoso)
+- Responsivo: sidebar vira drawer em mobile (<768px)
+
+Sidebar deve conter:
+- Logo no topo (Ótica Suellen com ícone de óculos estilizado)
+- Menu de navegação vertical:
+  * Dashboard (ícone: LayoutDashboard)
+  * Conversas (ícone: MessageSquare, badge com contador)
+  * Clientes (ícone: Users)
+  * Botões de Resposta (ícone: Zap)
+  * Produtos (ícone: Package)
+  * Relatórios (ícone: BarChart3)
+  * Configurações (ícone: Settings)
+- Perfil do atendente no rodapé com avatar, nome, status online
+
+Header deve conter:
+- Breadcrumb à esquerda
+- Barra de busca global no centro (com atalho Cmd+K)
+- Notificações + Avatar do usuário à direita
+
+PÁGINA INICIAL (Dashboard):
+
+Grid responsivo com cards de métricas (4 colunas em desktop, 2 em tablet, 1 em mobile):
+
+1. **Conversas Aguardando** (ícone: Clock, cor azul):
+   - Número grande e bold
+   - Texto secundário: "na fila"
+   - Ícone de tendência (seta)
+
+2. **Em Atendimento** (ícone: MessageCircle, cor verde):
+   - Número atual
+   - Texto: "conversas ativas"
+   - Progresso visual
+
+3. **Finalizadas Hoje** (ícone: CheckCircle, cor roxo):
+   - Contador do dia
+   - Comparação com ontem (%)
+
+4. **Tempo Médio** (ícone: Timer, cor laranja):
+   - Em minutos
+   - Meta visual
+
+Abaixo dos cards:
+
+**Gráfico de Linha** (conversas ao longo do dia):
+- Biblioteca: Recharts
+- Linhas suaves
+- Grid sutil
+- Tooltip interativo
+- Últimas 24h
+
+**Tabela de Conversas Recentes**:
+- Colunas: Cliente, Atendente, Início, Duração, Status, Ações
+- Paginação
+- Ordenação
+- Filtros rápidos
+- Ações: Ver detalhes, Continuar atendimento
+
+**Atividade em Tempo Real** (feed ao lado direito):
+- Stream de eventos
+- Últimas 10 ações
+- Tipos: nova conversa, mensagem, transferência, finalização
+- Timestamp relativo ("há 2 minutos")
+- Auto-scroll
+
+ESTILO VISUAL GERAL:
+
+- Espaçamentos consistentes (múltiplos de 4px)
+- Animações sutis (duration-200, ease-in-out)
+- Ícones do Lucide React
+- Sombras suaves e estratégicas
+- Estados hover bem definidos
+- Foco em acessibilidade (contraste WCAG AA)
+- Micro-interações em botões e cards
+
+STACK TÉCNICO:
+
+- React com TypeScript
+- Tailwind CSS
+- Shadcn/ui components
+- Lucide React icons
+- Recharts para gráficos
+- React Router para navegação
+- Zustand para estado global
+
+Por favor, implemente essa base completa com componentes reutilizáveis, layout responsivo e a página de dashboard inicial totalmente funcional (com dados mock por enquanto).
