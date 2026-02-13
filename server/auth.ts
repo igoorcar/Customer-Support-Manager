@@ -33,6 +33,8 @@ declare global {
 }
 
 export function setupAuth(app: Express) {
+  app.set("trust proxy", 1);
+
   const PgStore = ConnectPgSimple(session);
 
   const sessionMiddleware = session({
@@ -45,10 +47,11 @@ export function setupAuth(app: Express) {
     secret: process.env.SESSION_SECRET || "otica-suellen-secret-key-dev",
     resave: false,
     saveUninitialized: false,
+    proxy: true,
     cookie: {
-      maxAge: 24 * 60 * 60 * 1000,
+      maxAge: 7 * 24 * 60 * 60 * 1000,
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
+      secure: "auto" as any,
       sameSite: "lax",
     },
   });
