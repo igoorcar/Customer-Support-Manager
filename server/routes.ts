@@ -14,6 +14,12 @@ const supabaseUrl = process.env.VITE_SUPABASE_URL || "";
 const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY || "";
 const supabaseServer = supabaseUrl && supabaseKey ? createClient(supabaseUrl, supabaseKey) : null;
 
+if (supabaseServer) {
+  console.log("[upload] Supabase Storage client initialized - uploads will persist to Supabase");
+} else {
+  console.warn("[upload] Supabase credentials missing - uploads will use local storage only (ephemeral in production!)");
+}
+
 const tmpDir = os.tmpdir();
 
 const multerStorage = multer.diskStorage({
