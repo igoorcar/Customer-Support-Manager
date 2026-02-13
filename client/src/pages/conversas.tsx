@@ -37,6 +37,8 @@ import type { Conversa, Mensagem, BotaoResposta, BotaoMidia } from "@/lib/supaba
 import MessageInput from "@/components/message-input";
 import { IAToggle } from "@/components/ia-toggle";
 import { EtiquetasManager } from "@/components/etiquetas-manager";
+import { AtendenteStatus } from "@/components/atendente-status";
+import { useAuth } from "@/hooks/use-auth";
 
 const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline"; dotColor: string }> = {
   nova: { label: "Nova", variant: "default", dotColor: "bg-primary" },
@@ -286,6 +288,7 @@ function BotaoRespostaPanel({
 }
 
 export default function Conversas() {
+  const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState("");
   const [activeFilter, setActiveFilter] = useState<string>("todas");
   const [selectedConvId, setSelectedConvId] = useState<string | null>(null);
@@ -1397,6 +1400,10 @@ export default function Conversas() {
           <p className="text-sm text-muted-foreground" data-testid="text-conversas-subtitle">Gerencie todas as conversas do WhatsApp</p>
         </div>
       </div>
+
+      {user && (
+        <AtendenteStatus atendenteEmail={user.username} />
+      )}
 
       <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
         <div className="relative flex-1 w-full sm:max-w-sm">

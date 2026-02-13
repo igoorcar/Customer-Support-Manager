@@ -4,6 +4,8 @@
 WhatsApp customer service management panel for an optical shop called "Ótica Suellen". Built with React + TypeScript frontend, Express backend, and PostgreSQL database. Features authentication, product catalog, client management, conversation handling, analytics, and settings.
 
 ## Recent Changes
+- 2026-02-13: AtendenteStatus component (attendant presence tracking with online/offline heartbeat, status toggle, Supabase real-time)
+- 2026-02-13: useConversasPorAtendente hook (filter conversations by attendant with real-time updates)
 - 2026-02-13: EtiquetasManager component (conversation tags from Supabase etiquetas/conversas_etiquetas tables, real-time sync, funil/produto/status categories)
 - 2026-02-13: Lunch break (almoço) support in horarioComercial.ts and IAToggle mode display
 - 2026-02-13: Server-side Supabase Storage uploads with ffmpeg timeout guard and expired media placeholders
