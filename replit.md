@@ -4,11 +4,14 @@
 WhatsApp customer service management panel for an optical shop called "Ótica Suellen". Built with React + TypeScript frontend, Express backend, and PostgreSQL database. Features authentication, product catalog, client management, conversation handling, analytics, and settings.
 
 ## Recent Changes
-- 2026-02-12: Enhanced Products page with 53 products, grid/list views, filters, detail/edit modals, expanded schema
+- 2026-02-13: Migrated Dashboard, Clientes, Relatórios to use real Supabase data (all metrics, charts, conversations, clients from Supabase)
+- 2026-02-13: Fixed session authentication for published app (trust proxy, secure:auto, 7-day sessions)
+- 2026-02-12: Local file upload system (multer, /api/upload endpoint) replacing Supabase Storage
+- 2026-02-12: Response Buttons with media upload feature
+- 2026-02-12: Enhanced Products page with 53 products, grid/list views, filters, detail/edit modals
 - 2026-02-12: Multi-tab Reports page (5 tabs: Visão Geral, Atendimento, Vendas, Atendentes, Clientes)
-- 2026-02-12: Multi-section Settings page (8 sections with sidebar navigation, localStorage persistence)
 - 2026-02-12: Authentication system (passport.js + express-session, login/register, protected routes)
-- 2026-02-12: Initial MVP implementation with all core pages and features
+- 2026-02-12: Initial MVP implementation
 
 ## Architecture
 
@@ -33,9 +36,17 @@ WhatsApp customer service management panel for an optical shop called "Ótica Su
 
 ### Backend (server/)
 - **Framework**: Express.js
-- **Database**: PostgreSQL with Drizzle ORM
+- **Database**: PostgreSQL with Drizzle ORM (local: users, products, quick-replies, settings)
+- **Supabase**: External data source for WhatsApp data (conversas, mensagens, clientes, atendentes, botoes)
 - **Auth**: Passport.js with LocalStrategy, express-session, connect-pg-simple
 - **Storage**: DatabaseStorage class implementing IStorage interface
+- **File Upload**: multer for local file storage (/uploads directory)
+
+### Data Source Architecture
+- **Supabase (frontend-direct)**: Dashboard metrics, conversations, clients, attendants, reports, response buttons - queried directly from frontend via Supabase JS client (client/src/services/api.ts)
+- **Local PostgreSQL (backend API)**: Products, quick-replies, user auth, settings - served via Express /api/* routes
+- Supabase tables: conversas, mensagens, clientes, atendentes, botoes_resposta, botoes_midias
+- n8n webhooks: message sending, button creation, conversation transfer
 
 ### Authentication (server/auth.ts)
 - Passport.js LocalStrategy with scrypt password hashing

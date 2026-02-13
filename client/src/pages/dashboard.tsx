@@ -25,7 +25,8 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
-import type { Conversation, Activity } from "@shared/schema";
+import { api } from "@/services/api";
+import type { Conversa } from "@/lib/supabase";
 
 const statusMap: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
   nova: { label: "Nova", variant: "default" },
@@ -113,34 +114,29 @@ function formatRelativeTime(date: string | Date) {
   return `há ${Math.floor(diff / 86400)}d`;
 }
 
-function formatDuration(minutes: number | null) {
-  if (!minutes) return "--";
-  if (minutes < 60) return `${minutes}min`;
-  return `${Math.floor(minutes / 60)}h ${minutes % 60}min`;
-}
-
 export default function Dashboard() {
-  const { data: stats, isLoading: statsLoading } = useQuery<{
-    waiting: number;
-    active: number;
-    finishedToday: number;
-    avgTime: number;
-    waitingTrend: number;
-    finishedTrend: number;
-  }>({
-    queryKey: ["/api/stats"],
+  const { data: stats, isLoading: statsLoading } = useQuery({
+    queryKey: ["supabase-dashboard-stats"],
+    queryFn: () => api.getDashboardStats(),
+    refetchInterval: 30000,
   });
 
-  const { data: conversations, isLoading: convsLoading } = useQuery<(Conversation & { clientName: string; attendantName: string })[]>({
-    queryKey: ["/api/conversations"],
+  const { data: conversations, isLoading: convsLoading } = useQuery({
+    queryKey: ["supabase-dashboard-conversas"],
+    queryFn: () => api.getConversas(),
+    refetchInterval: 15000,
   });
 
-  const { data: activities, isLoading: activitiesLoading } = useQuery<Activity[]>({
-    queryKey: ["/api/activities"],
+  const { data: activities, isLoading: activitiesLoading } = useQuery({
+    queryKey: ["supabase-dashboard-activity"],
+    queryFn: () => api.getRecentActivity(),
+    refetchInterval: 15000,
   });
 
-  const { data: chartData } = useQuery<{ hour: string; conversas: number }[]>({
-    queryKey: ["/api/stats/chart"],
+  const { data: chartData } = useQuery({
+    queryKey: ["supabase-dashboard-chart"],
+    queryFn: () => api.getDashboardChart(),
+    refetchInterval: 60000,
   });
 
   return (
@@ -157,8 +153,6 @@ export default function Dashboard() {
           subtitle="na fila"
           icon={Clock}
           iconColor="bg-primary/10 text-primary"
-          trend={stats?.waitingTrend}
-          trendLabel="na fila"
           isLoading={statsLoading}
         />
         <MetricCard
@@ -172,11 +166,9 @@ export default function Dashboard() {
         <MetricCard
           title="Finalizadas Hoje"
           value={stats?.finishedToday ?? 0}
-          subtitle="vs ontem"
+          subtitle="encerradas hoje"
           icon={CheckCircle}
           iconColor="bg-chart-3/10 text-chart-3"
-          trend={stats?.finishedTrend}
-          trendLabel="vs ontem"
           isLoading={statsLoading}
         />
         <MetricCard
@@ -196,7 +188,7 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent>
             <div className="h-64">
-              {chartData ? (
+              {chartData && chartData.length > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={chartData}>
                     <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
@@ -231,7 +223,7 @@ export default function Dashboard() {
                 </ResponsiveContainer>
               ) : (
                 <div className="flex items-center justify-center h-full">
-                  <Skeleton className="w-full h-full rounded-md" />
+                  <p className="text-sm text-muted-foreground">Nenhuma conversa hoje ainda</p>
                 </div>
               )}
             </div>
@@ -296,7 +288,6 @@ export default function Dashboard() {
                   <th className="text-left py-2.5 px-3 text-xs font-medium text-muted-foreground uppercase tracking-wide">Cliente</th>
                   <th className="text-left py-2.5 px-3 text-xs font-medium text-muted-foreground uppercase tracking-wide">Atendente</th>
                   <th className="text-left py-2.5 px-3 text-xs font-medium text-muted-foreground uppercase tracking-wide">Início</th>
-                  <th className="text-left py-2.5 px-3 text-xs font-medium text-muted-foreground uppercase tracking-wide">Duração</th>
                   <th className="text-left py-2.5 px-3 text-xs font-medium text-muted-foreground uppercase tracking-wide">Status</th>
                   <th className="text-right py-2.5 px-3 text-xs font-medium text-muted-foreground uppercase tracking-wide">Ações</th>
                 </tr>
@@ -308,26 +299,24 @@ export default function Dashboard() {
                       <td className="py-2.5 px-3"><Skeleton className="h-4 w-24" /></td>
                       <td className="py-2.5 px-3"><Skeleton className="h-4 w-20" /></td>
                       <td className="py-2.5 px-3"><Skeleton className="h-4 w-16" /></td>
-                      <td className="py-2.5 px-3"><Skeleton className="h-4 w-12" /></td>
                       <td className="py-2.5 px-3"><Skeleton className="h-5 w-16 rounded-full" /></td>
                       <td className="py-2.5 px-3"><Skeleton className="h-4 w-12 ml-auto" /></td>
                     </tr>
                   ))
                 ) : conversations && conversations.length > 0 ? (
-                  conversations.slice(0, 8).map((conv) => {
+                  conversations.slice(0, 8).map((conv: Conversa) => {
                     const st = statusMap[conv.status] || statusMap.nova;
                     return (
                       <tr key={conv.id} className="border-b last:border-0 hover-elevate" data-testid={`row-conversation-${conv.id}`}>
-                        <td className="py-2.5 px-3 font-medium">{conv.clientName}</td>
-                        <td className="py-2.5 px-3 text-muted-foreground">{conv.attendantName || "--"}</td>
-                        <td className="py-2.5 px-3 text-muted-foreground">{formatRelativeTime(conv.startedAt)}</td>
-                        <td className="py-2.5 px-3 text-muted-foreground">{formatDuration(conv.duration)}</td>
+                        <td className="py-2.5 px-3 font-medium">{conv.clientes?.nome || "Desconhecido"}</td>
+                        <td className="py-2.5 px-3 text-muted-foreground">{conv.atendentes?.nome || "--"}</td>
+                        <td className="py-2.5 px-3 text-muted-foreground">{formatRelativeTime(conv.iniciada_em)}</td>
                         <td className="py-2.5 px-3">
                           <Badge variant={st.variant} className="text-xs" data-testid={`badge-status-${conv.id}`}>{st.label}</Badge>
                         </td>
                         <td className="py-2.5 px-3 text-right">
-                          <Button variant="ghost" size="sm" data-testid={`button-view-${conv.id}`}>
-                            Detalhes
+                          <Button variant="ghost" size="sm" asChild data-testid={`button-view-${conv.id}`}>
+                            <a href="/conversas">Detalhes</a>
                           </Button>
                         </td>
                       </tr>
@@ -335,7 +324,7 @@ export default function Dashboard() {
                   })
                 ) : (
                   <tr>
-                    <td colSpan={6} className="text-center py-8 text-muted-foreground text-sm">
+                    <td colSpan={5} className="text-center py-8 text-muted-foreground text-sm">
                       Nenhuma conversa encontrada
                     </td>
                   </tr>

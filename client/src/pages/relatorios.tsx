@@ -34,7 +34,9 @@ import {
   Timer,
   Target,
 } from "lucide-react";
-import type { Product, Attendant, Client } from "@shared/schema";
+import type { Product } from "@shared/schema";
+import type { ClienteSupabase } from "@/lib/supabase";
+import { api } from "@/services/api";
 
 const CHART_COLORS = [
   "hsl(var(--primary))",
@@ -57,40 +59,12 @@ function formatCurrency(value: number) {
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value / 100);
 }
 
-const monthlyConversationsData = Array.from({ length: 30 }, (_, i) => ({
-  dia: `${i + 1}`,
-  conversas: Math.floor(Math.random() * 30) + 5,
-}));
-
-const hourlyData = Array.from({ length: 13 }, (_, i) => ({
-  hora: `${i + 8}h`,
-  conversas: Math.floor(Math.random() * 20) + 2,
-}));
-
-const closingReasons = [
-  { motivo: "Venda realizada", quantidade: 42, percentual: 35 },
-  { motivo: "Dúvida respondida", quantidade: 28, percentual: 23 },
-  { motivo: "Orçamento enviado", quantidade: 18, percentual: 15 },
-  { motivo: "Sem resposta do cliente", quantidade: 15, percentual: 13 },
-  { motivo: "Encaminhado para loja", quantidade: 10, percentual: 8 },
-  { motivo: "Outros", quantidade: 7, percentual: 6 },
-];
-
-const monthlyRevenueData = [
-  { mes: "Set", faturamento: 4520000 },
-  { mes: "Out", faturamento: 5230000 },
-  { mes: "Nov", faturamento: 4890000 },
-  { mes: "Dez", faturamento: 6710000 },
-  { mes: "Jan", faturamento: 5440000 },
-  { mes: "Fev", faturamento: 6120000 },
-];
-
-const salesByCategoryData = [
-  { name: "Armações", value: 45 },
-  { name: "Lentes", value: 30 },
-  { name: "Solar", value: 15 },
-  { name: "Acessórios", value: 10 },
-];
+const statusLabels: Record<string, string> = {
+  nova: "Nova",
+  em_atendimento: "Em Atendimento",
+  pausada: "Pausada",
+  finalizada: "Finalizada",
+};
 
 function KpiCard({
   title,
@@ -135,16 +109,33 @@ function KpiCard({
 }
 
 function TabVisaoGeral() {
-  const { data: stats, isLoading } = useQuery<{
-    totalConversations: number;
-    totalClients: number;
-    avgResponseTime: number;
-    satisfactionRate: number;
-    weeklyData: { day: string; conversas: number; finalizadas: number }[];
-    statusDistribution: { name: string; value: number; color: string }[];
-  }>({
-    queryKey: ["/api/reports"],
+  const { data: rawStats, isLoading } = useQuery({
+    queryKey: ["supabase-reports-data"],
+    queryFn: () => api.getReportsData(),
   });
+
+  const stats = rawStats
+    ? {
+        totalConversations: rawStats.totalConversations,
+        totalClients: rawStats.totalClients,
+        avgResponseTime: rawStats.avgResponseTime,
+        satisfactionRate: (() => {
+          const total = rawStats.statusDistribution.reduce((s, i) => s + i.count, 0);
+          const finalizadas = rawStats.statusDistribution.find((i) => i.status === "finalizada")?.count ?? 0;
+          return total > 0 ? Math.round((finalizadas / total) * 100) : 0;
+        })(),
+        statusDistribution: rawStats.statusDistribution.map((item) => ({
+          name: statusLabels[item.status] ?? item.status,
+          value: item.count,
+          color: item.color,
+        })),
+        weeklyData: rawStats.weeklyData.map((item) => ({
+          day: item.dia,
+          conversas: item.conversas,
+          finalizadas: 0,
+        })),
+      }
+    : undefined;
 
   return (
     <div className="space-y-6" data-testid="tab-visao-geral-content">
@@ -170,7 +161,6 @@ function TabVisaoGeral() {
                     <YAxis tick={axisTickStyle} axisLine={false} tickLine={false} />
                     <Tooltip contentStyle={tooltipStyle} />
                     <Bar dataKey="conversas" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} name="Conversas" />
-                    <Bar dataKey="finalizadas" fill="hsl(var(--chart-2))" radius={[4, 4, 0, 0]} name="Finalizadas" />
                   </BarChart>
                 </ResponsiveContainer>
               ) : (
@@ -217,19 +207,27 @@ function TabVisaoGeral() {
 
       <Card data-testid="card-chart-monthly">
         <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-semibold">Conversas ao longo do mês</CardTitle>
+          <CardTitle className="text-sm font-semibold">Conversas por Dia da Semana (últimos 30 dias)</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={monthlyConversationsData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                <XAxis dataKey="dia" tick={axisTickStyle} axisLine={{ stroke: "hsl(var(--border))" }} tickLine={false} />
-                <YAxis tick={axisTickStyle} axisLine={false} tickLine={false} />
-                <Tooltip contentStyle={tooltipStyle} />
-                <Area type="monotone" dataKey="conversas" stroke="hsl(var(--primary))" fill="hsl(var(--primary))" fillOpacity={0.15} strokeWidth={2} name="Conversas" />
-              </AreaChart>
-            </ResponsiveContainer>
+            {isLoading ? (
+              <Skeleton className="w-full h-full rounded-md" />
+            ) : stats?.weeklyData && stats.weeklyData.some((d) => d.conversas > 0) ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={stats.weeklyData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <XAxis dataKey="day" tick={axisTickStyle} axisLine={{ stroke: "hsl(var(--border))" }} tickLine={false} />
+                  <YAxis tick={axisTickStyle} axisLine={false} tickLine={false} />
+                  <Tooltip contentStyle={tooltipStyle} />
+                  <Area type="monotone" dataKey="conversas" stroke="hsl(var(--primary))" fill="hsl(var(--primary))" fillOpacity={0.15} strokeWidth={2} name="Conversas" />
+                </AreaChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex items-center justify-center h-full text-sm text-muted-foreground">
+                Sem dados de conversas no período
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -238,15 +236,19 @@ function TabVisaoGeral() {
 }
 
 function TabAtendimento() {
-  const { data: stats, isLoading } = useQuery<{
-    waiting: number;
-    active: number;
-    finishedToday: number;
-    avgTime: number;
-    waitingTrend: number;
-    finishedTrend: number;
-  }>({
-    queryKey: ["/api/stats"],
+  const { data: stats, isLoading } = useQuery({
+    queryKey: ["supabase-dashboard-stats"],
+    queryFn: () => api.getDashboardStats(),
+  });
+
+  const { data: hourlyData, isLoading: hourlyLoading } = useQuery({
+    queryKey: ["supabase-hourly"],
+    queryFn: () => api.getHourlyDistribution(),
+  });
+
+  const { data: closingReasons, isLoading: closingLoading } = useQuery({
+    queryKey: ["supabase-closing-reasons"],
+    queryFn: () => api.getClosingReasons(),
   });
 
   const conversasHoje = (stats?.active ?? 0) + (stats?.finishedToday ?? 0);
@@ -267,15 +269,23 @@ function TabAtendimento() {
           </CardHeader>
           <CardContent>
             <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={hourlyData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                  <XAxis dataKey="hora" tick={axisTickStyle} axisLine={{ stroke: "hsl(var(--border))" }} tickLine={false} />
-                  <YAxis tick={axisTickStyle} axisLine={false} tickLine={false} />
-                  <Tooltip contentStyle={tooltipStyle} />
-                  <Bar dataKey="conversas" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} name="Conversas" />
-                </BarChart>
-              </ResponsiveContainer>
+              {hourlyLoading ? (
+                <Skeleton className="w-full h-full rounded-md" />
+              ) : hourlyData && hourlyData.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={hourlyData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                    <XAxis dataKey="hora" tick={axisTickStyle} axisLine={{ stroke: "hsl(var(--border))" }} tickLine={false} />
+                    <YAxis tick={axisTickStyle} axisLine={false} tickLine={false} />
+                    <Tooltip contentStyle={tooltipStyle} />
+                    <Bar dataKey="conversas" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} name="Conversas" />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex items-center justify-center h-full text-sm text-muted-foreground">
+                  Sem dados de distribuição horária
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -286,24 +296,36 @@ function TabAtendimento() {
           </CardHeader>
           <CardContent>
             <div className="overflow-x-auto">
-              <table className="w-full text-sm" data-testid="table-closing-reasons">
-                <thead>
-                  <tr className="border-b">
-                    <th className="text-left py-2.5 px-3 text-xs font-medium text-muted-foreground uppercase tracking-wide">Motivo</th>
-                    <th className="text-right py-2.5 px-3 text-xs font-medium text-muted-foreground uppercase tracking-wide">Qtd</th>
-                    <th className="text-right py-2.5 px-3 text-xs font-medium text-muted-foreground uppercase tracking-wide">%</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {closingReasons.map((item, i) => (
-                    <tr key={i} className="border-b last:border-0" data-testid={`row-closing-reason-${i}`}>
-                      <td className="py-2.5 px-3">{item.motivo}</td>
-                      <td className="py-2.5 px-3 text-right text-muted-foreground">{item.quantidade}</td>
-                      <td className="py-2.5 px-3 text-right text-muted-foreground">{item.percentual}%</td>
-                    </tr>
+              {closingLoading ? (
+                <div className="space-y-3">
+                  {Array.from({ length: 4 }).map((_, i) => (
+                    <Skeleton key={i} className="h-8 w-full rounded-md" />
                   ))}
-                </tbody>
-              </table>
+                </div>
+              ) : closingReasons && closingReasons.length > 0 ? (
+                <table className="w-full text-sm" data-testid="table-closing-reasons">
+                  <thead>
+                    <tr className="border-b">
+                      <th className="text-left py-2.5 px-3 text-xs font-medium text-muted-foreground uppercase tracking-wide">Motivo</th>
+                      <th className="text-right py-2.5 px-3 text-xs font-medium text-muted-foreground uppercase tracking-wide">Qtd</th>
+                      <th className="text-right py-2.5 px-3 text-xs font-medium text-muted-foreground uppercase tracking-wide">%</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {closingReasons.map((item, i) => (
+                      <tr key={i} className="border-b last:border-0" data-testid={`row-closing-reason-${i}`}>
+                        <td className="py-2.5 px-3">{item.motivo}</td>
+                        <td className="py-2.5 px-3 text-right text-muted-foreground">{item.quantidade}</td>
+                        <td className="py-2.5 px-3 text-right text-muted-foreground">{item.percentual}%</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              ) : (
+                <div className="flex items-center justify-center h-32 text-sm text-muted-foreground">
+                  Sem dados de motivos de encerramento
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -321,36 +343,24 @@ function TabVendas() {
     ? [...products].sort((a, b) => (b.soldCount ?? 0) - (a.soldCount ?? 0)).slice(0, 5)
     : [];
 
-  const totalRevenue = monthlyRevenueData[monthlyRevenueData.length - 1]?.faturamento ?? 0;
   const totalSold = products?.reduce((sum, p) => sum + (p.soldCount ?? 0), 0) ?? 0;
+  const totalRevenue = products?.reduce((sum, p) => sum + (p.price ?? 0) * (p.soldCount ?? 0), 0) ?? 0;
   const ticketMedio = totalSold > 0 ? Math.round(totalRevenue / totalSold) : 0;
+
+  const categoryData: Record<string, number> = {};
+  (products ?? []).forEach((p) => {
+    const cat = p.category || "Outros";
+    categoryData[cat] = (categoryData[cat] || 0) + (p.soldCount ?? 0);
+  });
+  const salesByCategoryData = Object.entries(categoryData).map(([name, value]) => ({ name, value }));
 
   return (
     <div className="space-y-6" data-testid="tab-vendas-content">
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <KpiCard title="Faturamento do Mês" value={formatCurrency(totalRevenue)} icon={DollarSign} iconColor="bg-chart-2/10 text-chart-2" testId="metric-faturamento" />
+        <KpiCard title="Faturamento Estimado" value={formatCurrency(totalRevenue)} icon={DollarSign} iconColor="bg-chart-2/10 text-chart-2" testId="metric-faturamento" />
         <KpiCard title="Ticket Médio" value={formatCurrency(ticketMedio)} icon={TrendingUp} iconColor="bg-chart-4/10 text-chart-4" testId="metric-ticket-medio-vendas" />
         <KpiCard title="Produtos Vendidos" value={totalSold} icon={ShoppingBag} iconColor="bg-primary/10 text-primary" testId="metric-produtos-vendidos" />
       </div>
-
-      <Card data-testid="card-chart-revenue">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-semibold">Faturamento Mensal</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={monthlyRevenueData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                <XAxis dataKey="mes" tick={axisTickStyle} axisLine={{ stroke: "hsl(var(--border))" }} tickLine={false} />
-                <YAxis tick={axisTickStyle} axisLine={false} tickLine={false} tickFormatter={(v) => formatCurrency(v)} />
-                <Tooltip contentStyle={tooltipStyle} formatter={(v: number) => formatCurrency(v)} />
-                <Line type="monotone" dataKey="faturamento" stroke="hsl(var(--chart-2))" strokeWidth={2} dot={{ fill: "hsl(var(--chart-2))", r: 3 }} activeDot={{ r: 5 }} name="Faturamento" />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        </CardContent>
-      </Card>
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
         <Card data-testid="card-chart-top-products">
@@ -361,7 +371,7 @@ function TabVendas() {
             <div className="h-64">
               {productsLoading ? (
                 <Skeleton className="w-full h-full rounded-md" />
-              ) : (
+              ) : topProducts.length > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={topProducts.map((p) => ({ name: p.name.length > 15 ? p.name.slice(0, 15) + "..." : p.name, vendidos: p.soldCount ?? 0 }))} layout="vertical">
                     <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
@@ -371,6 +381,10 @@ function TabVendas() {
                     <Bar dataKey="vendidos" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} name="Vendidos" />
                   </BarChart>
                 </ResponsiveContainer>
+              ) : (
+                <div className="flex items-center justify-center h-full text-sm text-muted-foreground">
+                  Sem dados de produtos vendidos
+                </div>
               )}
             </div>
           </CardContent>
@@ -382,16 +396,24 @@ function TabVendas() {
           </CardHeader>
           <CardContent>
             <div className="h-64 flex items-center justify-center">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie data={salesByCategoryData} cx="50%" cy="50%" outerRadius={90} paddingAngle={2} dataKey="value" label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}>
-                    {salesByCategoryData.map((_, index) => (
-                      <Cell key={index} fill={CHART_COLORS[index % CHART_COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip contentStyle={tooltipStyle} />
-                </PieChart>
-              </ResponsiveContainer>
+              {productsLoading ? (
+                <Skeleton className="w-48 h-48 rounded-full" />
+              ) : salesByCategoryData.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie data={salesByCategoryData} cx="50%" cy="50%" outerRadius={90} paddingAngle={2} dataKey="value" label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}>
+                      {salesByCategoryData.map((_, index) => (
+                        <Cell key={index} fill={CHART_COLORS[index % CHART_COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip contentStyle={tooltipStyle} />
+                  </PieChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="text-sm text-muted-foreground">
+                  Sem dados de categorias
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -401,15 +423,14 @@ function TabVendas() {
 }
 
 function TabAtendentes() {
-  const { data: attendants, isLoading } = useQuery<Attendant[]>({
-    queryKey: ["/api/attendants"],
+  const { data: attendants, isLoading } = useQuery({
+    queryKey: ["supabase-atendentes-stats"],
+    queryFn: () => api.getAtendentesStats(),
   });
 
   const attendantPerformance = (attendants ?? []).map((a) => ({
     ...a,
-    conversasAtendidas: Math.floor(Math.random() * 80) + 10,
-    tempoMedio: Math.floor(Math.random() * 20) + 5,
-    taxaResolucao: Math.floor(Math.random() * 30) + 70,
+    taxaResolucao: "--",
   }));
 
   const statusVariant: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
@@ -452,10 +473,10 @@ function TabAtendentes() {
                 <tbody>
                   {attendantPerformance.map((att, i) => (
                     <tr key={att.id} className="border-b last:border-0" data-testid={`row-attendant-${i}`}>
-                      <td className="py-2.5 px-3 font-medium">{att.name}</td>
+                      <td className="py-2.5 px-3 font-medium">{att.nome}</td>
                       <td className="py-2.5 px-3 text-right text-muted-foreground">{att.conversasAtendidas}</td>
                       <td className="py-2.5 px-3 text-right text-muted-foreground">{att.tempoMedio}min</td>
-                      <td className="py-2.5 px-3 text-right text-muted-foreground">{att.taxaResolucao}%</td>
+                      <td className="py-2.5 px-3 text-right text-muted-foreground">{att.taxaResolucao}</td>
                       <td className="py-2.5 px-3 text-center">
                         <Badge variant={statusVariant[att.status] ?? "secondary"} className="text-xs" data-testid={`badge-attendant-status-${i}`}>
                           {statusLabel[att.status] ?? att.status}
@@ -478,18 +499,22 @@ function TabAtendentes() {
           <div className="h-64">
             {isLoading ? (
               <Skeleton className="w-full h-full rounded-md" />
-            ) : (
+            ) : attendantPerformance.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={attendantPerformance.map((a) => ({ name: a.name.split(" ")[0], conversas: a.conversasAtendidas, resolucao: a.taxaResolucao }))}>
+                <BarChart data={attendantPerformance.map((a) => ({ name: a.nome.split(" ")[0], conversas: a.conversasAtendidas, tempoMedio: a.tempoMedio }))}>
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                   <XAxis dataKey="name" tick={axisTickStyle} axisLine={{ stroke: "hsl(var(--border))" }} tickLine={false} />
                   <YAxis tick={axisTickStyle} axisLine={false} tickLine={false} />
                   <Tooltip contentStyle={tooltipStyle} />
                   <Legend />
                   <Bar dataKey="conversas" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} name="Conversas" />
-                  <Bar dataKey="resolucao" fill="hsl(var(--chart-2))" radius={[4, 4, 0, 0]} name="Resolução %" />
+                  <Bar dataKey="tempoMedio" fill="hsl(var(--chart-2))" radius={[4, 4, 0, 0]} name="Tempo Médio (min)" />
                 </BarChart>
               </ResponsiveContainer>
+            ) : (
+              <div className="flex items-center justify-center h-full text-sm text-muted-foreground">
+                Sem dados de atendentes
+              </div>
             )}
           </div>
         </CardContent>
@@ -499,91 +524,76 @@ function TabAtendentes() {
 }
 
 function TabClientes() {
-  const { data: clientsData, isLoading } = useQuery<{ data: Client[]; total: number }>({
-    queryKey: ["/api/clients"],
+  const { data: clientsData, isLoading } = useQuery({
+    queryKey: ["supabase-clientes-reports"],
+    queryFn: () => api.getClientesSupabase({ limit: 100 }),
   });
 
   const clients = clientsData?.data ?? [];
   const totalClients = clientsData?.total ?? 0;
-  const vipCount = clients.filter((c) => c.vip).length;
-  const totalSpend = clients.reduce((sum, c) => sum + (c.totalSpend ?? 0), 0);
+  const totalSpend = clients.reduce((sum, c) => sum + (c.valor_total_compras ?? 0), 0);
   const ticketMedio = totalClients > 0 ? Math.round(totalSpend / totalClients) : 0;
-  const newClientsMonth = Math.min(Math.round(totalClients * 0.15), totalClients);
 
-  const channelCounts: Record<string, number> = {};
-  clients.forEach((c) => {
-    const ch = c.channel ?? "whatsapp";
-    channelCounts[ch] = (channelCounts[ch] ?? 0) + 1;
-  });
-  const channelLabels: Record<string, string> = {
-    whatsapp: "WhatsApp",
-    loja: "Loja",
-    site: "Site",
-    indicacao: "Indicação",
-  };
-  const channelData = Object.entries(channelCounts).map(([key, value]) => ({
-    canal: channelLabels[key] ?? key,
-    clientes: value,
-  }));
-  if (channelData.length === 0) {
-    channelData.push(
-      { canal: "WhatsApp", clientes: 28 },
-      { canal: "Loja", clientes: 15 },
-      { canal: "Site", clientes: 8 },
-      { canal: "Indicação", clientes: 12 },
-    );
-  }
+  const now = new Date();
+  const thirtyDaysAgo = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
+  const newClientsMonth = clients.filter((c) => new Date(c.criado_em) >= thirtyDaysAgo).length;
 
-  const genderCounts: Record<string, number> = {};
+  const tagCounts: Record<string, number> = {};
   clients.forEach((c) => {
-    const g = c.gender ?? "nao_informado";
-    genderCounts[g] = (genderCounts[g] ?? 0) + 1;
+    (c.tags ?? []).forEach((tag) => {
+      tagCounts[tag] = (tagCounts[tag] || 0) + 1;
+    });
   });
-  const genderLabels: Record<string, string> = {
-    masculino: "Masculino",
-    feminino: "Feminino",
-    nao_informado: "Não informado",
-    outro: "Outro",
-  };
-  const genderData = Object.entries(genderCounts).map(([key, value]) => ({
-    name: genderLabels[key] ?? key,
-    value,
-  }));
-  if (genderData.length === 0) {
-    genderData.push(
-      { name: "Feminino", value: 35 },
-      { name: "Masculino", value: 22 },
-      { name: "Não informado", value: 6 },
-    );
-  }
+  const tagData = Object.entries(tagCounts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 8)
+    .map(([tag, count]) => ({ tag, clientes: count }));
+
+  const comprasBuckets = [
+    { name: "0", value: 0 },
+    { name: "1-5", value: 0 },
+    { name: "6-10", value: 0 },
+    { name: "11+", value: 0 },
+  ];
+  clients.forEach((c) => {
+    const tc = c.total_compras ?? 0;
+    if (tc === 0) comprasBuckets[0].value++;
+    else if (tc <= 5) comprasBuckets[1].value++;
+    else if (tc <= 10) comprasBuckets[2].value++;
+    else comprasBuckets[3].value++;
+  });
 
   return (
     <div className="space-y-6" data-testid="tab-clientes-content">
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <KpiCard title="Novos Clientes (mês)" value={newClientsMonth} icon={UserPlus} iconColor="bg-primary/10 text-primary" isLoading={isLoading} testId="metric-novos-clientes" />
-        <KpiCard title="Clientes VIP" value={vipCount} icon={Star} iconColor="bg-chart-4/10 text-chart-4" isLoading={isLoading} testId="metric-clientes-vip" />
+        <KpiCard title="Total de Clientes" value={totalClients} icon={Users} iconColor="bg-chart-4/10 text-chart-4" isLoading={isLoading} testId="metric-clientes-vip" />
         <KpiCard title="Ticket Médio" value={formatCurrency(ticketMedio)} icon={DollarSign} iconColor="bg-chart-2/10 text-chart-2" isLoading={isLoading} testId="metric-ticket-medio-clientes" />
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
         <Card data-testid="card-chart-channel">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-semibold">Clientes por Canal</CardTitle>
+            <CardTitle className="text-sm font-semibold">Distribuição de Tags</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="h-64">
               {isLoading ? (
                 <Skeleton className="w-full h-full rounded-md" />
-              ) : (
+              ) : tagData.length > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={channelData}>
+                  <BarChart data={tagData}>
                     <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                    <XAxis dataKey="canal" tick={axisTickStyle} axisLine={{ stroke: "hsl(var(--border))" }} tickLine={false} />
+                    <XAxis dataKey="tag" tick={axisTickStyle} axisLine={{ stroke: "hsl(var(--border))" }} tickLine={false} />
                     <YAxis tick={axisTickStyle} axisLine={false} tickLine={false} />
                     <Tooltip contentStyle={tooltipStyle} />
                     <Bar dataKey="clientes" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} name="Clientes" />
                   </BarChart>
                 </ResponsiveContainer>
+              ) : (
+                <div className="flex items-center justify-center h-full text-sm text-muted-foreground">
+                  Sem dados de tags
+                </div>
               )}
             </div>
           </CardContent>
@@ -591,7 +601,7 @@ function TabClientes() {
 
         <Card data-testid="card-chart-gender">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-semibold">Gênero dos Clientes</CardTitle>
+            <CardTitle className="text-sm font-semibold">Clientes por Faixa de Compras</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="h-64 flex items-center justify-center">
@@ -600,8 +610,8 @@ function TabClientes() {
               ) : (
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
-                    <Pie data={genderData} cx="50%" cy="50%" innerRadius={60} outerRadius={90} paddingAngle={3} dataKey="value">
-                      {genderData.map((_, index) => (
+                    <Pie data={comprasBuckets} cx="50%" cy="50%" innerRadius={60} outerRadius={90} paddingAngle={3} dataKey="value">
+                      {comprasBuckets.map((_, index) => (
                         <Cell key={index} fill={CHART_COLORS[index % CHART_COLORS.length]} />
                       ))}
                     </Pie>
@@ -612,10 +622,10 @@ function TabClientes() {
             </div>
             {!isLoading && (
               <div className="flex flex-wrap items-center justify-center gap-3 mt-2">
-                {genderData.map((item, i) => (
+                {comprasBuckets.map((item, i) => (
                   <div key={item.name} className="flex items-center gap-1.5" data-testid={`legend-gender-${i}`}>
                     <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: CHART_COLORS[i % CHART_COLORS.length] }} />
-                    <span className="text-xs text-muted-foreground">{item.name} ({item.value})</span>
+                    <span className="text-xs text-muted-foreground">{item.name} compras ({item.value})</span>
                   </div>
                 ))}
               </div>
