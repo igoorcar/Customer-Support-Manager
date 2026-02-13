@@ -322,9 +322,11 @@ export default function Conversas() {
   }, []);
 
   const optimisticMsgsRef = useRef<Mensagem[]>([]);
+  const realSentIdsRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     optimisticMsgsRef.current = [];
+    realSentIdsRef.current = new Set();
   }, [selectedConvId]);
 
   const { data: rawMensagens, isLoading: messagesLoading } = useQuery<Mensagem[]>({
@@ -358,26 +360,35 @@ export default function Conversas() {
 
   const mensagens = (() => {
     const real = rawMensagens || [];
-    const realIds = new Set(real.map(m => m.id));
-    const pending = optimisticMsgsRef.current.filter(opt => {
-      if (realIds.has(opt.id)) return false;
-      const optTime = new Date(opt.enviada_em).getTime();
-      const recentSent = real.filter(r => r.direcao === "enviada" && r.tipo === opt.tipo);
-      const hasMatch = recentSent.some(r => {
-        const rTime = new Date(r.created_at || r.enviada_em).getTime();
-        if (Math.abs(rTime - optTime) > 60000) return false;
-        if (opt.tipo === "text") {
-          return opt.conteudo && r.conteudo && opt.conteudo === r.conteudo;
-        }
-        return true;
-      });
-      if (hasMatch) return false;
-      const age = Date.now() - optTime;
-      if (age > 120000) return false;
-      return true;
+    const currentRealSentIds = new Set(
+      real.filter(r => r.direcao === "enviada").map(r => r.id)
+    );
+
+    const newRealIds = new Set<string>();
+    currentRealSentIds.forEach(id => {
+      if (!realSentIdsRef.current.has(id)) newRealIds.add(id);
     });
-    optimisticMsgsRef.current = pending;
-    const all = [...real, ...pending];
+
+    let remaining = [...optimisticMsgsRef.current];
+    if (newRealIds.size > 0) {
+      const newRealMsgs = real.filter(r => newRealIds.has(r.id));
+      for (const newMsg of newRealMsgs) {
+        const matchIdx = remaining.findIndex(opt => opt.tipo === newMsg.tipo);
+        if (matchIdx !== -1) {
+          remaining.splice(matchIdx, 1);
+        }
+      }
+    }
+
+    remaining = remaining.filter(opt => {
+      const age = Date.now() - new Date(opt.enviada_em).getTime();
+      return age < 120000;
+    });
+
+    optimisticMsgsRef.current = remaining;
+    realSentIdsRef.current = currentRealSentIds;
+
+    const all = [...real, ...remaining];
     all.sort((a, b) => {
       const tA = new Date(a.created_at || a.enviada_em).getTime();
       const tB = new Date(b.created_at || b.enviada_em).getTime();
