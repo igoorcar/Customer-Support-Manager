@@ -31,6 +31,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { queryClient } from "@/lib/queryClient";
 import { api } from "@/services/api";
 import type { Conversa, Mensagem, BotaoResposta, BotaoMidia } from "@/lib/supabase";
+import MessageInput from "@/components/message-input";
 
 const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline"; dotColor: string }> = {
   nova: { label: "Nova", variant: "default", dotColor: "bg-primary" },
@@ -235,7 +236,6 @@ export default function Conversas() {
   const [searchTerm, setSearchTerm] = useState("");
   const [activeFilter, setActiveFilter] = useState<string>("todas");
   const [selectedConvId, setSelectedConvId] = useState<string | null>(null);
-  const [messageInput, setMessageInput] = useState("");
   const [rightPanelOpen, setRightPanelOpen] = useState(() => {
     const saved = localStorage.getItem("rightPanelOpen");
     return saved !== null ? saved === "true" : true;
@@ -298,12 +298,25 @@ export default function Conversas() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["supabase-mensagens", selectedConvId] });
       queryClient.invalidateQueries({ queryKey: ["supabase-conversas"] });
-      setMessageInput("");
     },
     onError: () => {
       toast({ title: "Erro ao enviar mensagem", variant: "destructive" });
     },
   });
+
+  const handleSendMedia = async (file: File, type: string, caption: string) => {
+    if (!selectedConv) throw new Error("Nenhuma conversa selecionada");
+    const uploadResult = await api.uploadMidia(file);
+    await api.enviarMensagem(
+      selectedConv.id,
+      selectedConv.clientes.whatsapp,
+      type,
+      caption || "",
+      uploadResult.url
+    );
+    queryClient.invalidateQueries({ queryKey: ["supabase-mensagens", selectedConvId] });
+    queryClient.invalidateQueries({ queryKey: ["supabase-conversas"] });
+  };
 
   const finalizeMutation = useMutation({
     mutationFn: async (motivo: string) => {
@@ -363,16 +376,9 @@ export default function Conversas() {
     }
   };
 
-  const handleSendMessage = () => {
-    if (!messageInput.trim() || !selectedConvId) return;
-    sendMessageMutation.mutate(messageInput.trim());
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      handleSendMessage();
-    }
+  const handleSendMessage = (text: string) => {
+    if (!text.trim() || !selectedConvId) return;
+    sendMessageMutation.mutate(text.trim());
   };
 
   const handleFinalize = () => {
@@ -408,15 +414,20 @@ export default function Conversas() {
     { key: "finalizada", label: "Finalizadas" },
   ];
 
-  const filtered = conversations?.filter((c) => {
-    const clientName = c.clientes?.nome || "";
-    const clientPhone = c.clientes?.whatsapp || "";
-    const matchesSearch = !searchTerm ||
-      clientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      clientPhone.includes(searchTerm);
-    const matchesFilter = activeFilter === "todas" || c.status === activeFilter;
-    return matchesSearch && matchesFilter;
-  });
+  const filtered = (() => {
+    const seen = new Set<string>();
+    return conversations?.filter((c) => {
+      if (seen.has(c.id)) return false;
+      seen.add(c.id);
+      const clientName = c.clientes?.nome || "";
+      const clientPhone = c.clientes?.whatsapp || "";
+      const matchesSearch = !searchTerm ||
+        clientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        clientPhone.includes(searchTerm);
+      const matchesFilter = activeFilter === "todas" || c.status === activeFilter;
+      return matchesSearch && matchesFilter;
+    });
+  })();
 
   if (selectedConvId && selectedConv) {
     const clientName = selectedConv.clientes?.nome || "Cliente";
@@ -574,27 +585,12 @@ export default function Conversas() {
             )}
           </div>
 
-          <div className="border-t p-3 bg-background">
-            <div className="flex items-end gap-2">
-              <Textarea
-                placeholder="Digite uma mensagem..."
-                className="resize-none flex-1 min-h-[2.5rem] max-h-32"
-                value={messageInput}
-                onChange={(e) => setMessageInput(e.target.value)}
-                onKeyDown={handleKeyDown}
-                rows={1}
-                data-testid="input-message"
-              />
-              <Button
-                onClick={handleSendMessage}
-                disabled={!messageInput.trim() || sendMessageMutation.isPending}
-                data-testid="button-send-message"
-              >
-                <Send className="w-4 h-4" />
-              </Button>
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">Enter para enviar, Shift+Enter para quebra de linha</p>
-          </div>
+          <MessageInput
+            onSendMessage={handleSendMessage}
+            onSendMedia={handleSendMedia}
+            disabled={selectedConv.status === "finalizada"}
+            isPending={sendMessageMutation.isPending}
+          />
         </div>
 
         <div className={`border-l bg-background flex-shrink-0 transition-all duration-300 overflow-hidden ${rightPanelOpen ? "w-72" : "w-0"}`}>
