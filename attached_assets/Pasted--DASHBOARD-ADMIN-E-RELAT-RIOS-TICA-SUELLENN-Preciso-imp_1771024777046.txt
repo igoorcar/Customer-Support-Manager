@@ -1,0 +1,512 @@
+# 📊 DASHBOARD ADMIN E RELATÓRIOS - ÓTICA SUELLENN
+
+Preciso implementar um sistema completo de dashboard e relatórios para análise de dados do painel administrativo. Aqui está tudo que preciso:
+
+---
+
+## 1. PÁGINA: Dashboard Principal (src/pages/Dashboard.tsx)
+
+Criar uma página de dashboard com cards de métricas e gráficos.
+
+### Métricas Principais (Cards no topo):
+
+**Conversas:**
+- Total de conversas (hoje, semana, mês)
+- Conversas ativas vs fechadas
+- Tempo médio de resposta
+- Taxa de conversão (fechadas/total)
+- Conversas por canal (WhatsApp, etc)
+
+**Atendentes:**
+- Conversas por atendente (hoje)
+- Tempo médio de atendimento por atendente
+- Taxa de resolução por atendente
+- Atendentes online agora
+- Distribuição de carga (balanceamento)
+
+**IA:**
+- Mensagens enviadas pela IA (hoje, semana, mês)
+- Taxa de ativação da IA (por motivo: horário, almoço, feriado)
+- Conversas iniciadas pela IA
+- Taxa de transferência IA → Humano
+- Horários de pico da IA
+
+**Leads (Funil):**
+- Total de leads por etapa do funil
+- Taxa de conversão entre etapas
+- Tempo médio em cada etapa
+- Leads quentes vs mornos vs frios
+- Leads perdidos (motivos)
+
+**Produtos:**
+- Produtos mais procurados
+- Leads por tipo de produto
+- Ticket médio por produto
+- Taxa de conversão por produto
+
+---
+
+## 2. GRÁFICOS (usar recharts):
+
+### Gráfico 1: Linha - Conversas ao longo do tempo
+- Eixo X: Datas (últimos 30 dias)
+- Eixo Y: Número de conversas
+- Linhas: Total, Ativas, Fechadas, Perdidas
+
+### Gráfico 2: Barras - Performance por Atendente
+- Eixo X: Atendentes (Thamirys, Bruna)
+- Eixo Y: Número de conversas
+- Agrupado: Fechadas, Ativas, Tempo médio
+
+### Gráfico 3: Pizza - Distribuição de Etiquetas de Funil
+- Novo Lead
+- Lead Qualificado
+- Orçamento Enviado
+- Negociação
+- Agendado
+- Fechado
+- Perdido
+
+### Gráfico 4: Pizza - Produtos de Interesse
+- Óculos de Grau
+- Óculos de Sol
+- Lentes Progressivas
+- Lentes Transition
+- etc.
+
+### Gráfico 5: Barras Horizontais - Ativação da IA
+- Por motivo: Fora de horário, Almoço, Feriado, Domingo, Manual
+- Quantidade de ativações
+
+### Gráfico 6: Área - Mensagens por Hora do Dia
+- Mostra picos de atendimento
+- Útil para planejamento de horários
+
+---
+
+## 3. PÁGINA: Relatórios (src/pages/Relatorios.tsx)
+
+Criar página de relatórios com filtros e exportação.
+
+### Filtros Disponíveis:
+
+**Período:**
+- Hoje
+- Últimos 7 dias
+- Últimos 30 dias
+- Este mês
+- Mês passado
+- Personalizado (data início e fim)
+
+**Atendente:**
+- Todas
+- Thamirys
+- Bruna
+
+**Status da Conversa:**
+- Todas
+- Ativas
+- Fechadas
+- Arquivadas
+
+**Etiquetas:**
+- Todas
+- Por tipo: Funil, Produto, Status
+- Múltipla seleção
+
+**Canal:**
+- Todos
+- WhatsApp
+
+**Origem:**
+- Todas
+- IA
+- Humano
+
+---
+
+### Relatórios Gerados:
+
+**1. Relatório de Conversas:**
+```
+Tabela com:
+- ID da conversa
+- Cliente (nome + WhatsApp)
+- Atendente
+- Status
+- Etiquetas aplicadas
+- Data de início
+- Data de conclusão
+- Tempo total
+- Número de mensagens
+- Origem (IA ou Humano iniciou)
+```
+
+**2. Relatório de Performance por Atendente:**
+```
+- Nome da atendente
+- Total de conversas
+- Conversas fechadas
+- Taxa de conversão
+- Tempo médio de atendimento
+- Tempo médio de primeira resposta
+- Mensagens enviadas
+- Conversas ativas agora
+```
+
+**3. Relatório de Funil de Vendas:**
+```
+- Etapa do funil
+- Quantidade de leads
+- Taxa de conversão para próxima etapa
+- Tempo médio na etapa
+- Taxa de abandono
+```
+
+**4. Relatório de Produtos:**
+```
+- Produto
+- Número de leads interessados
+- Taxa de conversão
+- Ticket médio
+- Período de maior procura
+```
+
+**5. Relatório de IA:**
+```
+- Data/Hora de ativação
+- Motivo (horário, almoço, feriado)
+- Duração ativa
+- Mensagens enviadas
+- Conversas atendidas
+- Taxa de transferência para humano
+```
+
+**6. Relatório de Follow-Ups:**
+```
+- Conversas com follow-up agendado
+- Follow-ups enviados
+- Follow-ups pendentes
+- Taxa de resposta após follow-up
+```
+
+---
+
+## 4. EXPORTAÇÃO DE DADOS:
+
+Botões para exportar relatórios:
+
+**Formatos:**
+- CSV (para Excel/Google Sheets)
+- PDF (relatório formatado)
+- JSON (dados brutos)
+
+**Biblioteca recomendada:**
+- CSV: `react-csv` ou `papaparse`
+- PDF: `jspdf` ou `react-to-pdf`
+
+---
+
+## 5. QUERIES SUPABASE NECESSÁRIAS:
+
+### Query 1: Métricas Gerais
+```typescript
+// Total de conversas por período
+const { data: conversas, count } = await supabase
+  .from('conversas')
+  .select('*', { count: 'exact' })
+  .gte('created_at', dataInicio)
+  .lte('created_at', dataFim);
+
+// Conversas por status
+const { data: porStatus } = await supabase
+  .from('conversas')
+  .select('status')
+  .gte('created_at', dataInicio)
+  .lte('created_at', dataFim);
+
+// Agrupar manualmente no frontend
+const stats = {
+  ativas: porStatus.filter(c => c.status === 'ativa').length,
+  fechadas: porStatus.filter(c => c.status === 'fechada').length
+};
+```
+
+### Query 2: Performance por Atendente
+```typescript
+const { data: performance } = await supabase
+  .from('conversas')
+  .select(`
+    id,
+    status,
+    tempo_total_atendimento,
+    tempo_primeira_resposta,
+    atendente_id,
+    atendentes (nome)
+  `)
+  .gte('created_at', dataInicio)
+  .lte('created_at', dataFim)
+  .not('atendente_id', 'is', null);
+
+// Agrupar por atendente no frontend
+```
+
+### Query 3: Distribuição de Etiquetas
+```typescript
+const { data: etiquetas } = await supabase
+  .from('conversas_etiquetas')
+  .select(`
+    conversa_id,
+    etiquetas (nome, tipo, cor)
+  `)
+  .gte('created_at', dataInicio)
+  .lte('created_at', dataFim);
+
+// Agrupar por tipo de etiqueta
+```
+
+### Query 4: Ativações da IA
+```typescript
+const { data: iaAtivacoes } = await supabase
+  .from('conversas')
+  .select('ia_ativa, ia_modo, created_at')
+  .eq('ia_ativa', true)
+  .gte('created_at', dataInicio)
+  .lte('created_at', dataFim);
+
+// Contar por ia_modo
+```
+
+### Query 5: Mensagens ao longo do tempo
+```typescript
+const { data: mensagens } = await supabase
+  .from('mensagens')
+  .select('created_at, direcao')
+  .gte('created_at', dataInicio)
+  .lte('created_at', dataFim)
+  .order('created_at', { ascending: true });
+
+// Agrupar por dia/hora
+```
+
+---
+
+## 6. HOOKS CUSTOMIZADOS:
+
+### src/hooks/useDashboardMetrics.ts
+```typescript
+export const useDashboardMetrics = (periodo: string) => {
+  const [metrics, setMetrics] = useState({
+    conversasTotal: 0,
+    conversasAtivas: 0,
+    conversasFechadas: 0,
+    tempoMedioResposta: 0,
+    taxaConversao: 0,
+    // ... outras métricas
+  });
+
+  useEffect(() => {
+    // Buscar métricas do Supabase
+    // Calcular estatísticas
+    // Atualizar estado
+  }, [periodo]);
+
+  return { metrics, loading };
+};
+```
+
+### src/hooks/useRelatorio.ts
+```typescript
+export const useRelatorio = (filtros: FiltrosRelatorio) => {
+  const [dados, setDados] = useState([]);
+  
+  const gerarRelatorio = async () => {
+    // Aplicar filtros
+    // Buscar dados
+    // Processar e retornar
+  };
+
+  const exportarCSV = () => {
+    // Converter para CSV
+  };
+
+  const exportarPDF = () => {
+    // Gerar PDF
+  };
+
+  return { dados, gerarRelatorio, exportarCSV, exportarPDF, loading };
+};
+```
+
+---
+
+## 7. COMPONENTES NECESSÁRIOS:
+
+### MetricCard.tsx
+```typescript
+interface MetricCardProps {
+  title: string;
+  value: number | string;
+  subtitle?: string;
+  icon?: React.ReactNode;
+  trend?: 'up' | 'down' | 'neutral';
+  trendValue?: string;
+}
+```
+
+### ChartContainer.tsx
+```typescript
+// Wrapper para gráficos recharts
+// Com loading, empty state, error handling
+```
+
+### FiltrosRelatorio.tsx
+```typescript
+// Componente com todos os filtros
+// Data picker, selects, checkboxes
+```
+
+### TabelaRelatorio.tsx
+```typescript
+// Tabela com dados do relatório
+// Paginação, ordenação, busca
+```
+
+### ExportButtons.tsx
+```typescript
+// Botões de exportação
+// CSV, PDF, JSON
+```
+
+---
+
+## 8. UTILITÁRIOS:
+
+### src/utils/dateHelpers.ts
+```typescript
+export const periodos = {
+  hoje: () => ({ inicio: startOfDay(new Date()), fim: endOfDay(new Date()) }),
+  semana: () => ({ inicio: startOfWeek(new Date()), fim: endOfWeek(new Date()) }),
+  mes: () => ({ inicio: startOfMonth(new Date()), fim: endOfMonth(new Date()) }),
+  // etc
+};
+
+export const formatarData = (data: Date, formato: string) => {
+  // Formatação de datas
+};
+```
+
+### src/utils/chartHelpers.ts
+```typescript
+export const agruparPorDia = (dados: any[]) => {
+  // Agrupar dados por dia
+};
+
+export const calcularTaxaConversao = (total: number, convertidos: number) => {
+  return (convertidos / total * 100).toFixed(2);
+};
+```
+
+### src/utils/exportHelpers.ts
+```typescript
+export const exportarParaCSV = (dados: any[], nomeArquivo: string) => {
+  // Lógica de exportação CSV
+};
+
+export const exportarParaPDF = (dados: any[], config: PDFConfig) => {
+  // Lógica de exportação PDF
+};
+```
+
+---
+
+## 9. LAYOUT SUGERIDO:
+
+```
+/dashboard
+  ├─ Header com período selecionado
+  ├─ Grid de cards de métricas (4 colunas)
+  ├─ Linha de gráficos principais (2 colunas)
+  └─ Tabela de últimas conversas
+
+/relatorios
+  ├─ Sidebar com filtros
+  ├─ Área principal com:
+  │   ├─ Botões de exportação (topo)
+  │   ├─ Tabela de resultados
+  │   └─ Paginação
+  └─ Gráficos relacionados (abaixo da tabela)
+```
+
+---
+
+## 10. BIBLIOTECAS NECESSÁRIAS:
+
+```bash
+# Se não tiver instalado
+npm install recharts
+npm install date-fns
+npm install react-csv
+npm install jspdf
+npm install react-to-print
+npm install lucide-react
+```
+
+---
+
+## 11. PERMISSÕES E SEGURANÇA:
+
+**Importante:** Dashboard e relatórios devem ser acessíveis apenas para:
+- Administradores
+- Ou verificar papel do usuário logado
+
+```typescript
+// Verificar se usuário é admin
+const { data: user } = await supabase.auth.getUser();
+const { data: atendente } = await supabase
+  .from('atendentes')
+  .select('papel')
+  .eq('email', user.email)
+  .single();
+
+if (atendente.papel !== 'admin') {
+  // Redirecionar ou mostrar erro
+}
+```
+
+---
+
+## 12. EXEMPLOS DE MÉTRICAS INTERESSANTES:
+
+**Análise de Horários:**
+- Horário de pico de mensagens
+- Melhor horário de conversão
+- Quando a IA é mais ativada
+
+**Análise de Comportamento:**
+- Tempo médio até primeira resposta do cliente
+- Quantidade de mensagens até fechamento
+- Taxa de abandono por etapa do funil
+
+**Análise de Produtos:**
+- Produto com maior ticket médio
+- Produto com melhor taxa de conversão
+- Combinações de produtos mais vendidas
+
+**Análise de Atendentes:**
+- Quem fecha mais rápido
+- Quem tem melhor taxa de conversão
+- Distribuição justa de conversas
+
+**ROI da IA:**
+- Quantas conversas a IA atendeu que seriam perdidas
+- Economia de tempo das atendentes
+- Taxa de satisfação com IA vs Humano (se coletar)
+
+---
+
+Por favor, implemente este sistema completo de dashboard e relatórios, mantendo a estrutura existente do projeto e seguindo as boas práticas de React e TypeScript.
+
+Crie todos os componentes, hooks, páginas e utilitários necessários. Use Tailwind CSS para estilização e mantenha consistência com o design atual.
+
+Priorize: performance nas queries, UX intuitiva, gráficos responsivos e exportações funcionais.

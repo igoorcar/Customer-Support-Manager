@@ -4,6 +4,13 @@
 WhatsApp customer service management panel for an optical shop called "Ótica Suellen". Built with React + TypeScript frontend, Express backend, and PostgreSQL database. Features authentication, product catalog, client management, conversation handling, analytics, and settings.
 
 ## Recent Changes
+- 2026-02-13: Comprehensive Dashboard with period selector (hoje/7dias/30dias/mês), 9 metric cards, timeline chart, attendant performance bar, funnel pie, product pie, hourly area chart, attendant table
+- 2026-02-13: Enhanced Relatórios with 5 tabs (Visão Geral, Conversas, Atendentes, Vendas, Clientes), date/atendente/status/etiqueta filters, CSV export
+- 2026-02-13: getDashboardCompleto API method (single call fetches all dashboard data with period filtering)
+- 2026-02-13: getRelatorioConversas API method (filtered conversation reports with message counts)
+- 2026-02-13: CSV export utility (exportToCSV function with BOM for Excel compatibility)
+- 2026-02-13: Collapsible etiqueta filter (sanfona) in conversations page - shows active filter badge when collapsed
+- 2026-02-13: Client tags included in getConversas query for etiqueta filtering
 - 2026-02-13: Sticky conversations mechanism (prevents conversations from disappearing when n8n temporarily changes atendente_id, uses missCount with 3-fetch grace period)
 - 2026-02-13: Delayed atendente_id re-confirmation (2s setTimeout after enviarMensagem to re-set atendente_id in case n8n overrides it)
 - 2026-02-13: Webhook /api/webhook/salvar-mensagem-recebida (saves incoming client messages preserving atendente_id)

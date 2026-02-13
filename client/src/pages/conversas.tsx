@@ -22,6 +22,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
+import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
 import {
   Search, Filter, MessageCircle, Send, ArrowLeft, Phone, Mail,
   UserPlus, Pause, CheckCircle, PanelRight, PanelRightClose,
@@ -1540,31 +1541,51 @@ export default function Conversas() {
           ))}
         </div>
         {allEtiquetas.length > 0 && (
-          <div className="flex items-center gap-1.5 flex-wrap">
-            <Tag className="w-3.5 h-3.5 text-muted-foreground mr-0.5" />
-            {etiquetaFilter && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setEtiquetaFilter(null)}
-                data-testid="button-clear-etiqueta-filter"
-              >
-                <X className="w-3 h-3 mr-1" />
-                Limpar
-              </Button>
-            )}
-            {allEtiquetas.map((et) => (
-              <Badge
-                key={et.id}
-                className={`cursor-pointer text-xs text-white ${etiquetaFilter === et.id ? 'ring-2 ring-offset-1 ring-foreground' : 'opacity-70'}`}
-                style={{ backgroundColor: et.cor, borderColor: et.cor }}
-                onClick={() => setEtiquetaFilter(etiquetaFilter === et.id ? null : et.id)}
-                data-testid={`filter-etiqueta-${et.id}`}
-              >
-                {et.nome}
-              </Badge>
-            ))}
-          </div>
+          <Collapsible>
+            <div className="flex items-center gap-1.5">
+              <CollapsibleTrigger asChild>
+                <Button variant="ghost" size="sm" className="gap-1.5 text-muted-foreground" data-testid="button-toggle-etiquetas">
+                  <Tag className="w-3.5 h-3.5" />
+                  <span className="text-xs">Etiquetas</span>
+                  <ChevronDown className="w-3 h-3" />
+                </Button>
+              </CollapsibleTrigger>
+              {etiquetaFilter && (
+                <>
+                  <Badge
+                    className="cursor-pointer text-xs text-white"
+                    style={{ backgroundColor: allEtiquetas.find(e => e.id === etiquetaFilter)?.cor, borderColor: allEtiquetas.find(e => e.id === etiquetaFilter)?.cor }}
+                    data-testid="badge-active-etiqueta-filter"
+                  >
+                    {allEtiquetas.find(e => e.id === etiquetaFilter)?.nome}
+                  </Badge>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setEtiquetaFilter(null)}
+                    data-testid="button-clear-etiqueta-filter"
+                  >
+                    <X className="w-3 h-3" />
+                  </Button>
+                </>
+              )}
+            </div>
+            <CollapsibleContent className="mt-2">
+              <div className="flex items-center gap-1.5 flex-wrap">
+                {allEtiquetas.map((et) => (
+                  <Badge
+                    key={et.id}
+                    className={`cursor-pointer text-xs text-white ${etiquetaFilter === et.id ? 'ring-2 ring-offset-1 ring-foreground' : 'opacity-70'}`}
+                    style={{ backgroundColor: et.cor, borderColor: et.cor }}
+                    onClick={() => setEtiquetaFilter(etiquetaFilter === et.id ? null : et.id)}
+                    data-testid={`filter-etiqueta-${et.id}`}
+                  >
+                    {et.nome}
+                  </Badge>
+                ))}
+              </div>
+            </CollapsibleContent>
+          </Collapsible>
         )}
       </div>
 

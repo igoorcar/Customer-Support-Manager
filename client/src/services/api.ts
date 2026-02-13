@@ -12,7 +12,8 @@ export const api = {
         nome,
         whatsapp,
         email,
-        avatar_url
+        avatar_url,
+        tags
       ),
       atendentes (
         id,
@@ -749,5 +750,263 @@ export const api = {
       console.error('getClosingReasons error:', error);
       return [];
     }
-  }
+  },
+
+  async getDashboardCompleto(periodo: 'hoje' | '7dias' | '30dias' | 'mes') {
+    try {
+      const now = new Date();
+      let dataInicio: Date;
+
+      if (periodo === 'hoje') {
+        dataInicio = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      } else if (periodo === '7dias') {
+        dataInicio = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      } else if (periodo === '30dias') {
+        dataInicio = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+      } else {
+        dataInicio = new Date(now.getFullYear(), now.getMonth(), 1);
+      }
+
+      const dataInicioISO = dataInicio.toISOString();
+
+      const [
+        allConvRes,
+        mensagensIARes,
+        atendenteRes,
+        clientesRes,
+        etiquetasRes,
+      ] = await Promise.all([
+        supabase.from('conversas').select('*, clientes(id, nome, tags), atendentes(id, nome)').gte('iniciada_em', dataInicioISO),
+        supabase.from('mensagens').select('id, conversa_id, direcao, enviada_em, metadata').gte('enviada_em', dataInicioISO),
+        supabase.from('atendentes').select('*'),
+        supabase.from('clientes').select('id, nome, tags, criado_em, total_compras, valor_total_compras'),
+        supabase.from('etiquetas').select('*'),
+      ]);
+
+      const conversas = allConvRes.data || [];
+      const mensagens = mensagensIARes.data || [];
+      const atendentes = atendenteRes.data || [];
+      const clientes = clientesRes.data || [];
+      const etiquetas = etiquetasRes.data || [];
+
+      const totalConversas = conversas.length;
+      const conversasAtivas = conversas.filter(c => ['nova', 'em_atendimento', 'pausada'].includes(c.status)).length;
+      const conversasFechadas = conversas.filter(c => c.status === 'finalizada').length;
+      const taxaConversao = totalConversas > 0 ? Math.round((conversasFechadas / totalConversas) * 100) : 0;
+
+      const finalizadasComTempo = conversas.filter(c => c.status === 'finalizada' && c.finalizada_em);
+      let tempoMedioResposta = 0;
+      if (finalizadasComTempo.length > 0) {
+        const duracoes = finalizadasComTempo.map(c => {
+          const start = new Date(c.iniciada_em).getTime();
+          const end = new Date(c.finalizada_em).getTime();
+          return (end - start) / 1000 / 60;
+        }).filter(d => d > 0 && d < 10080);
+        if (duracoes.length > 0) {
+          tempoMedioResposta = Math.round(duracoes.reduce((a, b) => a + b, 0) / duracoes.length);
+        }
+      }
+
+      const mensagensIA = mensagens.filter(m => {
+        const meta = m.metadata as any;
+        return meta?.remetente === 'ia' || m.direcao === 'enviada';
+      });
+      const totalMensagensIA = mensagensIA.length;
+
+      const conversasIAAtivaSet = new Set<string>();
+      conversas.forEach(c => {
+        if ((c as any).ia_ativa) conversasIAAtivaSet.add(c.id);
+      });
+
+      const atendenteStats = atendentes.map(at => {
+        const convAt = conversas.filter(c => c.atendente_id === at.id);
+        const convAtFechadas = convAt.filter(c => c.status === 'finalizada');
+        const convAtAtivas = convAt.filter(c => ['nova', 'em_atendimento', 'pausada'].includes(c.status));
+
+        let tempoMedio = 0;
+        const finComTempo = convAtFechadas.filter(c => c.finalizada_em);
+        if (finComTempo.length > 0) {
+          const durs = finComTempo.map(c => {
+            const s = new Date(c.iniciada_em).getTime();
+            const e = new Date(c.finalizada_em).getTime();
+            return (e - s) / 1000 / 60;
+          }).filter(d => d > 0 && d < 10080);
+          if (durs.length > 0) tempoMedio = Math.round(durs.reduce((a, b) => a + b, 0) / durs.length);
+        }
+
+        const taxa = convAt.length > 0 ? Math.round((convAtFechadas.length / convAt.length) * 100) : 0;
+
+        const msgsAt = mensagens.filter(m => {
+          const convIds = convAt.map(c => c.id);
+          return convIds.includes(m.conversa_id) && m.direcao === 'enviada';
+        });
+
+        return {
+          id: at.id,
+          nome: at.nome,
+          status: at.status,
+          avatar_url: at.avatar_url,
+          totalConversas: convAt.length,
+          conversasFechadas: convAtFechadas.length,
+          conversasAtivas: convAtAtivas.length,
+          tempoMedio,
+          taxaResolucao: taxa,
+          mensagensEnviadas: msgsAt.length,
+        };
+      });
+
+      const etiquetaMap: Record<string, { nome: string; cor: string; tipo: string; count: number }> = {};
+      etiquetas.forEach(et => {
+        etiquetaMap[et.id] = { nome: et.nome, cor: et.cor, tipo: et.tipo, count: 0 };
+      });
+      clientes.forEach(cl => {
+        ((cl.tags as string[]) || []).forEach(tagId => {
+          if (etiquetaMap[tagId]) etiquetaMap[tagId].count++;
+        });
+      });
+
+      const funilData = Object.values(etiquetaMap).filter(e => e.tipo === 'funil').map(e => ({ name: e.nome, value: e.count, color: e.cor }));
+      const produtoData = Object.values(etiquetaMap).filter(e => e.tipo === 'produto').map(e => ({ name: e.nome, value: e.count, color: e.cor }));
+      const statusTagData = Object.values(etiquetaMap).filter(e => e.tipo === 'status').map(e => ({ name: e.nome, value: e.count, color: e.cor }));
+
+      const conversasPorDia: Record<string, { total: number; fechadas: number; ativas: number }> = {};
+      conversas.forEach(c => {
+        const dia = new Date(c.iniciada_em).toISOString().split('T')[0];
+        if (!conversasPorDia[dia]) conversasPorDia[dia] = { total: 0, fechadas: 0, ativas: 0 };
+        conversasPorDia[dia].total++;
+        if (c.status === 'finalizada') conversasPorDia[dia].fechadas++;
+        else conversasPorDia[dia].ativas++;
+      });
+      const timelineData = Object.entries(conversasPorDia)
+        .sort((a, b) => a[0].localeCompare(b[0]))
+        .map(([data, vals]) => ({
+          data: new Date(data).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
+          total: vals.total,
+          fechadas: vals.fechadas,
+          ativas: vals.ativas,
+        }));
+
+      const hourCounts: Record<number, number> = {};
+      for (let h = 0; h < 24; h++) hourCounts[h] = 0;
+      mensagens.forEach(m => {
+        const h = new Date(m.enviada_em).getHours();
+        hourCounts[h] = (hourCounts[h] || 0) + 1;
+      });
+      const hourlyData = Object.entries(hourCounts).map(([h, count]) => ({
+        hora: `${h.padStart(2, '0')}h`,
+        mensagens: count,
+      }));
+
+      const atendenteOnline = atendentes.filter(a => a.status === 'online').length;
+
+      return {
+        metricas: {
+          totalConversas,
+          conversasAtivas,
+          conversasFechadas,
+          taxaConversao,
+          tempoMedioResposta,
+          totalMensagensIA,
+          conversasIAAtiva: conversasIAAtivaSet.size,
+          atendenteOnline,
+          totalClientes: clientes.length,
+          novosClientes: clientes.filter(c => new Date(c.criado_em) >= dataInicio).length,
+        },
+        atendenteStats,
+        funilData,
+        produtoData,
+        statusTagData,
+        timelineData,
+        hourlyData,
+      };
+    } catch (error) {
+      console.error('getDashboardCompleto error:', error);
+      return {
+        metricas: {
+          totalConversas: 0, conversasAtivas: 0, conversasFechadas: 0,
+          taxaConversao: 0, tempoMedioResposta: 0, totalMensagensIA: 0,
+          conversasIAAtiva: 0, atendenteOnline: 0, totalClientes: 0, novosClientes: 0,
+        },
+        atendenteStats: [],
+        funilData: [],
+        produtoData: [],
+        statusTagData: [],
+        timelineData: [],
+        hourlyData: [],
+      };
+    }
+  },
+
+  async getRelatorioConversas(filtros: {
+    dataInicio: string;
+    dataFim: string;
+    atendenteId?: string;
+    status?: string;
+    etiquetaId?: string;
+  }) {
+    try {
+      let query = supabase
+        .from('conversas')
+        .select('*, clientes(id, nome, whatsapp, tags), atendentes(id, nome)')
+        .gte('iniciada_em', filtros.dataInicio)
+        .lte('iniciada_em', filtros.dataFim)
+        .order('iniciada_em', { ascending: false });
+
+      if (filtros.atendenteId) query = query.eq('atendente_id', filtros.atendenteId);
+      if (filtros.status && filtros.status !== 'todas') query = query.eq('status', filtros.status);
+
+      const { data, error } = await query;
+      if (error) throw error;
+
+      let conversas = data || [];
+
+      if (filtros.etiquetaId) {
+        conversas = conversas.filter(c => {
+          const tags = (c.clientes as any)?.tags as string[] | undefined;
+          return tags && tags.includes(filtros.etiquetaId!);
+        });
+      }
+
+      const conversaIds = conversas.map(c => c.id);
+      let msgCounts: Record<string, number> = {};
+      if (conversaIds.length > 0) {
+        const batchSize = 50;
+        for (let i = 0; i < conversaIds.length; i += batchSize) {
+          const batch = conversaIds.slice(i, i + batchSize);
+          const { data: msgs } = await supabase
+            .from('mensagens')
+            .select('conversa_id')
+            .in('conversa_id', batch);
+          (msgs || []).forEach(m => {
+            msgCounts[m.conversa_id] = (msgCounts[m.conversa_id] || 0) + 1;
+          });
+        }
+      }
+
+      return conversas.map(c => {
+        let tempoTotal = '';
+        if (c.finalizada_em && c.iniciada_em) {
+          const diff = (new Date(c.finalizada_em).getTime() - new Date(c.iniciada_em).getTime()) / 1000 / 60;
+          if (diff < 60) tempoTotal = `${Math.round(diff)}min`;
+          else if (diff < 1440) tempoTotal = `${Math.round(diff / 60)}h`;
+          else tempoTotal = `${Math.round(diff / 1440)}d`;
+        }
+
+        return {
+          id: c.id,
+          cliente: (c.clientes as any)?.nome || 'Desconhecido',
+          clienteWhatsapp: (c.clientes as any)?.whatsapp || '',
+          atendente: (c.atendentes as any)?.nome || '--',
+          status: c.status,
+          iniciadaEm: c.iniciada_em,
+          finalizadaEm: c.finalizada_em,
+          tempoTotal,
+          totalMensagens: msgCounts[c.id] || 0,
+        };
+      });
+    } catch (error) {
+      console.error('getRelatorioConversas error:', error);
+      return [];
+    }
+  },
 };
