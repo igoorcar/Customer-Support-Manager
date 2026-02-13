@@ -271,7 +271,6 @@ export default function MessageInput({ onSendMessage, onSendMedia, disabled, isP
     try {
       const fileName = `audio_${Date.now()}.webm`;
       const file = new File([recordedBlob], fileName, { type: "audio/webm" });
-      console.log("Sending recorded audio:", file.name, file.size, file.type);
       await onSendMedia(file, "audio", "");
       cancelRecording();
       toast({ title: "Áudio enviado" });

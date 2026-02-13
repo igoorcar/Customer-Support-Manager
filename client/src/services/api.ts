@@ -85,7 +85,13 @@ export const api = {
     });
 
     if (!response.ok) throw new Error('Erro ao enviar mensagem');
-    return response.json();
+    const text = await response.text();
+    if (!text) return { ok: true };
+    try {
+      return JSON.parse(text);
+    } catch {
+      return { ok: true, raw: text };
+    }
   },
 
   async transferirConversa(conversaId: string, novoAtendenteId: string, atendenteOrigemId: string, motivo: string) {
@@ -101,7 +107,13 @@ export const api = {
     });
 
     if (!response.ok) throw new Error('Erro ao transferir conversa');
-    return response.json();
+    const text = await response.text();
+    if (!text) return { ok: true };
+    try {
+      return JSON.parse(text);
+    } catch {
+      return { ok: true, raw: text };
+    }
   },
 
   async finalizarConversa(conversaId: string, motivo: string) {
@@ -201,7 +213,13 @@ export const api = {
     });
 
     if (!response.ok) throw new Error('Erro ao criar botão');
-    return response.json();
+    const text = await response.text();
+    if (!text) return { ok: true };
+    try {
+      return JSON.parse(text);
+    } catch {
+      return { ok: true, raw: text };
+    }
   },
 
   async enviarBotao(botaoId: number, conversaId: string, numero: string, atendenteId: string) {
@@ -217,7 +235,13 @@ export const api = {
     });
 
     if (!response.ok) throw new Error('Erro ao enviar botão');
-    return response.json();
+    const text = await response.text();
+    if (!text) return { ok: true };
+    try {
+      return JSON.parse(text);
+    } catch {
+      return { ok: true, raw: text };
+    }
   },
 
   async uploadMidia(file: File) {
