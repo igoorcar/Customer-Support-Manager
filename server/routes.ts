@@ -3,6 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertClientSchema, insertQuickReplySchema, insertProductSchema, insertClientNoteSchema, insertMessageSchema, insertQuoteSchema } from "@shared/schema";
 import { requireAuth } from "./auth";
+import { spawn } from "child_process";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
@@ -80,7 +81,7 @@ export async function registerRoutes(
       outputPath
     ];
 
-    const ffmpegProcess = require("child_process").spawn("ffmpeg", args, {
+    const ffmpegProcess = spawn("ffmpeg", args, {
       stdio: ["pipe", "pipe", "pipe"]
     });
 
@@ -156,6 +157,7 @@ export async function registerRoutes(
       const contentType = response.headers.get("content-type") || "application/octet-stream";
       res.setHeader("Content-Type", contentType);
       res.setHeader("Cache-Control", "public, max-age=86400");
+      res.setHeader("Access-Control-Allow-Origin", "*");
 
       const buffer = await response.arrayBuffer();
       res.send(Buffer.from(buffer));

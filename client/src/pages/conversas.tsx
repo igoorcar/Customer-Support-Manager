@@ -148,7 +148,6 @@ function MediaContent({ msg }: { msg: Mensagem }) {
             src={mediaUrl}
             controls
             preload="metadata"
-            crossOrigin="anonymous"
             className="max-w-full w-full h-10"
             data-testid={`media-audio-${msg.id}`}
             onError={() => setAudioError(true)}
