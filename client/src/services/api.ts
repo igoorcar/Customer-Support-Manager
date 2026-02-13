@@ -5,42 +5,62 @@ const N8N_BASE_URL = 'https://n8n-n8n-otica-suellenn.gycquy.easypanel.host';
 
 export const api = {
   async getConversas(filtro?: 'todas' | 'aguardando' | 'minhas' | 'finalizadas' | 'ativas', atendenteId?: string) {
-    let query = supabase
-      .from('conversas')
-      .select(`
-        *,
-        clientes (
-          id,
-          nome,
-          whatsapp,
-          email,
-          avatar_url
-        ),
-        atendentes (
-          id,
-          nome,
-          avatar_url
-        )
-      `)
-      .order('updated_at', { ascending: false });
-
-    if (atendenteId && filtro !== 'aguardando') {
-      query = query.eq('atendente_id', atendenteId);
-    }
+    const selectFields = `
+      *,
+      clientes (
+        id,
+        nome,
+        whatsapp,
+        email,
+        avatar_url
+      ),
+      atendentes (
+        id,
+        nome,
+        avatar_url
+      )
+    `;
 
     if (filtro === 'aguardando') {
-      query = query.eq('status', 'nova');
-    } else if (filtro === 'finalizadas') {
-      query = query.eq('status', 'finalizada');
-    } else if (filtro === 'ativas') {
-      query = query.in('status', ['nova', 'em_atendimento', 'pausada']);
+      const { data, error } = await supabase
+        .from('conversas')
+        .select(selectFields)
+        .eq('status', 'nova')
+        .order('updated_at', { ascending: false });
+      if (error) { console.error('getConversas error:', error.message); throw error; }
+      return (data || []) as Conversa[];
     }
 
-    const { data, error } = await query;
-    if (error) {
-      console.error('getConversas error:', error.message);
-      throw error;
+    if (filtro === 'finalizadas') {
+      let query = supabase.from('conversas').select(selectFields).eq('status', 'finalizada').order('updated_at', { ascending: false });
+      if (atendenteId) query = query.eq('atendente_id', atendenteId);
+      const { data, error } = await query;
+      if (error) { console.error('getConversas error:', error.message); throw error; }
+      return (data || []) as Conversa[];
     }
+
+    if (atendenteId) {
+      let query = supabase
+        .from('conversas')
+        .select(selectFields)
+        .or(`atendente_id.eq.${atendenteId},atendente_id.is.null`)
+        .order('updated_at', { ascending: false });
+
+      if (filtro === 'ativas') {
+        query = query.in('status', ['nova', 'em_atendimento', 'pausada']);
+      }
+
+      const { data, error } = await query;
+      if (error) { console.error('getConversas error:', error.message); throw error; }
+      return (data || []) as Conversa[];
+    }
+
+    let query = supabase.from('conversas').select(selectFields).order('updated_at', { ascending: false });
+    if (filtro === 'ativas') {
+      query = query.in('status', ['nova', 'em_atendimento', 'pausada']);
+    }
+    const { data, error } = await query;
+    if (error) { console.error('getConversas error:', error.message); throw error; }
     return (data || []) as Conversa[];
   },
 

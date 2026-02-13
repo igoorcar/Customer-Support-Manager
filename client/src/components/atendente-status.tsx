@@ -63,14 +63,16 @@ export function AtendenteStatus({ atendenteEmail }: AtendenteStatusProps) {
     if (!atendente) return;
 
     const marcarOnline = async () => {
+      const currentStatus = atendente.status === 'ausente' ? 'ausente' : 'ativo';
       await supabase
         .from('atendentes')
         .update({
           online: true,
-          status: 'ativo',
+          status: currentStatus,
           ultima_atividade: new Date().toISOString()
         })
         .eq('email', atendenteEmail);
+      setAtendente(prev => prev ? { ...prev, online: true, status: currentStatus } : prev);
     };
 
     marcarOnline();
@@ -106,15 +108,27 @@ export function AtendenteStatus({ atendenteEmail }: AtendenteStatusProps) {
   const alternarStatus = async (novoStatus: 'ativo' | 'ausente' | 'offline') => {
     if (!atendente) return;
 
+    const novoOnline = novoStatus !== 'offline';
+    setAtendente({ ...atendente, status: novoStatus, online: novoOnline });
     setLoading(true);
     try {
-      await supabase
+      const { error } = await supabase
         .from('atendentes')
         .update({
           status: novoStatus,
-          online: novoStatus !== 'offline'
+          online: novoOnline,
+          ultima_atividade: new Date().toISOString()
         })
         .eq('id', atendente.id);
+      if (error) {
+        console.error('Erro ao alterar status:', error);
+        const { data } = await supabase
+          .from('atendentes')
+          .select('*')
+          .eq('id', atendente.id)
+          .single();
+        if (data) setAtendente(data);
+      }
     } catch (error) {
       console.error('Erro ao alterar status:', error);
     } finally {
