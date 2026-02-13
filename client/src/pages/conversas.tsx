@@ -347,11 +347,10 @@ export default function Conversas() {
   const { data: conversations, isLoading } = useQuery<Conversa[]>({
     queryKey: ["supabase-conversas", activeFilter, atendenteId],
     queryFn: () => {
-      if (!atendenteId) return api.getConversas('todas');
-      if (activeFilter === "todas") return api.getConversas('todas', atendenteId);
+      if (activeFilter === "todas") return api.getConversas('todas');
       if (activeFilter === "nova") return api.getConversas('aguardando');
-      if (activeFilter === "finalizada") return api.getConversas('finalizadas', atendenteId);
-      return api.getConversas('ativas', atendenteId);
+      if (activeFilter === "finalizada") return api.getConversas('finalizadas');
+      return api.getConversas('ativas');
     },
     refetchInterval: 5000,
   });
@@ -578,6 +577,7 @@ export default function Conversas() {
       entregue_em: null,
       lida_em: null,
       enviada_por: null,
+      metadata: null,
       atendentes: null,
     };
     optimisticMsgsRef.current = [...optimisticMsgsRef.current, optimistic];
