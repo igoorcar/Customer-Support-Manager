@@ -359,15 +359,22 @@ export default function Conversas() {
   const mensagens = (() => {
     const real = rawMensagens || [];
     const realIds = new Set(real.map(m => m.id));
-    const realContents = new Set(real.map(m => m.conteudo));
     const pending = optimisticMsgsRef.current.filter(opt => {
       if (realIds.has(opt.id)) return false;
-      if (opt.tipo === "text" && realContents.has(opt.conteudo)) return false;
-      return !real.some(r =>
-        r.direcao === "enviada" &&
-        r.tipo === opt.tipo &&
-        Math.abs(new Date(r.enviada_em).getTime() - new Date(opt.enviada_em).getTime()) < 30000
-      );
+      const optTime = new Date(opt.enviada_em).getTime();
+      const recentSent = real.filter(r => r.direcao === "enviada" && r.tipo === opt.tipo);
+      const hasMatch = recentSent.some(r => {
+        const rTime = new Date(r.created_at || r.enviada_em).getTime();
+        if (Math.abs(rTime - optTime) > 60000) return false;
+        if (opt.tipo === "text") {
+          return opt.conteudo && r.conteudo && opt.conteudo === r.conteudo;
+        }
+        return true;
+      });
+      if (hasMatch) return false;
+      const age = Date.now() - optTime;
+      if (age > 120000) return false;
+      return true;
     });
     optimisticMsgsRef.current = pending;
     const all = [...real, ...pending];
@@ -519,6 +526,9 @@ export default function Conversas() {
         content
       );
     },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["supabase-mensagens", selectedConvId] });
+    },
     onError: () => {
       toast({ title: "Erro ao enviar mensagem", variant: "destructive" });
     },
@@ -526,16 +536,21 @@ export default function Conversas() {
 
   const handleSendMedia = async (file: File, type: string, caption: string) => {
     if (!selectedConv) throw new Error("Nenhuma conversa selecionada");
-    const isAudio = type === "audio";
-    const uploadResult = await api.uploadMidia(file, isAudio);
-    addOptimisticMessage(caption, type, uploadResult.url);
-    await api.enviarMensagem(
-      selectedConv.id,
-      selectedConv.clientes.whatsapp,
-      type,
-      caption || "",
-      uploadResult.url
-    );
+    try {
+      const isAudio = type === "audio";
+      const uploadResult = await api.uploadMidia(file, isAudio);
+      addOptimisticMessage(caption, type, uploadResult.url);
+      await api.enviarMensagem(
+        selectedConv.id,
+        selectedConv.clientes.whatsapp,
+        type,
+        caption || "",
+        uploadResult.url
+      );
+      queryClient.invalidateQueries({ queryKey: ["supabase-mensagens", selectedConvId] });
+    } catch {
+      toast({ title: "Erro ao enviar mídia", variant: "destructive" });
+    }
   };
 
   const finalizeMutation = useMutation({
