@@ -4,6 +4,7 @@
 WhatsApp customer service management panel for an optical shop called "Ótica Suellen". Built with React + TypeScript frontend, Express backend, and PostgreSQL database. Features authentication, product catalog, client management, conversation handling, analytics, and settings.
 
 ## Recent Changes
+- 2026-02-13: IA Atendente toggle per conversation (useIAControl hook, IAToggle component, business hours utility, realtime Supabase subscription)
 - 2026-02-13: Audio OGG conversion via FFmpeg (/api/upload/audio endpoint converts any audio to OGG Opus for WhatsApp)
 - 2026-02-13: Optimistic messages persist across refetches (ref-based storage, deduplication when real data arrives)
 - 2026-02-13: Media uploads to Supabase Storage bucket "midias" with local fallback

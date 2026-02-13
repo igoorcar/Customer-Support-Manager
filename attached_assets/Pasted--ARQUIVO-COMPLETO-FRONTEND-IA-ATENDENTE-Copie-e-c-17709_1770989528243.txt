@@ -1,0 +1,384 @@
+// ========================================
+// ARQUIVO COMPLETO - FRONTEND IA ATENDENTE
+// Copie e cole cada seção no arquivo correspondente
+// ========================================
+
+// ========================================
+// 1. SQL - EXECUTAR NO SUPABASE SQL EDITOR
+// ========================================
+
+/*
+ALTER TABLE conversas
+ADD COLUMN IF NOT EXISTS ia_ativa BOOLEAN DEFAULT false,
+ADD COLUMN IF NOT EXISTS ia_modo VARCHAR(20) DEFAULT 'manual',
+ADD COLUMN IF NOT EXISTS atendente_ausente BOOLEAN DEFAULT false;
+
+CREATE INDEX IF NOT EXISTS idx_conversas_ia_ativa 
+ON conversas(ia_ativa) 
+WHERE ia_ativa = true;
+*/
+
+// ========================================
+// 2. ARQUIVO: src/hooks/useIAControl.ts
+// ========================================
+
+import { useState, useEffect } from 'react';
+import { supabase } from '@/lib/supabase';
+
+export interface IAStatus {
+  iaAtiva: boolean;
+  iaModo: 'manual' | 'horario' | 'feriado' | 'domingo';
+  atendenteAusente: boolean;
+}
+
+export const useIAControl = (conversaId: string | null) => {
+  const [iaStatus, setIAStatus] = useState<IAStatus>({
+    iaAtiva: false,
+    iaModo: 'manual',
+    atendenteAusente: false
+  });
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!conversaId) return;
+
+    const fetchStatus = async () => {
+      const { data, error } = await supabase
+        .from('conversas')
+        .select('ia_ativa, ia_modo, atendente_ausente')
+        .eq('id', conversaId)
+        .single();
+
+      if (data && !error) {
+        setIAStatus({
+          iaAtiva: data.ia_ativa || false,
+          iaModo: data.ia_modo || 'manual',
+          atendenteAusente: data.atendente_ausente || false
+        });
+      }
+    };
+
+    fetchStatus();
+
+    const channel = supabase
+      .channel(`conversa-${conversaId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'conversas',
+          filter: `id=eq.${conversaId}`
+        },
+        (payload) => {
+          if (payload.new) {
+            setIAStatus({
+              iaAtiva: payload.new.ia_ativa || false,
+              iaModo: payload.new.ia_modo || 'manual',
+              atendenteAusente: payload.new.atendente_ausente || false
+            });
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [conversaId]);
+
+  const ativarIA = async () => {
+    if (!conversaId) return;
+    
+    setLoading(true);
+    try {
+      const { error } = await supabase
+        .from('conversas')
+        .update({
+          ia_ativa: true,
+          ia_modo: 'manual',
+          atendente_ausente: true
+        })
+        .eq('id', conversaId);
+
+      if (!error) {
+        setIAStatus({
+          iaAtiva: true,
+          iaModo: 'manual',
+          atendenteAusente: true
+        });
+      }
+    } catch (error) {
+      console.error('Erro ao ativar IA:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const desativarIA = async () => {
+    if (!conversaId) return;
+    
+    setLoading(true);
+    try {
+      const { error } = await supabase
+        .from('conversas')
+        .update({
+          ia_ativa: false,
+          ia_modo: 'manual',
+          atendente_ausente: false
+        })
+        .eq('id', conversaId);
+
+      if (!error) {
+        setIAStatus({
+          iaAtiva: false,
+          iaModo: 'manual',
+          atendenteAusente: false
+        });
+      }
+    } catch (error) {
+      console.error('Erro ao desativar IA:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return {
+    iaStatus,
+    ativarIA,
+    desativarIA,
+    loading
+  };
+};
+
+// ========================================
+// 3. ARQUIVO: src/utils/horarioComercial.ts
+// ========================================
+
+export interface Feriado {
+  data: string;
+  nome: string;
+}
+
+export const feriados2026: Feriado[] = [
+  { data: '2026-01-01', nome: 'Confraternização Universal' },
+  { data: '2026-02-16', nome: 'Carnaval' },
+  { data: '2026-02-17', nome: 'Carnaval' },
+  { data: '2026-04-03', nome: 'Sexta-feira Santa' },
+  { data: '2026-04-21', nome: 'Tiradentes' },
+  { data: '2026-05-01', nome: 'Dia do Trabalho' },
+  { data: '2026-06-04', nome: 'Corpus Christi' },
+  { data: '2026-09-07', nome: 'Independência do Brasil' },
+  { data: '2026-10-12', nome: 'Nossa Senhora Aparecida' },
+  { data: '2026-11-02', nome: 'Finados' },
+  { data: '2026-11-15', nome: 'Proclamação da República' },
+  { data: '2026-12-25', nome: 'Natal' }
+];
+
+export const horarioComercial = {
+  segunda: { inicio: '08:00', fim: '17:00' },
+  terca: { inicio: '08:00', fim: '17:00' },
+  quarta: { inicio: '08:00', fim: '17:00' },
+  quinta: { inicio: '08:00', fim: '17:00' },
+  sexta: { inicio: '08:00', fim: '17:00' },
+  sabado: { inicio: '08:30', fim: '12:30' },
+  domingo: null
+};
+
+export const verificarHorarioComercial = (): {
+  dentroHorario: boolean;
+  motivo: 'horario' | 'feriado' | 'domingo' | null;
+  mensagem?: string;
+} => {
+  const agora = new Date();
+  const diaSemana = agora.getDay();
+  const horaAtual = agora.getHours() * 100 + agora.getMinutes();
+  const dataHoje = agora.toISOString().split('T')[0];
+
+  const feriado = feriados2026.find(f => f.data === dataHoje);
+  if (feriado) {
+    return { 
+      dentroHorario: false, 
+      motivo: 'feriado',
+      mensagem: `Hoje é feriado: ${feriado.nome}`
+    };
+  }
+
+  if (diaSemana === 0) {
+    return { 
+      dentroHorario: false, 
+      motivo: 'domingo',
+      mensagem: 'Fechado aos domingos'
+    };
+  }
+
+  const diasSemana = ['domingo', 'segunda', 'terca', 'quarta', 'quinta', 'sexta', 'sabado'];
+  const diaChave = diasSemana[diaSemana] as keyof typeof horarioComercial;
+  const horario = horarioComercial[diaChave];
+
+  if (!horario) {
+    return { 
+      dentroHorario: false, 
+      motivo: 'domingo',
+      mensagem: 'Fechado aos domingos'
+    };
+  }
+
+  const [inicioH, inicioM] = horario.inicio.split(':').map(Number);
+  const [fimH, fimM] = horario.fim.split(':').map(Number);
+  const horaInicio = inicioH * 100 + inicioM;
+  const horaFim = fimH * 100 + fimM;
+
+  if (horaAtual < horaInicio || horaAtual > horaFim) {
+    return { 
+      dentroHorario: false, 
+      motivo: 'horario',
+      mensagem: `Horário de atendimento: ${horario.inicio} às ${horario.fim}`
+    };
+  }
+
+  return { dentroHorario: true, motivo: null };
+};
+
+export const getMensagemForaHorario = (): string => {
+  const status = verificarHorarioComercial();
+  
+  if (status.dentroHorario) {
+    return 'Estamos em horário de atendimento';
+  }
+
+  switch (status.motivo) {
+    case 'feriado':
+      return status.mensagem || 'Fechado - Feriado';
+    case 'domingo':
+      return 'Fechado aos domingos';
+    case 'horario':
+      return status.mensagem || 'Fora do horário de atendimento';
+    default:
+      return 'Fora do horário de atendimento';
+  }
+};
+
+// ========================================
+// 4. ARQUIVO: src/components/IAToggle.tsx
+// ========================================
+
+import React from 'react';
+import { Bot, BotOff, Loader2 } from 'lucide-react';
+import { useIAControl } from '@/hooks/useIAControl';
+import { verificarHorarioComercial } from '@/utils/horarioComercial';
+
+interface IAToggleProps {
+  conversaId: string;
+}
+
+export const IAToggle: React.FC<IAToggleProps> = ({ conversaId }) => {
+  const { iaStatus, ativarIA, desativarIA, loading } = useIAControl(conversaId);
+  const horarioStatus = verificarHorarioComercial();
+
+  const getModoTexto = () => {
+    if (iaStatus.iaModo === 'manual') return 'Manual';
+    if (iaStatus.iaModo === 'horario') return 'Auto - Fora de horário';
+    if (iaStatus.iaModo === 'feriado') return 'Auto - Feriado';
+    if (iaStatus.iaModo === 'domingo') return 'Auto - Domingo';
+    return '';
+  };
+
+  if (iaStatus.iaAtiva) {
+    return (
+      <div className="flex items-center gap-3 p-3 bg-green-50 border border-green-200 rounded-lg">
+        <Bot className="w-5 h-5 text-green-600 animate-pulse" />
+        <div className="flex-1">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-semibold text-green-700">
+              IA Ativa
+            </span>
+            <span className="text-xs text-green-600 bg-green-100 px-2 py-0.5 rounded">
+              {getModoTexto()}
+            </span>
+          </div>
+          <p className="text-xs text-green-600 mt-0.5">
+            Respostas automáticas ativadas
+          </p>
+        </div>
+        {iaStatus.iaModo === 'manual' && (
+          <button
+            onClick={desativarIA}
+            disabled={loading}
+            className="px-3 py-1.5 text-xs font-medium bg-red-500 text-white rounded hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            {loading ? (
+              <Loader2 className="w-3 h-3 animate-spin" />
+            ) : (
+              'Desativar'
+            )}
+          </button>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-3 p-3 bg-gray-50 border border-gray-200 rounded-lg">
+      <BotOff className="w-5 h-5 text-gray-400" />
+      <div className="flex-1">
+        <div className="text-sm font-medium text-gray-700">
+          IA Desativada
+        </div>
+        <p className="text-xs text-gray-500 mt-0.5">
+          {horarioStatus.dentroHorario 
+            ? 'Atendimento humano' 
+            : 'Fora do horário comercial'}
+        </p>
+      </div>
+      <button
+        onClick={ativarIA}
+        disabled={loading}
+        className="px-3 py-1.5 text-xs font-medium bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+      >
+        {loading ? (
+          <Loader2 className="w-3 h-3 animate-spin" />
+        ) : (
+          'Ativar IA'
+        )}
+      </button>
+    </div>
+  );
+};
+
+// ========================================
+// 5. INTEGRAÇÃO NO ChatWindow.tsx
+// Adicione no seu arquivo ChatWindow existente
+// ========================================
+
+/*
+import { IAToggle } from '@/components/IAToggle';
+
+// No header da conversa, adicione:
+
+<div className="border-b p-4 bg-white">
+  <div className="flex items-center justify-between mb-3">
+    <div>
+      <h2 className="font-semibold text-lg">
+        {conversaAtual.cliente_nome}
+      </h2>
+      <span className="text-sm text-gray-500">
+        {conversaAtual.cliente_whatsapp}
+      </span>
+    </div>
+  </div>
+  
+  // ADICIONAR AQUI:
+  <IAToggle conversaId={conversaAtual.id} />
+</div>
+*/
+
+// ========================================
+// PRONTO! AGORA VOCÊ TEM:
+// ========================================
+// ✅ Hook para controlar IA (useIAControl)
+// ✅ Verificação de horário comercial
+// ✅ Componente visual (IAToggle)
+// ✅ Realtime integrado
+// ✅ Ativação manual e automática
+// ========================================

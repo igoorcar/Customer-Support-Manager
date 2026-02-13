@@ -32,6 +32,7 @@ import { queryClient } from "@/lib/queryClient";
 import { api } from "@/services/api";
 import type { Conversa, Mensagem, BotaoResposta, BotaoMidia } from "@/lib/supabase";
 import MessageInput from "@/components/message-input";
+import { IAToggle } from "@/components/ia-toggle";
 
 const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline"; dotColor: string }> = {
   nova: { label: "Nova", variant: "default", dotColor: "bg-primary" },
@@ -603,6 +604,10 @@ export default function Conversas() {
                 {rightPanelOpen ? <PanelRightClose className="w-4 h-4" /> : <PanelRight className="w-4 h-4" />}
               </Button>
             </div>
+          </div>
+
+          <div className="px-3 py-2 border-b">
+            <IAToggle conversaId={selectedConvId} />
           </div>
 
           <div className="flex-1 overflow-y-auto p-4 space-y-3 relative" ref={chatContainerRef} onScroll={handleScroll} data-testid="chat-messages-area">

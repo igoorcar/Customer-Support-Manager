@@ -16,6 +16,9 @@ export type Conversa = {
   atribuida_em: string | null;
   finalizada_em: string | null;
   motivo_finalizacao?: string | null;
+  ia_ativa?: boolean;
+  ia_modo?: 'manual' | 'horario' | 'feriado' | 'domingo';
+  atendente_ausente?: boolean;
   clientes: {
     id: string;
     nome: string;
