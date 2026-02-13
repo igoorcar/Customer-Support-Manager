@@ -84,14 +84,23 @@ function MessageStatus({ status }: { status: string }) {
   return null;
 }
 
+function getMediaUrl(url: string | null): string | null {
+  if (!url) return null;
+  if (url.startsWith("/") || url.includes("supabase.co") || url.includes(window.location.host)) {
+    return url;
+  }
+  return `/api/media-proxy?url=${encodeURIComponent(url)}`;
+}
+
 function MediaContent({ msg }: { msg: Mensagem }) {
   const isAttendant = msg.direcao === "enviada";
+  const mediaUrl = getMediaUrl(msg.midia_url);
 
-  if (msg.tipo === "image" && msg.midia_url) {
+  if (msg.tipo === "image" && mediaUrl) {
     return (
       <div className="space-y-1">
         <img
-          src={msg.midia_url}
+          src={mediaUrl}
           alt="Imagem"
           className="rounded-md max-w-full max-h-64 object-cover cursor-pointer"
           loading="lazy"
@@ -102,12 +111,12 @@ function MediaContent({ msg }: { msg: Mensagem }) {
     );
   }
 
-  if (msg.tipo === "video" && msg.midia_url) {
+  if (msg.tipo === "video" && mediaUrl) {
     return (
       <div className="space-y-1">
         <div className="relative">
           <video
-            src={msg.midia_url}
+            src={mediaUrl}
             controls
             className="rounded-md max-w-full max-h-64"
             data-testid={`media-video-${msg.id}`}
@@ -118,25 +127,37 @@ function MediaContent({ msg }: { msg: Mensagem }) {
     );
   }
 
-  if (msg.tipo === "audio" && msg.midia_url) {
+  if (msg.tipo === "audio" && mediaUrl) {
     return (
       <div className="space-y-1">
-        <audio
-          src={msg.midia_url}
-          controls
-          className="max-w-full"
-          data-testid={`media-audio-${msg.id}`}
-        />
+        <div className="flex items-center gap-2 min-w-[200px]">
+          <audio
+            src={mediaUrl}
+            controls
+            preload="metadata"
+            className="max-w-full w-full h-10"
+            data-testid={`media-audio-${msg.id}`}
+          />
+        </div>
         {msg.conteudo && <p className="text-sm whitespace-pre-wrap">{msg.conteudo}</p>}
       </div>
     );
   }
 
-  if (msg.tipo === "document" && msg.midia_url) {
+  if (msg.tipo === "audio" && !msg.midia_url) {
+    return (
+      <div className="flex items-center gap-2 py-1">
+        <Music className="w-4 h-4 flex-shrink-0" />
+        <span className="text-sm italic">Áudio indisponível</span>
+      </div>
+    );
+  }
+
+  if (msg.tipo === "document" && mediaUrl) {
     return (
       <div className="space-y-1">
         <a
-          href={msg.midia_url}
+          href={mediaUrl || "#"}
           target="_blank"
           rel="noopener noreferrer"
           className={`flex items-center gap-2 p-2 rounded-md border ${isAttendant ? "border-primary-foreground/20" : "border-border"}`}

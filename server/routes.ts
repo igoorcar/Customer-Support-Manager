@@ -98,6 +98,44 @@ export async function registerRoutes(
     });
   });
 
+  const ALLOWED_MEDIA_DOMAINS = [
+    "lookaside.fbsbx.com",
+    "scontent.whatsapp.net",
+    "mmg.whatsapp.net",
+    "media.fna.whatsapp.net",
+    "media.fgru",
+    "pps.whatsapp.net",
+    "web.whatsapp.com",
+  ];
+
+  app.get("/api/media-proxy", requireAuth, async (req, res) => {
+    const url = req.query.url as string;
+    if (!url) return res.status(400).json({ error: "URL obrigatória" });
+
+    try {
+      const parsed = new URL(url);
+      const isAllowed = ALLOWED_MEDIA_DOMAINS.some(d => parsed.hostname.includes(d));
+      if (!isAllowed) {
+        return res.status(403).json({ error: "Domínio não permitido" });
+      }
+
+      const response = await fetch(url);
+      if (!response.ok) {
+        return res.status(response.status).json({ error: "Erro ao acessar mídia" });
+      }
+
+      const contentType = response.headers.get("content-type") || "application/octet-stream";
+      res.setHeader("Content-Type", contentType);
+      res.setHeader("Cache-Control", "public, max-age=86400");
+
+      const buffer = await response.arrayBuffer();
+      res.send(Buffer.from(buffer));
+    } catch (error) {
+      console.error("Media proxy error:", error);
+      res.status(500).json({ error: "Erro ao buscar mídia" });
+    }
+  });
+
   app.get("/api/stats", async (_req, res) => {
     const stats = await storage.getStats();
     res.json(stats);
