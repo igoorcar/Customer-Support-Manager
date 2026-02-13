@@ -119,6 +119,33 @@ export const api = {
 
     if (!response.ok) throw new Error('Erro ao enviar mensagem');
     const text = await response.text();
+
+    const now = new Date().toISOString();
+    const mimeMap: Record<string, string> = {
+      audio: 'audio/ogg',
+      image: 'image/jpeg',
+      video: 'video/mp4',
+      document: 'application/octet-stream',
+    };
+
+    await Promise.all([
+      supabase.from('mensagens').insert({
+        conversa_id: conversaId,
+        direcao: 'enviada',
+        tipo,
+        conteudo: mensagem || null,
+        midia_url: midiaUrl || null,
+        midia_mime_type: mimeMap[tipo] || null,
+        status: 'enviada',
+        enviada_em: now,
+      }).then(({ error }) => {
+        if (error) console.error('Erro ao salvar mensagem no Supabase:', error.message);
+      }),
+      supabase.from('conversas')
+        .update({ ultima_mensagem_em: now })
+        .eq('id', conversaId),
+    ]);
+
     if (!text) return { ok: true };
     try {
       return JSON.parse(text);
