@@ -1,0 +1,898 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({status: 'ok'}) }}",
+        "options": {}
+      },
+      "id": "8afe9411-5806-4ce8-a4e3-5a3316673482",
+      "name": "Responder POST",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        2064,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "tableId": "mensagens",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "conversa_id",
+              "fieldValue": "={{ $('Criar Conversa').isExecuted ? $('Criar Conversa').first().json.id : $('Buscar Conversa Ativa').first().json.id }}"
+            },
+            {
+              "fieldId": "whatsapp_message_id",
+              "fieldValue": "={{ $('Extrair Dados').first().json.messageId }}"
+            },
+            {
+              "fieldId": "direcao",
+              "fieldValue": "recebida"
+            },
+            {
+              "fieldId": "tipo",
+              "fieldValue": "={{ $('Extrair Dados').first().json.tipo }}"
+            },
+            {
+              "fieldId": "conteudo",
+              "fieldValue": "={{ $('Extrair Dados').first().json.conteudo }}"
+            },
+            {
+              "fieldId": "midia_url",
+              "fieldValue": "={{ $('Baixar Mídia').isExecuted ? $('Baixar Mídia').first().json.url : null }}"
+            },
+            {
+              "fieldId": "midia_mime_type",
+              "fieldValue": "={{ $('Extrair Dados').first().json.midiaMimeType }}"
+            },
+            {
+              "fieldId": "status",
+              "fieldValue": "entregue"
+            }
+          ]
+        }
+      },
+      "id": "b64361f5-0800-4d53-8f41-5bb6d0882813",
+      "name": "Salvar Mensagem",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        2400,
+        -192
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "M6aicnv6Kys67vb5",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "tableId": "conversas",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "cliente_id",
+              "fieldValue": "={{ $('Criar Cliente').isExecuted ? $('Criar Cliente').first().json.id : $('Verificar Cliente').first().json.id }}"
+            },
+            {
+              "fieldId": "status",
+              "fieldValue": "nova"
+            },
+            {
+              "fieldId": "canal",
+              "fieldValue": "whatsapp"
+            },
+            {
+              "fieldId": "prioridade",
+              "fieldValue": "={{ 0 }}"
+            }
+          ]
+        }
+      },
+      "id": "419c8156-78ec-4564-8d7d-de1dd0ce9f69",
+      "name": "Criar Conversa",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1616,
+        0
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "M6aicnv6Kys67vb5",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $input.first().json.id }}",
+              "operation": "isNotEmpty"
+            }
+          ]
+        }
+      },
+      "id": "e3ed16c6-5a16-42f6-8918-5b5595d7426e",
+      "name": "Conversa Existe?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        1392,
+        -16
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "tableId": "conversas",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "cliente_id",
+              "keyValue": "={{ $json.id || $('Verificar Cliente').first().json.id }}"
+            }
+          ]
+        }
+      },
+      "id": "4b0b9c81-003c-4d62-9ef7-4c9b34c98137",
+      "name": "Buscar Conversa Ativa",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1184,
+        -16
+      ],
+      "alwaysOutputData": true,
+      "credentials": {
+        "supabaseApi": {
+          "id": "M6aicnv6Kys67vb5",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "tableId": "clientes",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "whatsapp",
+              "fieldValue": "={{ $('Extrair Dados').first().json.from }}"
+            },
+            {
+              "fieldId": "nome",
+              "fieldValue": "={{ $('Extrair Dados').first().json.nomeContato }}"
+            },
+            {
+              "fieldId": "status",
+              "fieldValue": "ativo"
+            }
+          ]
+        }
+      },
+      "id": "c355608e-a87a-4a59-b1d4-21ce7d9de0b1",
+      "name": "Criar Cliente",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        960,
+        192
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "M6aicnv6Kys67vb5",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $input.first().json.id }}",
+              "operation": "isNotEmpty"
+            }
+          ]
+        }
+      },
+      "id": "87bbab90-e415-43a1-b63f-308727b8eb1a",
+      "name": "Cliente Existe?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        736,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "tableId": "clientes",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "whatsapp",
+              "keyValue": "={{ $('Extrair Dados').first().json.from }}"
+            }
+          ]
+        }
+      },
+      "id": "445cafb7-98f7-43c0-8a1f-de9f3c83eee0",
+      "name": "Verificar Cliente",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        512,
+        80
+      ],
+      "alwaysOutputData": true,
+      "credentials": {
+        "supabaseApi": {
+          "id": "M6aicnv6Kys67vb5",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "=https://graph.facebook.com/v18.0/{{ $json.midiaUrl }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "whatsAppApi",
+        "options": {}
+      },
+      "id": "822c59ba-2f6c-42cd-b723-b05e7508c284",
+      "name": "Baixar Mídia",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        512,
+        -128
+      ],
+      "credentials": {
+        "whatsAppApi": {
+          "id": "RPXmUdzVV6Qqqeav",
+          "name": "WhatsApp account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.tipo }}",
+              "operation": "notEqual",
+              "value2": "text"
+            }
+          ]
+        }
+      },
+      "id": "e9951fa9-1d8a-4fa8-93a8-8f252fc068d6",
+      "name": "Tem Mídia?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        304,
+        -16
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const value = $input.first().json.value;\nconst mensagem = value.messages[0];\nconst contato = value.contacts[0];\n\nconst dados = {\n  messageId: mensagem.id,\n  from: mensagem.from,\n  timestamp: mensagem.timestamp,\n  tipo: mensagem.type,\n  nomeContato: contato.profile.name,\n  conteudo: null,\n  midiaUrl: null,\n  midiaMimeType: null\n};\n\nswitch (mensagem.type) {\n  case 'text':\n    dados.conteudo = mensagem.text.body;\n    break;\n  case 'image':\n    dados.midiaUrl = mensagem.image.id;\n    dados.midiaMimeType = mensagem.image.mime_type;\n    dados.conteudo = mensagem.image.caption || '';\n    break;\n  case 'video':\n    dados.midiaUrl = mensagem.video.id;\n    dados.midiaMimeType = mensagem.video.mime_type;\n    dados.conteudo = mensagem.video.caption || '';\n    break;\n  case 'audio':\n    dados.midiaUrl = mensagem.audio.id;\n    dados.midiaMimeType = mensagem.audio.mime_type;\n    break;\n  case 'document':\n    dados.midiaUrl = mensagem.document.id;\n    dados.midiaMimeType = mensagem.document.mime_type;\n    dados.conteudo = mensagem.document.filename || '';\n    break;\n}\n\nreturn [{ json: dados }];"
+      },
+      "id": "8efae3e6-1062-42a4-ad6d-9b731dec2483",
+      "name": "Extrair Dados",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        80,
+        -16
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.tipoEvento }}",
+              "value2": "mensagem"
+            }
+          ]
+        }
+      },
+      "id": "8a1fdb00-0747-4889-ae1a-bb4d321a020a",
+      "name": "É Mensagem?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        -144,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body;\n\nif (!body.entry || !body.entry[0]?.changes) {\n  throw new Error('Webhook inválido');\n}\n\nconst change = body.entry[0].changes[0];\nconst value = change.value;\n\nconst tipoEvento = value.messages ? 'mensagem' : value.statuses ? 'status' : 'desconhecido';\n\nreturn [{\n  json: {\n    tipoEvento,\n    rawData: body,\n    value\n  }\n}];"
+      },
+      "id": "a687109b-4272-4966-8279-c4b8524f818b",
+      "name": "Processar POST",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -368,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "={{ $json.challenge }}",
+        "options": {}
+      },
+      "id": "0c91617d-dac7-4dff-90bb-662ee1b55ef7",
+      "name": "Responder GET",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        -144,
+        -240
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const query = $input.first().json.query;\n\nif (query['hub.mode'] === 'subscribe' && query['hub.verify_token'] === 'EAALZA3FEQHxcBQpmQ5LKCHbkZAbrFg4cizy86GXMkgslp4t1aJlEKfX8lKRZBZAhXgYMqQ87j4O6qzXQNuFru51kbVrTLzsv3AKyPgWtOxO0kgyxny1oBPGLXG8iaW5QGt7AEjFZAKuqPlnpoQFcg8K2C2sU4bZBSGoZAhn0UwFnZCnpySa261ZAjmj42XTdPQZBrOHgZDZD') {\n  return [{\n    json: {\n      challenge: query['hub.challenge'],\n      isVerification: true\n    }\n  }];\n}\n\nthrow new Error('Token inválido');"
+      },
+      "id": "71c4394c-6e04-46aa-bb80-4da63f15ac18",
+      "name": "Processar GET",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -368,
+        -240
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "whatsapp-webhook",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "e85adeb4-1003-43e3-b438-96a35201fe8e",
+      "name": "Webhook POST",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -592,
+        80
+      ],
+      "webhookId": "37b83431-c459-464d-9a07-08ebef93ea35"
+    },
+    {
+      "parameters": {
+        "path": "whatsapp-webhook",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "ef6abf5d-e97a-4aaf-8416-a1053549ed5b",
+      "name": "Webhook GET",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -592,
+        -240
+      ],
+      "webhookId": "d70368f7-0782-430e-b1db-6d9d2869f706"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "tableId": "mensagens",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "whatsapp_message_id",
+              "keyValue": "={{ $('Extrair Dados').first().json.messageId }}"
+            }
+          ]
+        }
+      },
+      "id": "bad9f2bd-4267-437b-a4ab-207d129e38fe",
+      "name": "Verificar Mensagem Existente",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1952,
+        -208
+      ],
+      "alwaysOutputData": true,
+      "credentials": {
+        "supabaseApi": {
+          "id": "M6aicnv6Kys67vb5",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $input.first().json.whatsapp_message_id }}",
+              "operation": "isNotEmpty"
+            }
+          ]
+        }
+      },
+      "id": "e151a8ab-5390-4b44-b32f-1a5c749e5629",
+      "name": "Mensagem Existe?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        2160,
+        -208
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ========================================\n// VERIFICAR SE DEVE ATIVAR IA (SIMPLIFICADO)\n// ========================================\n\nconst conversaId = $('Criar Conversa').isExecuted \n  ? $('Criar Conversa').first().json.id \n  : $('Buscar Conversa Ativa').first().json.id;\n\nconst dados = $('Extrair Dados').first().json;\n\nlet deveAtivarIA = false;\nlet motivoIA = '';\n\n// Verificar horário comercial\nconst agora = new Date();\nconst diaSemana = agora.getDay(); // 0 = domingo\nconst horaAtual = agora.getHours() * 100 + agora.getMinutes();\nconst dataHoje = agora.toISOString().split('T')[0];\n\n// Feriados 2026\nconst feriados = [\n  '2026-01-01', '2026-02-16', '2026-02-17', '2026-04-03',\n  '2026-04-21', '2026-05-01', '2026-06-04', '2026-09-07',\n  '2026-10-12', '2026-11-02', '2026-11-15', '2026-12-25'\n];\n\n// Verificar feriado\nif (feriados.includes(dataHoje)) {\n  deveAtivarIA = true;\n  motivoIA = 'feriado';\n}\n// Verificar domingo\nelse if (diaSemana === 0) {\n  deveAtivarIA = true;\n  motivoIA = 'domingo';\n}\n// Verificar horário comercial\nelse {\n  let dentroHorario = false;\n  \n  // Segunda a Sexta: 8h-17h\n  if (diaSemana >= 1 && diaSemana <= 5) {\n    dentroHorario = (horaAtual >= 800 && horaAtual <= 1700);\n  }\n  // Sábado: 8h30-12h30\n  else if (diaSemana === 6) {\n    dentroHorario = (horaAtual >= 830 && horaAtual <= 1230);\n  }\n  \n  if (!dentroHorario) {\n    deveAtivarIA = true;\n    motivoIA = 'horario';\n  }\n}\n\nreturn [{\n  json: {\n    deveAtivarIA: deveAtivarIA,\n    motivoIA: motivoIA,\n    conversaId: conversaId,\n    dados: dados\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2576,
+        -192
+      ],
+      "id": "30215af4-cfa3-4bb3-9fa7-40c26f923c9d",
+      "name": "Verificar se Ativa IA"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "21cd35cd-549a-415c-9a5f-35a7f5b05a5f",
+              "leftValue": "={{ $json.deveAtivarIA }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2768,
+        -192
+      ],
+      "id": "a0f95ac0-03e4-4ee2-a9db-f7f84be11c2e",
+      "name": "DEVE ATIVAR IA?"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://n8n-n8n-otica-suellenn.gycquy.easypanel.host/webhook/ia-atendente",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "conversaId",
+              "value": "={{ $json.conversaId }}"
+            },
+            {
+              "name": "numero",
+              "value": "={{ $json.dados.from }}"
+            },
+            {
+              "name": "tipo",
+              "value": "={{ $json.dados.tipo }}"
+            },
+            {
+              "name": "mensagem",
+              "value": "={{ $json.dados.conteudo }}"
+            },
+            {
+              "name": "midiaUrl",
+              "value": "={{ $('Baixar Mídia').isExecuted ? $('Baixar Mídia').first().json.url : null }}"
+            },
+            {
+              "name": "nomeCliente",
+              "value": "={{ $json.dados.nomeContato }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        2976,
+        -288
+      ],
+      "id": "e667e2b2-587b-45dc-84f1-2540baf136eb",
+      "name": "Chamar IA Atendente"
+    }
+  ],
+  "connections": {
+    "Salvar Mensagem": {
+      "main": [
+        [
+          {
+            "node": "Verificar se Ativa IA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Criar Conversa": {
+      "main": [
+        [
+          {
+            "node": "Verificar Mensagem Existente",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Conversa Existe?": {
+      "main": [
+        [
+          {
+            "node": "Verificar Mensagem Existente",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Criar Conversa",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar Conversa Ativa": {
+      "main": [
+        [
+          {
+            "node": "Conversa Existe?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Criar Cliente": {
+      "main": [
+        [
+          {
+            "node": "Buscar Conversa Ativa",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cliente Existe?": {
+      "main": [
+        [
+          {
+            "node": "Buscar Conversa Ativa",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Criar Cliente",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verificar Cliente": {
+      "main": [
+        [
+          {
+            "node": "Cliente Existe?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Baixar Mídia": {
+      "main": [
+        [
+          {
+            "node": "Verificar Cliente",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tem Mídia?": {
+      "main": [
+        [
+          {
+            "node": "Baixar Mídia",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Verificar Cliente",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extrair Dados": {
+      "main": [
+        [
+          {
+            "node": "Tem Mídia?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "É Mensagem?": {
+      "main": [
+        [
+          {
+            "node": "Extrair Dados",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Responder POST",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Processar POST": {
+      "main": [
+        [
+          {
+            "node": "É Mensagem?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Processar GET": {
+      "main": [
+        [
+          {
+            "node": "Responder GET",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook POST": {
+      "main": [
+        [
+          {
+            "node": "Processar POST",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook GET": {
+      "main": [
+        [
+          {
+            "node": "Processar GET",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verificar Mensagem Existente": {
+      "main": [
+        [
+          {
+            "node": "Mensagem Existe?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mensagem Existe?": {
+      "main": [
+        [
+          {
+            "node": "Responder POST",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Salvar Mensagem",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verificar se Ativa IA": {
+      "main": [
+        [
+          {
+            "node": "DEVE ATIVAR IA?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DEVE ATIVAR IA?": {
+      "main": [
+        [
+          {
+            "node": "Chamar IA Atendente",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Responder POST",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Chamar IA Atendente": {
+      "main": [
+        [
+          {
+            "node": "Responder POST",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {
+    "Webhook POST": [
+      {
+        "headers": {
+          "host": "n8n-n8n-otica-suellenn.gycquy.easypanel.host",
+          "user-agent": "facebookexternalua",
+          "content-length": "773",
+          "accept": "*/*",
+          "accept-encoding": "deflate, gzip",
+          "content-type": "application/json",
+          "x-forwarded-for": "173.252.95.38",
+          "x-forwarded-host": "n8n-n8n-otica-suellenn.gycquy.easypanel.host",
+          "x-forwarded-port": "443",
+          "x-forwarded-proto": "https",
+          "x-forwarded-server": "16cf8b31d688",
+          "x-hub-signature": "sha1=59a61ebd6ab91fd36f2235ca7cb173c9aca822db",
+          "x-hub-signature-256": "sha256=ef072a397f14a07def5659f87c6b0f1284e5875828b6bc322611418a96d4ac8e",
+          "x-real-ip": "173.252.95.38"
+        },
+        "params": {},
+        "query": {},
+        "body": {
+          "object": "whatsapp_business_account",
+          "entry": [
+            {
+              "id": "25610647351878854",
+              "changes": [
+                {
+                  "value": {
+                    "messaging_product": "whatsapp",
+                    "metadata": {
+                      "display_phone_number": "556298558908",
+                      "phone_number_id": "983888041468396"
+                    },
+                    "contacts": [
+                      {
+                        "profile": {
+                          "name": "Igor Carvalho"
+                        },
+                        "wa_id": "556296911712"
+                      }
+                    ],
+                    "messages": [
+                      {
+                        "from": "556296911712",
+                        "id": "wamid.HBgMNTU2Mjk2OTExNzEyFQIAEhgUMkE1QjFDOTZCOTg0MEVBRUFERDgA",
+                        "timestamp": "1770990031",
+                        "type": "audio",
+                        "audio": {
+                          "mime_type": "audio/ogg; codecs=opus",
+                          "sha256": "tCfMSPWRPSRXrJOUE/CLP+AdvDA87InrQNXmWQhIjvg=",
+                          "id": "1430738245253201",
+                          "url": "https://lookaside.fbsbx.com/whatsapp_business/attachments/?mid=1430738245253201&source=webhook&ext=1770990333&hash=ARmh1dWaGlNr2jvpjJ_e--vjEvSrMcxOLUOv4cVL03KjLw",
+                          "voice": true
+                        }
+                      }
+                    ]
+                  },
+                  "field": "messages"
+                }
+              ]
+            }
+          ]
+        },
+        "webhookUrl": "https://n8n-n8n-otica-suellenn.gycquy.easypanel.host/webhook/whatsapp-webhook",
+        "executionMode": "production"
+      }
+    ],
+    "Webhook GET": [
+      {
+        "headers": {
+          "host": "n8n-n8n-otica-suellenn.gycquy.easypanel.host",
+          "user-agent": "facebookplatform/1.0 (+http://developers.facebook.com)",
+          "accept": "*/*",
+          "accept-encoding": "deflate, gzip",
+          "x-forwarded-for": "69.63.189.13",
+          "x-forwarded-host": "n8n-n8n-otica-suellenn.gycquy.easypanel.host",
+          "x-forwarded-port": "443",
+          "x-forwarded-proto": "https",
+          "x-forwarded-server": "16cf8b31d688",
+          "x-real-ip": "69.63.189.13"
+        },
+        "params": {},
+        "query": {
+          "hub.mode": "subscribe",
+          "hub.challenge": "720291042",
+          "hub.verify_token": "EAALZA3FEQHxcBQpmQ5LKCHbkZAbrFg4cizy86GXMkgslp4t1aJlEKfX8lKRZBZAhXgYMqQ87j4O6qzXQNuFru51kbVrTLzsv3AKyPgWtOxO0kgyxny1oBPGLXG8iaW5QGt7AEjFZAKuqPlnpoQFcg8K2C2sU4bZBSGoZAhn0UwFnZCnpySa261ZAjmj42XTdPQZBrOHgZDZD"
+        },
+        "body": {},
+        "webhookUrl": "https://n8n-n8n-otica-suellenn.gycquy.easypanel.host/webhook/whatsapp-webhook",
+        "executionMode": "production"
+      }
+    ]
+  },
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "12512bdfd26ce7703132595c7809e94fb1358b3dd0212f53c30762160aa40893"
+  }
+}

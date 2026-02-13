@@ -285,7 +285,7 @@ export default function Conversas() {
       activeFilter === "nova" ? "aguardando" :
       activeFilter === "finalizada" ? "finalizadas" : "ativas"
     ),
-    refetchInterval: 10000,
+    refetchInterval: 3000,
   });
 
   const optimisticMsgsRef = useRef<Mensagem[]>([]);
