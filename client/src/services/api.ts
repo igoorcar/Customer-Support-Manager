@@ -9,14 +9,14 @@ export const api = {
       .from('conversas')
       .select(`
         *,
-        clientes:cliente_id (
+        clientes (
           id,
           nome,
           whatsapp,
           email,
           avatar_url
         ),
-        atendentes:atendente_id (
+        atendentes (
           id,
           nome,
           avatar_url
@@ -47,8 +47,8 @@ export const api = {
       .from('conversas')
       .select(`
         *,
-        clientes:cliente_id (*),
-        atendentes:atendente_id (*)
+        clientes (*),
+        atendentes (*)
       `)
       .eq('id', id)
       .single();
@@ -58,35 +58,17 @@ export const api = {
   },
 
   async getMensagens(conversaId: string) {
-    try {
-      const { data, error } = await supabase
-        .from('mensagens')
-        .select(`
-          *,
-          atendentes:enviada_por (
-            nome,
-            avatar_url
-          )
-        `)
-        .eq('conversa_id', conversaId)
-        .order('enviada_em', { ascending: true });
+    const { data, error } = await supabase
+      .from('mensagens')
+      .select('*')
+      .eq('conversa_id', conversaId)
+      .order('enviada_em', { ascending: true });
 
-      if (error) {
-        console.warn('getMensagens with join failed, trying without join:', error.message);
-        const { data: fallbackData, error: fallbackError } = await supabase
-          .from('mensagens')
-          .select('*')
-          .eq('conversa_id', conversaId)
-          .order('enviada_em', { ascending: true });
-
-        if (fallbackError) throw fallbackError;
-        return (fallbackData || []).map(m => ({ ...m, atendentes: null })) as Mensagem[];
-      }
-      return (data || []) as Mensagem[];
-    } catch (err) {
-      console.error('getMensagens error:', err);
-      throw err;
+    if (error) {
+      console.error('getMensagens error:', error.message);
+      throw error;
     }
+    return (data || []).map(m => ({ ...m, atendentes: null })) as Mensagem[];
   },
 
   async enviarMensagem(conversaId: string, numero: string, tipo: string, mensagem?: string, midiaUrl?: string) {
