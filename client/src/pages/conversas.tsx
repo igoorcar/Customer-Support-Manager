@@ -270,7 +270,7 @@ export default function Conversas() {
     queryKey: ["supabase-mensagens", selectedConvId],
     queryFn: () => api.getMensagens(selectedConvId!),
     enabled: !!selectedConvId,
-    refetchInterval: 5000,
+    refetchInterval: 2000,
   });
 
   const { data: botoes } = useQuery<BotaoResposta[]>({
