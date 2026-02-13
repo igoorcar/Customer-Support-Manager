@@ -855,19 +855,48 @@ export const api = {
         };
       });
 
-      const etiquetaMap: Record<string, { nome: string; cor: string; tipo: string; count: number }> = {};
+      const etiquetaMap: Record<string, { id: string; nome: string; cor: string; tipo: string; clientes: number; conversas: number; conversasFechadas: number }> = {};
       etiquetas.forEach(et => {
-        etiquetaMap[et.id] = { nome: et.nome, cor: et.cor, tipo: et.tipo, count: 0 };
+        etiquetaMap[et.id] = { id: et.id, nome: et.nome, cor: et.cor, tipo: et.tipo, clientes: 0, conversas: 0, conversasFechadas: 0 };
       });
+
+      const clienteTagMap: Record<string, string[]> = {};
       clientes.forEach(cl => {
-        ((cl.tags as string[]) || []).forEach(tagId => {
-          if (etiquetaMap[tagId]) etiquetaMap[tagId].count++;
+        const tags = (cl.tags as string[]) || [];
+        clienteTagMap[cl.id] = tags;
+        tags.forEach(tagId => {
+          if (etiquetaMap[tagId]) etiquetaMap[tagId].clientes++;
         });
       });
 
-      const funilData = Object.values(etiquetaMap).filter(e => e.tipo === 'funil').map(e => ({ name: e.nome, value: e.count, color: e.cor }));
-      const produtoData = Object.values(etiquetaMap).filter(e => e.tipo === 'produto').map(e => ({ name: e.nome, value: e.count, color: e.cor }));
-      const statusTagData = Object.values(etiquetaMap).filter(e => e.tipo === 'status').map(e => ({ name: e.nome, value: e.count, color: e.cor }));
+      conversas.forEach(conv => {
+        const clienteId = (conv.clientes as any)?.id;
+        const tags = clienteId ? (clienteTagMap[clienteId] || []) : [];
+        tags.forEach(tagId => {
+          if (etiquetaMap[tagId]) {
+            etiquetaMap[tagId].conversas++;
+            if (conv.status === 'finalizada') etiquetaMap[tagId].conversasFechadas++;
+          }
+        });
+      });
+
+      const allEtiquetaStats = Object.values(etiquetaMap)
+        .filter(e => e.clientes > 0 || e.conversas > 0)
+        .sort((a, b) => b.conversas - a.conversas)
+        .map(e => ({
+          id: e.id,
+          nome: e.nome,
+          cor: e.cor,
+          tipo: e.tipo,
+          totalClientes: e.clientes,
+          totalConversas: e.conversas,
+          conversasFechadas: e.conversasFechadas,
+          taxaConversao: e.conversas > 0 ? Math.round((e.conversasFechadas / e.conversas) * 100) : 0,
+        }));
+
+      const funilData = allEtiquetaStats.filter(e => e.tipo === 'funil').map(e => ({ name: e.nome, value: e.totalClientes, color: e.cor }));
+      const produtoData = allEtiquetaStats.filter(e => e.tipo === 'produto').map(e => ({ name: e.nome, value: e.totalClientes, color: e.cor }));
+      const statusTagData = allEtiquetaStats.filter(e => e.tipo === 'status').map(e => ({ name: e.nome, value: e.totalClientes, color: e.cor }));
 
       const conversasPorDia: Record<string, { total: number; fechadas: number; ativas: number }> = {};
       conversas.forEach(c => {
@@ -916,6 +945,7 @@ export const api = {
         funilData,
         produtoData,
         statusTagData,
+        allEtiquetaStats,
         timelineData,
         hourlyData,
       };
@@ -931,6 +961,7 @@ export const api = {
         funilData: [],
         produtoData: [],
         statusTagData: [],
+        allEtiquetaStats: [],
         timelineData: [],
         hourlyData: [],
       };

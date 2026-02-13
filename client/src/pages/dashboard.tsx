@@ -361,6 +361,64 @@ export default function Dashboard() {
         </Card>
       </div>
 
+      <Card data-testid="card-table-etiquetas">
+        <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2">
+          <CardTitle className="text-sm font-semibold">Métricas por Etiqueta</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto">
+            {isLoading ? (
+              <div className="space-y-3">
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <Skeleton key={i} className="h-10 w-full rounded-md" />
+                ))}
+              </div>
+            ) : data?.allEtiquetaStats && data.allEtiquetaStats.length > 0 ? (
+              <table className="w-full text-sm" data-testid="table-etiquetas-metrics">
+                <thead>
+                  <tr className="border-b">
+                    <th className="text-left py-2.5 px-3 text-xs font-medium text-muted-foreground uppercase tracking-wide">Etiqueta</th>
+                    <th className="text-left py-2.5 px-3 text-xs font-medium text-muted-foreground uppercase tracking-wide">Tipo</th>
+                    <th className="text-right py-2.5 px-3 text-xs font-medium text-muted-foreground uppercase tracking-wide">Clientes</th>
+                    <th className="text-right py-2.5 px-3 text-xs font-medium text-muted-foreground uppercase tracking-wide">Conversas</th>
+                    <th className="text-right py-2.5 px-3 text-xs font-medium text-muted-foreground uppercase tracking-wide">Fechadas</th>
+                    <th className="text-right py-2.5 px-3 text-xs font-medium text-muted-foreground uppercase tracking-wide">Conversão</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.allEtiquetaStats.map((et, i) => {
+                    const tipoLabel: Record<string, string> = { funil: "Funil", produto: "Produto", status: "Status" };
+                    return (
+                      <tr key={et.id} className="border-b last:border-0" data-testid={`row-etiqueta-${i}`}>
+                        <td className="py-2.5 px-3">
+                          <div className="flex items-center gap-2">
+                            <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: et.cor }} />
+                            <span className="font-medium">{et.nome}</span>
+                          </div>
+                        </td>
+                        <td className="py-2.5 px-3">
+                          <Badge variant="outline" className="text-xs">{tipoLabel[et.tipo] ?? et.tipo}</Badge>
+                        </td>
+                        <td className="py-2.5 px-3 text-right text-muted-foreground">{et.totalClientes}</td>
+                        <td className="py-2.5 px-3 text-right text-muted-foreground">{et.totalConversas}</td>
+                        <td className="py-2.5 px-3 text-right text-muted-foreground">{et.conversasFechadas}</td>
+                        <td className="py-2.5 px-3 text-right">
+                          <span className={et.taxaConversao >= 50 ? "text-chart-2 font-medium" : "text-muted-foreground"}>
+                            {et.taxaConversao}%
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            ) : (
+              <div className="flex items-center justify-center h-20 text-sm text-muted-foreground">Nenhuma etiqueta com dados no período</div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
       <Card data-testid="card-table-attendants">
         <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2">
           <CardTitle className="text-sm font-semibold">Desempenho dos Atendentes</CardTitle>

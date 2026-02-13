@@ -728,6 +728,208 @@ function TabClientes() {
   );
 }
 
+function TabEtiquetas() {
+  const [periodo, setPeriodo] = useState<'hoje' | '7dias' | '30dias' | 'mes'>('30dias');
+  const [tipoFilter, setTipoFilter] = useState('todos');
+
+  const { data, isLoading } = useQuery({
+    queryKey: ["dashboard-completo-etiquetas", periodo],
+    queryFn: () => api.getDashboardCompleto(periodo),
+  });
+
+  const allStats = data?.allEtiquetaStats || [];
+  const filteredStats = tipoFilter === 'todos' ? allStats : allStats.filter(e => e.tipo === tipoFilter);
+
+  const totalClientesEtiquetados = allStats.reduce((sum, e) => sum + e.totalClientes, 0);
+  const totalConversasEtiquetadas = allStats.reduce((sum, e) => sum + e.totalConversas, 0);
+  const mediaConversao = allStats.length > 0 ? Math.round(allStats.reduce((sum, e) => sum + e.taxaConversao, 0) / allStats.length) : 0;
+
+  const chartData = filteredStats.map(e => ({
+    name: e.nome.length > 15 ? e.nome.slice(0, 15) + '...' : e.nome,
+    clientes: e.totalClientes,
+    conversas: e.totalConversas,
+    fechadas: e.conversasFechadas,
+    color: e.cor,
+  }));
+
+  const pieData = filteredStats.filter(e => e.totalConversas > 0).map(e => ({
+    name: e.nome,
+    value: e.totalConversas,
+    color: e.cor,
+  }));
+
+  return (
+    <div className="space-y-4" data-testid="tab-etiquetas-content">
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-1.5">
+            {([['hoje', 'Hoje'], ['7dias', '7 dias'], ['30dias', '30 dias'], ['mes', 'Este mês']] as const).map(([key, label]) => (
+              <Button key={key} variant={periodo === key ? "default" : "outline"} size="sm" onClick={() => setPeriodo(key)} data-testid={`button-etiqueta-period-${key}`}>
+                {label}
+              </Button>
+            ))}
+          </div>
+          <Select value={tipoFilter} onValueChange={setTipoFilter}>
+            <SelectTrigger className="w-32" data-testid="select-etiqueta-tipo">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="todos">Todos</SelectItem>
+              <SelectItem value="funil">Funil</SelectItem>
+              <SelectItem value="produto">Produto</SelectItem>
+              <SelectItem value="status">Status</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => exportToCSV(
+            filteredStats.map(e => ({
+              Etiqueta: e.nome,
+              Tipo: e.tipo,
+              Clientes: e.totalClientes,
+              Conversas: e.totalConversas,
+              Fechadas: e.conversasFechadas,
+              'Taxa Conversão': `${e.taxaConversao}%`,
+            })),
+            'relatorio_etiquetas'
+          )}
+          disabled={filteredStats.length === 0}
+          data-testid="button-export-csv-etiquetas"
+        >
+          <Download className="w-3.5 h-3.5 mr-1" />
+          CSV
+        </Button>
+      </div>
+
+      <div className="grid grid-cols-3 gap-3">
+        <KpiCard title="Clientes c/ Etiqueta" value={totalClientesEtiquetados} icon={Users} iconColor="bg-primary/10 text-primary" isLoading={isLoading} testId="metric-clientes-etiquetados" />
+        <KpiCard title="Conversas c/ Etiqueta" value={totalConversasEtiquetadas} icon={MessageCircle} iconColor="bg-chart-4/10 text-chart-4" isLoading={isLoading} testId="metric-conversas-etiquetadas" />
+        <KpiCard title="Conversão Média" value={`${mediaConversao}%`} icon={Target} iconColor="bg-chart-2/10 text-chart-2" isLoading={isLoading} testId="metric-conversao-media-etiquetas" />
+      </div>
+
+      <Card data-testid="card-table-etiquetas-report">
+        <CardContent className="p-0">
+          <div className="overflow-x-auto">
+            {isLoading ? (
+              <div className="p-4 space-y-3">
+                {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-10 w-full rounded-md" />)}
+              </div>
+            ) : filteredStats.length > 0 ? (
+              <table className="w-full text-sm" data-testid="table-etiquetas-report">
+                <thead>
+                  <tr className="border-b">
+                    <th className="text-left py-2.5 px-3 text-xs font-medium text-muted-foreground uppercase tracking-wide">Etiqueta</th>
+                    <th className="text-left py-2.5 px-3 text-xs font-medium text-muted-foreground uppercase tracking-wide">Tipo</th>
+                    <th className="text-right py-2.5 px-3 text-xs font-medium text-muted-foreground uppercase tracking-wide">Clientes</th>
+                    <th className="text-right py-2.5 px-3 text-xs font-medium text-muted-foreground uppercase tracking-wide">Conversas</th>
+                    <th className="text-right py-2.5 px-3 text-xs font-medium text-muted-foreground uppercase tracking-wide">Fechadas</th>
+                    <th className="text-right py-2.5 px-3 text-xs font-medium text-muted-foreground uppercase tracking-wide">Conversão</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredStats.map((et, i) => {
+                    const tipoLabel: Record<string, string> = { funil: "Funil", produto: "Produto", status: "Status" };
+                    return (
+                      <tr key={et.id} className="border-b last:border-0" data-testid={`row-etiqueta-report-${i}`}>
+                        <td className="py-2.5 px-3">
+                          <div className="flex items-center gap-2">
+                            <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: et.cor }} />
+                            <span className="font-medium">{et.nome}</span>
+                          </div>
+                        </td>
+                        <td className="py-2.5 px-3">
+                          <Badge variant="outline" className="text-xs">{tipoLabel[et.tipo] ?? et.tipo}</Badge>
+                        </td>
+                        <td className="py-2.5 px-3 text-right text-muted-foreground">{et.totalClientes}</td>
+                        <td className="py-2.5 px-3 text-right text-muted-foreground">{et.totalConversas}</td>
+                        <td className="py-2.5 px-3 text-right text-muted-foreground">{et.conversasFechadas}</td>
+                        <td className="py-2.5 px-3 text-right">
+                          <span className={et.taxaConversao >= 50 ? "text-chart-2 font-medium" : "text-muted-foreground"}>
+                            {et.taxaConversao}%
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            ) : (
+              <div className="flex items-center justify-center h-32 text-sm text-muted-foreground">Nenhuma etiqueta com dados no período</div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+        <Card data-testid="card-chart-etiquetas-bar">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-semibold">Conversas por Etiqueta</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="h-64">
+              {isLoading ? (
+                <Skeleton className="w-full h-full rounded-md" />
+              ) : chartData.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={chartData} layout="vertical">
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                    <XAxis type="number" tick={axisTickStyle} axisLine={false} tickLine={false} />
+                    <YAxis dataKey="name" type="category" tick={axisTickStyle} axisLine={false} tickLine={false} width={120} />
+                    <Tooltip contentStyle={tooltipStyle} />
+                    <Legend />
+                    <Bar dataKey="conversas" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} name="Conversas" />
+                    <Bar dataKey="fechadas" fill="hsl(var(--chart-2))" radius={[0, 4, 4, 0]} name="Fechadas" />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex items-center justify-center h-full text-sm text-muted-foreground">Sem dados de etiquetas</div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card data-testid="card-chart-etiquetas-pie">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-semibold">Distribuição de Conversas</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="h-64 flex items-center justify-center">
+              {isLoading ? (
+                <Skeleton className="w-40 h-40 rounded-full" />
+              ) : pieData.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie data={pieData} cx="50%" cy="50%" innerRadius={50} outerRadius={85} paddingAngle={3} dataKey="value">
+                      {pieData.map((entry, index) => (
+                        <Cell key={index} fill={entry.color || CHART_COLORS[index % CHART_COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip contentStyle={tooltipStyle} />
+                  </PieChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="text-sm text-muted-foreground">Sem dados</div>
+              )}
+            </div>
+            {pieData.length > 0 && (
+              <div className="flex flex-wrap items-center justify-center gap-2 mt-1">
+                {pieData.map((item) => (
+                  <div key={item.name} className="flex items-center gap-1">
+                    <span className="w-2 h-2 rounded-full" style={{ backgroundColor: item.color }} />
+                    <span className="text-xs text-muted-foreground">{item.name} ({item.value})</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}
+
 export default function Relatorios() {
   return (
     <div className="space-y-6">
@@ -743,6 +945,7 @@ export default function Relatorios() {
           <TabsTrigger value="atendentes" data-testid="tab-trigger-atendentes">Atendentes</TabsTrigger>
           <TabsTrigger value="vendas" data-testid="tab-trigger-vendas">Vendas</TabsTrigger>
           <TabsTrigger value="clientes" data-testid="tab-trigger-clientes">Clientes</TabsTrigger>
+          <TabsTrigger value="etiquetas" data-testid="tab-trigger-etiquetas">Etiquetas</TabsTrigger>
         </TabsList>
 
         <TabsContent value="visao-geral">
@@ -759,6 +962,9 @@ export default function Relatorios() {
         </TabsContent>
         <TabsContent value="clientes">
           <TabClientes />
+        </TabsContent>
+        <TabsContent value="etiquetas">
+          <TabEtiquetas />
         </TabsContent>
       </Tabs>
     </div>
