@@ -7,14 +7,17 @@ import { spawn } from "child_process";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
+import os from "os";
+import { createClient } from "@supabase/supabase-js";
 
-const uploadDir = path.join(process.cwd(), "uploads");
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
-}
+const supabaseUrl = process.env.VITE_SUPABASE_URL || "";
+const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY || "";
+const supabaseServer = supabaseUrl && supabaseKey ? createClient(supabaseUrl, supabaseKey) : null;
+
+const tmpDir = os.tmpdir();
 
 const multerStorage = multer.diskStorage({
-  destination: (_req, _file, cb) => cb(null, uploadDir),
+  destination: (_req, _file, cb) => cb(null, tmpDir),
   filename: (_req, file, cb) => {
     const uniqueName = `${Date.now()}_${Math.random().toString(36).slice(2)}_${file.originalname}`;
     cb(null, uniqueName);
@@ -25,6 +28,34 @@ const upload = multer({
   storage: multerStorage,
   limits: { fileSize: 20 * 1024 * 1024 },
 });
+
+const uploadDir = path.join(process.cwd(), "uploads");
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+}
+
+async function uploadToSupabase(filePath: string, storagePath: string, contentType: string): Promise<string | null> {
+  if (!supabaseServer) return null;
+  try {
+    const fileBuffer = fs.readFileSync(filePath);
+    const { error } = await supabaseServer.storage
+      .from("midias")
+      .upload(storagePath, fileBuffer, {
+        contentType,
+        cacheControl: "3600",
+        upsert: false,
+      });
+    if (error) {
+      console.warn("[upload] Supabase upload error:", error.message);
+      return null;
+    }
+    const { data } = supabaseServer.storage.from("midias").getPublicUrl(storagePath);
+    return data.publicUrl;
+  } catch (err: any) {
+    console.warn("[upload] Supabase upload failed:", err.message);
+    return null;
+  }
+}
 
 export async function registerRoutes(
   httpServer: Server,
@@ -43,20 +74,55 @@ export async function registerRoutes(
   app.use("/api/reports", requireAuth);
   app.use("/api/upload", requireAuth);
 
-  app.post("/api/upload", upload.single("file"), (req, res) => {
+  app.post("/api/upload", upload.single("file"), async (req, res) => {
     if (!req.file) {
       return res.status(400).json({ error: "Nenhum arquivo enviado" });
     }
-    const protocol = req.headers["x-forwarded-proto"] || req.protocol;
-    const host = req.headers["x-forwarded-host"] || req.headers.host;
-    const fileUrl = `${protocol}://${host}/uploads/${req.file.filename}`;
-    res.json({
-      url: fileUrl,
-      path: req.file.filename,
-      mimeType: req.file.mimetype,
-      tamanho: req.file.size,
-      nomeArquivo: req.file.originalname,
-    });
+
+    try {
+      const mime = req.file.mimetype;
+      const extMap: Record<string, string> = {
+        "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp",
+        "video/mp4": "mp4", "video/3gpp": "3gp",
+        "application/pdf": "pdf",
+      };
+      const ext = extMap[mime] || req.file.originalname.split(".").pop() || "bin";
+      const folder = mime.startsWith("image") ? "imagens"
+        : mime.startsWith("video") ? "videos"
+        : "documentos";
+      const storagePath = `${folder}/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
+
+      const publicUrl = await uploadToSupabase(req.file.path, storagePath, mime);
+
+      if (publicUrl) {
+        try { fs.unlinkSync(req.file.path); } catch {}
+        return res.json({
+          url: publicUrl,
+          path: storagePath,
+          mimeType: mime,
+          tamanho: req.file.size,
+          nomeArquivo: req.file.originalname,
+        });
+      }
+
+      const localDest = path.join(uploadDir, req.file.filename);
+      fs.copyFileSync(req.file.path, localDest);
+      try { fs.unlinkSync(req.file.path); } catch {}
+
+      const protocol = req.headers["x-forwarded-proto"] || req.protocol;
+      const host = req.headers["x-forwarded-host"] || req.headers.host;
+      const fileUrl = `${protocol}://${host}/uploads/${req.file.filename}`;
+      res.json({
+        url: fileUrl,
+        path: req.file.filename,
+        mimeType: mime,
+        tamanho: req.file.size,
+        nomeArquivo: req.file.originalname,
+      });
+    } catch (err: any) {
+      console.error("[upload] Error:", err);
+      res.status(500).json({ error: "Erro no upload" });
+    }
   });
 
   app.post("/api/upload/audio", upload.single("file"), (req, res) => {
@@ -66,7 +132,7 @@ export async function registerRoutes(
 
     const inputPath = req.file.path;
     const oggFilename = `${Date.now()}_${Math.random().toString(36).slice(2)}.ogg`;
-    const outputPath = path.join(uploadDir, oggFilename);
+    const outputPath = path.join(tmpDir, oggFilename);
 
     console.log(`[audio] Converting: ${req.file.originalname} (${req.file.mimetype}, ${req.file.size} bytes) -> ${oggFilename}`);
 
@@ -88,7 +154,7 @@ export async function registerRoutes(
     let stderr = "";
     ffmpegProcess.stderr?.on("data", (data: Buffer) => { stderr += data.toString(); });
 
-    ffmpegProcess.on("close", (code: number) => {
+    ffmpegProcess.on("close", async (code: number) => {
       try { fs.unlinkSync(inputPath); } catch {}
 
       if (code !== 0) {
@@ -99,11 +165,28 @@ export async function registerRoutes(
 
       try {
         const stats = fs.statSync(outputPath);
+        console.log(`[audio] Converted successfully: ${stats.size} bytes`);
+
+        const storagePath = `audios/${oggFilename}`;
+        const publicUrl = await uploadToSupabase(outputPath, storagePath, "audio/ogg");
+
+        if (publicUrl) {
+          try { fs.unlinkSync(outputPath); } catch {}
+          return res.json({
+            url: publicUrl,
+            path: storagePath,
+            mimeType: "audio/ogg",
+            tamanho: stats.size,
+            nomeArquivo: oggFilename,
+          });
+        }
+
+        const localDest = path.join(uploadDir, oggFilename);
+        try { fs.copyFileSync(outputPath, localDest); } catch {}
+        try { fs.unlinkSync(outputPath); } catch {}
         const protocol = req.headers["x-forwarded-proto"] || req.protocol;
         const host = req.headers["x-forwarded-host"] || req.headers.host;
         const fileUrl = `${protocol}://${host}/uploads/${oggFilename}`;
-
-        console.log(`[audio] Converted successfully: ${stats.size} bytes`);
 
         res.json({
           url: fileUrl,
