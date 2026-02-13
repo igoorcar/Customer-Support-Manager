@@ -36,6 +36,7 @@ import { supabase } from "@/lib/supabase";
 import type { Conversa, Mensagem, BotaoResposta, BotaoMidia } from "@/lib/supabase";
 import MessageInput from "@/components/message-input";
 import { IAToggle } from "@/components/ia-toggle";
+import { EtiquetasManager } from "@/components/etiquetas-manager";
 
 const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline"; dotColor: string }> = {
   nova: { label: "Nova", variant: "default", dotColor: "bg-primary" },
@@ -899,8 +900,9 @@ export default function Conversas() {
             </div>
           </div>
 
-          <div className="px-3 py-2 border-b">
+          <div className="px-3 py-2 border-b space-y-2">
             <IAToggle conversaId={selectedConvId} />
+            <EtiquetasManager conversaId={selectedConvId} />
           </div>
 
           <div className="flex-1 overflow-y-auto p-4 space-y-3 relative" ref={chatContainerRef} onScroll={handleScroll} data-testid="chat-messages-area">

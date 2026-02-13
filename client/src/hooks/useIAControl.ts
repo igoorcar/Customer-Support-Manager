@@ -3,7 +3,7 @@ import { supabase } from '@/lib/supabase';
 
 export interface IAStatus {
   iaAtiva: boolean;
-  iaModo: 'manual' | 'horario' | 'feriado' | 'domingo';
+  iaModo: 'manual' | 'horario' | 'feriado' | 'domingo' | 'almoco';
   atendenteAusente: boolean;
 }
 

@@ -19,6 +19,7 @@ export function IAToggle({ conversaId }: IAToggleProps) {
     if (iaStatus.iaModo === 'horario') return 'Auto - Fora de horário';
     if (iaStatus.iaModo === 'feriado') return 'Auto - Feriado';
     if (iaStatus.iaModo === 'domingo') return 'Auto - Domingo';
+    if (iaStatus.iaModo === 'almoco') return 'Auto - Horário de almoço';
     return '';
   };
 

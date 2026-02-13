@@ -19,18 +19,18 @@ export const feriados2026: Feriado[] = [
 ];
 
 export const horarioComercial = {
-  segunda: { inicio: '08:00', fim: '17:00' },
-  terca: { inicio: '08:00', fim: '17:00' },
-  quarta: { inicio: '08:00', fim: '17:00' },
-  quinta: { inicio: '08:00', fim: '17:00' },
-  sexta: { inicio: '08:00', fim: '17:00' },
-  sabado: { inicio: '08:30', fim: '12:30' },
+  segunda: { inicio: '08:00', fim: '17:00', almoco: { inicio: '13:00', fim: '14:30' } },
+  terca: { inicio: '08:00', fim: '17:00', almoco: { inicio: '13:00', fim: '14:30' } },
+  quarta: { inicio: '08:00', fim: '17:00', almoco: { inicio: '13:00', fim: '14:30' } },
+  quinta: { inicio: '08:00', fim: '17:00', almoco: { inicio: '13:00', fim: '14:30' } },
+  sexta: { inicio: '08:00', fim: '17:00', almoco: { inicio: '13:00', fim: '14:30' } },
+  sabado: { inicio: '08:30', fim: '12:30', almoco: null },
   domingo: null
 };
 
 export const verificarHorarioComercial = (): {
   dentroHorario: boolean;
-  motivo: 'horario' | 'feriado' | 'domingo' | null;
+  motivo: 'horario' | 'feriado' | 'domingo' | 'almoco' | null;
   mensagem?: string;
 } => {
   const agora = new Date();
@@ -67,6 +67,21 @@ export const verificarHorarioComercial = (): {
     };
   }
 
+  if (horario.almoco) {
+    const [almocoInicioH, almocoInicioM] = horario.almoco.inicio.split(':').map(Number);
+    const [almocoFimH, almocoFimM] = horario.almoco.fim.split(':').map(Number);
+    const almocoInicio = almocoInicioH * 100 + almocoInicioM;
+    const almocoFim = almocoFimH * 100 + almocoFimM;
+
+    if (horaAtual >= almocoInicio && horaAtual <= almocoFim) {
+      return {
+        dentroHorario: false,
+        motivo: 'almoco',
+        mensagem: `Horário de almoço: ${horario.almoco.inicio} às ${horario.almoco.fim}`
+      };
+    }
+  }
+
   const [inicioH, inicioM] = horario.inicio.split(':').map(Number);
   const [fimH, fimM] = horario.fim.split(':').map(Number);
   const horaInicio = inicioH * 100 + inicioM;
@@ -95,6 +110,8 @@ export const getMensagemForaHorario = (): string => {
       return status.mensagem || 'Fechado - Feriado';
     case 'domingo':
       return 'Fechado aos domingos';
+    case 'almoco':
+      return 'Horário de almoço - IA respondendo';
     case 'horario':
       return status.mensagem || 'Fora do horário de atendimento';
     default:
