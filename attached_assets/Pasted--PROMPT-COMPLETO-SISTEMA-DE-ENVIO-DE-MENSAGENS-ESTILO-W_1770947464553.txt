@@ -1,0 +1,273 @@
+# 🚀 PROMPT COMPLETO - SISTEMA DE ENVIO DE MENSAGENS ESTILO WHATSAPP
+
+**Cole este prompt no Replit AI:**
+
+```
+Implemente um sistema COMPLETO de envio de mensagens estilo WhatsApp na tela de Conversas.
+
+REQUISITOS OBRIGATÓRIOS:
+
+1. ÁREA DE INPUT DE MENSAGEM (bottom fixo do chat):
+
+Layout horizontal com os seguintes elementos (da esquerda para direita):
+
+a) Botão de Anexar (ícone Paperclip):
+   - Click: abre menu popup acima do botão
+   - Menu com 4 opções em grid 2x2:
+     * 📷 Foto/Vídeo (aceita image/*, video/*)
+     * 🎵 Áudio (aceita audio/*)
+     * 📄 Documento (aceita .pdf, .doc, .docx, .xls, .xlsx, .zip)
+     * 🎤 Gravar Áudio (inicia gravação)
+   - Cada opção com ícone colorido + label
+   - Click em qualquer opção: abre file picker OU inicia gravação
+
+b) Textarea auto-expansível:
+   - Placeholder: "Digite uma mensagem..."
+   - Auto-expand até max 5 linhas
+   - Shift+Enter: quebra linha
+   - Enter: envia mensagem
+   - Background: white
+   - Border radius arredondado
+   - Padding generoso
+
+c) Botão de Emoji:
+   - Ícone Smile
+   - Click: abre emoji picker (usar emoji-picker-react)
+   - Insere emoji na posição do cursor
+
+d) Botão de Enviar:
+   - Ícone Send
+   - Cor azul (#2563EB)
+   - Disabled se não tem texto E não tem arquivos
+   - Loading spinner durante envio
+   - Só aparece quando tem conteúdo (texto ou arquivos)
+
+2. UPLOAD DE ARQUIVOS:
+
+Suporte a múltiplos arquivos simultaneamente com preview:
+
+a) Drag & Drop:
+   - Toda área do chat aceita drag & drop
+   - Visual feedback quando arrasta arquivo sobre a área
+   - Overlay semi-transparente com texto "Solte aqui para anexar"
+
+b) Preview de Arquivos (aparece ACIMA do input):
+   - Container horizontal scroll se houver múltiplos arquivos
+   - Cada arquivo mostra:
+     
+     IMAGEM:
+     - Thumbnail (120x120px, object-cover, rounded)
+     - Botão X no canto superior direito para remover
+     - Input opcional para caption (abaixo da imagem)
+     - Click na imagem: abre em tamanho maior
+     
+     VÍDEO:
+     - Thumbnail com ícone play sobreposto
+     - Duração do vídeo no canto inferior
+     - Botão X para remover
+     - Input opcional para caption
+     
+     ÁUDIO:
+     - Card com ícone de áudio
+     - Nome do arquivo
+     - Tamanho do arquivo
+     - Duração (se detectável)
+     - Botão X para remover
+     
+     DOCUMENTO:
+     - Card com ícone do tipo (PDF, Word, Excel)
+     - Nome do arquivo truncado
+     - Tamanho em KB/MB
+     - Botão X para remover
+
+   - Máximo 10 arquivos por vez
+   - Tamanho máximo por arquivo:
+     * Imagens: 5MB
+     * Vídeos: 16MB
+     * Áudios: 16MB
+     * Documentos: 10MB
+   - Validação de tamanho com mensagem de erro
+
+3. GRAVAÇÃO DE ÁUDIO:
+
+Interface completa de gravação de áudio:
+
+a) Ao clicar em "Gravar Áudio":
+   - Solicita permissão do microfone
+   - Textarea some
+   - Botão anexar some
+   - Aparece interface de gravação:
+     
+     * Waveform animado em tempo real (usar wavesurfer.js)
+     * Timer de gravação (formato: 0:00)
+     * Botão Pause/Resume (ícone Pause/Play)
+     * Botão Cancelar (ícone X, volta ao normal)
+     * Botão Finalizar (ícone Check, salva áudio)
+
+b) Durante gravação:
+   - Waveform animado mostrando ondas sonoras
+   - Timer contando em tempo real
+   - Limit máximo: 5 minutos (auto-stop)
+   - Visual feedback: pulsando em vermelho
+
+c) Após finalizar:
+   - Preview do áudio gravado
+   - Player com:
+     * Botão play/pause
+     * Waveform clicável (seek)
+     * Duração total
+     * Botão para re-gravar
+     * Botão para enviar
+     * Botão para cancelar
+
+d) Salvar áudio:
+   - Formato: WebM ou OGG
+   - Converter para formato compatível com WhatsApp se necessário
+   - Upload para Supabase Storage
+   - Enviar via API
+
+4. ENVIO DE MENSAGENS:
+
+Lógica completa de envio:
+
+a) Validações:
+   - Se tem texto: enviar como mensagem de texto
+   - Se tem arquivos: fazer upload primeiro, depois enviar
+   - Se tem texto + arquivos: enviar arquivos com caption
+   - Bloquear envio duplicado (debounce)
+
+b) Upload de arquivos:
+   - Upload sequencial ou paralelo para Supabase Storage
+   - Progress bar para cada arquivo
+   - Se falhar: mostrar erro específico do arquivo
+   - Retry automático 1x
+
+c) Chamada API:
+   - Para cada tipo de mídia, enviar via endpoint correto:
+     * Texto: POST /webhook/whatsapp/send com tipo "text"
+     * Imagem: POST /webhook/whatsapp/send com tipo "image" + midiaUrl
+     * Vídeo: POST /webhook/whatsapp/send com tipo "video" + midiaUrl
+     * Áudio: POST /webhook/whatsapp/send com tipo "audio" + midiaUrl
+     * Documento: POST /webhook/whatsapp/send com tipo "document" + midiaUrl
+
+d) Feedback visual:
+   - Loading spinner no botão enviar
+   - Mensagem aparece instantaneamente no chat (otimistic UI)
+   - Status "enviando..." na mensagem
+   - Quando API retorna sucesso: muda para "enviada" com 1 check
+   - Toast de sucesso: "Mensagem enviada"
+   - Se erro: toast de erro + opção de retry
+
+5. INTERFACE VISUAL (ESTILO WHATSAPP):
+
+Cores e estilos:
+- Input background: #F0F2F5
+- Botões: circular, hover com background cinza claro
+- Preview de arquivos: cards brancos com shadow sutil
+- Gravação de áudio: background #FFF com border azul
+- Waveform: ondas em azul (#2563EB)
+- Timer: text-sm, cinza escuro
+
+Animações:
+- Smooth transitions em todos os estados
+- Fade in/out dos previews
+- Slide up do menu de anexos
+- Pulse na gravação de áudio
+- Skeleton loader durante upload
+
+6. ATALHOS DE TECLADO:
+
+- Enter: enviar mensagem (se não está em composição de emoji)
+- Shift+Enter: nova linha
+- Ctrl/Cmd+V: colar imagem da área de transferência
+- Esc: cancelar gravação de áudio ou fechar emoji picker
+
+7. RESPONSIVIDADE:
+
+Mobile (<768px):
+- Input ocupa 100% da largura
+- Preview de arquivos em coluna
+- Menu de anexos como bottom sheet
+- Botões maiores (min 44px touch target)
+- Emoji picker fullscreen
+
+Desktop:
+- Layout horizontal normal
+- Preview inline
+- Menu de anexos como popup
+- Hover states visíveis
+
+8. INTEGRAÇÃO COM API:
+
+Usar o serviço api.ts já criado:
+
+```typescript
+// Upload de arquivo
+const uploadResult = await api.uploadMidia(file, 'conversas');
+
+// Enviar mensagem de texto
+await api.enviarMensagem(
+  conversaId, 
+  clienteWhatsapp, 
+  'text', 
+  message
+);
+
+// Enviar mensagem com mídia
+await api.enviarMensagem(
+  conversaId,
+  clienteWhatsapp,
+  'image', // ou 'video', 'audio', 'document'
+  caption || '',
+  uploadResult.url
+);
+```
+
+9. ESTADOS E VALIDAÇÕES:
+
+- Desabilitar input durante envio
+- Validar tamanho de arquivos antes de aceitar
+- Validar formatos de arquivo
+- Mostrar erro se microfone não disponível
+- Timeout de 30s para uploads
+- Retry automático em caso de falha de rede
+
+10. BIBLIOTECAS NECESSÁRIAS:
+
+Instalar:
+```bash
+npm install react-dropzone emoji-picker-react wavesurfer.js
+```
+
+Importar:
+```typescript
+import { useDropzone } from 'react-dropzone';
+import EmojiPicker from 'emoji-picker-react';
+import WaveSurfer from 'wavesurfer.js';
+```
+
+IMPORTANTE:
+- Criar componente MessageInput.tsx separado e reutilizável
+- Exportar e usar na tela de Conversas
+- Seguir exatamente o comportamento do WhatsApp Web
+- Testar todos os tipos de arquivo
+- Garantir que funciona em mobile e desktop
+- Implementar TODOS os recursos listados acima
+
+O resultado deve ser idêntico ao WhatsApp em termos de UX e funcionalidade.
+```
+
+---
+
+## ✅ COLE ESSE PROMPT NO REPLIT E AGUARDE!
+
+O Replit vai criar todo o sistema de envio de mensagens com:
+- ✅ Upload de fotos/vídeos/áudios/documentos
+- ✅ Drag & drop
+- ✅ Preview de arquivos
+- ✅ Gravação de áudio com waveform
+- ✅ Emoji picker
+- ✅ Validações completas
+- ✅ Integração com API
+
+**Me avisa quando terminar!** 🚀
