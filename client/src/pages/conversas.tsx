@@ -29,7 +29,7 @@ import {
   Calendar, Image, Video, Music, FileText, Download, Play, Trash2,
   Plus, StickyNote, Receipt, Minus, ShoppingCart, ImageOff, AlertTriangle, Bot,
 } from "lucide-react";
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { api } from "@/services/api";
 import { supabase } from "@/lib/supabase";
@@ -326,6 +326,7 @@ export default function Conversas() {
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
   const [atendenteId, setAtendenteId] = useState<string | null>(null);
+  const stickyConversasRef = useRef<Map<string, { conversa: Conversa; missCount: number }>>(new Map());
 
   useEffect(() => {
     localStorage.setItem("rightPanelOpen", String(rightPanelOpen));
@@ -344,7 +345,7 @@ export default function Conversas() {
     fetchAtendenteId();
   }, [user]);
 
-  const { data: conversations, isLoading } = useQuery<Conversa[]>({
+  const { data: rawConversations, isLoading } = useQuery<Conversa[]>({
     queryKey: ["supabase-conversas", activeFilter, atendenteId],
     queryFn: () => {
       if (!atendenteId) return Promise.resolve([]);
@@ -356,6 +357,38 @@ export default function Conversas() {
     enabled: !!atendenteId,
     refetchInterval: 5000,
   });
+
+  const conversations = useMemo(() => {
+    if (!rawConversations) return undefined;
+    const currentIds = new Set(rawConversations.map(c => c.id));
+    const sticky = stickyConversasRef.current;
+
+    for (const conv of rawConversations) {
+      sticky.set(conv.id, { conversa: conv, missCount: 0 });
+    }
+
+    for (const [id, entry] of sticky) {
+      if (!currentIds.has(id)) {
+        entry.missCount++;
+        if (entry.missCount > 3) {
+          sticky.delete(id);
+        }
+      }
+    }
+
+    const merged = [...rawConversations];
+    for (const [id, entry] of sticky) {
+      if (!currentIds.has(id) && entry.missCount <= 3) {
+        merged.push(entry.conversa);
+      }
+    }
+
+    return merged.sort((a, b) => {
+      const ta = a.updated_at || a.iniciada_em || '';
+      const tb = b.updated_at || b.iniciada_em || '';
+      return tb.localeCompare(ta);
+    });
+  }, [rawConversations]);
 
   const conversaIds = conversations?.map(c => c.id) || [];
   const { data: ultimasMensagens } = useQuery<Record<string, { conteudo: string; tipo: string; direcao: string; enviada_em: string }>>({

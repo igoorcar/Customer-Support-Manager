@@ -177,6 +177,14 @@ export const api = {
         .eq('id', conversaId),
     ]);
 
+    if (atendenteId) {
+      setTimeout(async () => {
+        await supabase.from('conversas')
+          .update({ atendente_id: atendenteId })
+          .eq('id', conversaId);
+      }, 2000);
+    }
+
     if (!text) return { ok: true };
     try {
       return JSON.parse(text);

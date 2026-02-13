@@ -4,6 +4,10 @@
 WhatsApp customer service management panel for an optical shop called "Ótica Suellen". Built with React + TypeScript frontend, Express backend, and PostgreSQL database. Features authentication, product catalog, client management, conversation handling, analytics, and settings.
 
 ## Recent Changes
+- 2026-02-13: Sticky conversations mechanism (prevents conversations from disappearing when n8n temporarily changes atendente_id, uses missCount with 3-fetch grace period)
+- 2026-02-13: Delayed atendente_id re-confirmation (2s setTimeout after enviarMensagem to re-set atendente_id in case n8n overrides it)
+- 2026-02-13: Webhook /api/webhook/salvar-mensagem-recebida (saves incoming client messages preserving atendente_id)
+- 2026-02-13: Enhanced /api/webhook/salvar-mensagem-ia (now reads and re-applies existing atendente_id to prevent assignment loss)
 - 2026-02-13: AtendenteStatus component (attendant presence tracking with online/offline heartbeat, status toggle, Supabase real-time)
 - 2026-02-13: useConversasPorAtendente hook (filter conversations by attendant with real-time updates)
 - 2026-02-13: EtiquetasManager component (conversation tags from Supabase etiquetas/conversas_etiquetas tables, real-time sync, funil/produto/status categories)

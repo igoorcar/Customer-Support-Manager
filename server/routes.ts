@@ -563,12 +563,89 @@ export async function registerRoutes(
         return res.status(500).json({ error: error.message });
       }
 
+      const { data: conversaData } = await supabaseServer
+        .from('conversas')
+        .select('atendente_id')
+        .eq('id', conversa_id)
+        .single();
+
+      const conversaUpdate: Record<string, any> = { 
+        ultima_mensagem_em: now, 
+        updated_at: now 
+      };
+      if (conversaData?.atendente_id) {
+        conversaUpdate.atendente_id = conversaData.atendente_id;
+      }
+
       await supabaseServer
         .from('conversas')
-        .update({ ultima_mensagem_em: now, updated_at: now })
+        .update(conversaUpdate)
         .eq('id', conversa_id);
 
-      console.log(`[webhook] Mensagem IA salva: conversa=${conversa_id}, tipo=${tipo || 'text'}`);
+      console.log(`[webhook] Mensagem IA salva: conversa=${conversa_id}, tipo=${tipo || 'text'}, atendente preservado: ${conversaData?.atendente_id || 'null'}`);
+      res.json({ success: true, mensagem: data });
+    } catch (error: any) {
+      console.error("[webhook] Erro:", error.message);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/webhook/salvar-mensagem-recebida", async (req, res) => {
+    try {
+      const { conversa_id, conteudo, tipo, midia_url, midia_mime_type, whatsapp_message_id } = req.body;
+
+      if (!conversa_id) {
+        return res.status(400).json({ error: "conversa_id é obrigatório" });
+      }
+
+      if (!supabaseServer) {
+        return res.status(500).json({ error: "Supabase não configurado" });
+      }
+
+      const now = new Date().toISOString();
+
+      const { data, error } = await supabaseServer
+        .from('mensagens')
+        .insert({
+          conversa_id,
+          direcao: 'recebida',
+          tipo: tipo || 'text',
+          conteudo: conteudo || null,
+          midia_url: midia_url || null,
+          midia_mime_type: midia_mime_type || null,
+          whatsapp_message_id: whatsapp_message_id || null,
+          status: 'enviada',
+          enviada_em: now,
+          enviada_por: null,
+        })
+        .select()
+        .single();
+
+      if (error) {
+        console.error("[webhook] Erro ao salvar mensagem recebida:", error.message);
+        return res.status(500).json({ error: error.message });
+      }
+
+      const { data: conversaData } = await supabaseServer
+        .from('conversas')
+        .select('atendente_id')
+        .eq('id', conversa_id)
+        .single();
+
+      const conversaUpdate: Record<string, any> = { 
+        ultima_mensagem_em: now, 
+        updated_at: now 
+      };
+      if (conversaData?.atendente_id) {
+        conversaUpdate.atendente_id = conversaData.atendente_id;
+      }
+
+      await supabaseServer
+        .from('conversas')
+        .update(conversaUpdate)
+        .eq('id', conversa_id);
+
+      console.log(`[webhook] Mensagem recebida salva: conversa=${conversa_id}, atendente preservado: ${conversaData?.atendente_id || 'null'}`);
       res.json({ success: true, mensagem: data });
     } catch (error: any) {
       console.error("[webhook] Erro:", error.message);
