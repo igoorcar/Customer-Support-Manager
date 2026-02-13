@@ -9,14 +9,14 @@ export const api = {
       .from('conversas')
       .select(`
         *,
-        clientes (
+        clientes:cliente_id (
           id,
           nome,
           whatsapp,
           email,
           avatar_url
         ),
-        atendentes (
+        atendentes:atendente_id (
           id,
           nome,
           avatar_url
@@ -35,8 +35,11 @@ export const api = {
     }
 
     const { data, error } = await query;
-    if (error) throw error;
-    return data as Conversa[];
+    if (error) {
+      console.error('getConversas error:', error.message);
+      throw error;
+    }
+    return (data || []) as Conversa[];
   },
 
   async getConversa(id: string) {
@@ -44,8 +47,8 @@ export const api = {
       .from('conversas')
       .select(`
         *,
-        clientes (*),
-        atendentes (*)
+        clientes:cliente_id (*),
+        atendentes:atendente_id (*)
       `)
       .eq('id', id)
       .single();
@@ -55,20 +58,35 @@ export const api = {
   },
 
   async getMensagens(conversaId: string) {
-    const { data, error } = await supabase
-      .from('mensagens')
-      .select(`
-        *,
-        atendentes (
-          nome,
-          avatar_url
-        )
-      `)
-      .eq('conversa_id', conversaId)
-      .order('enviada_em', { ascending: true });
+    try {
+      const { data, error } = await supabase
+        .from('mensagens')
+        .select(`
+          *,
+          atendentes:enviada_por (
+            nome,
+            avatar_url
+          )
+        `)
+        .eq('conversa_id', conversaId)
+        .order('enviada_em', { ascending: true });
 
-    if (error) throw error;
-    return data as Mensagem[];
+      if (error) {
+        console.warn('getMensagens with join failed, trying without join:', error.message);
+        const { data: fallbackData, error: fallbackError } = await supabase
+          .from('mensagens')
+          .select('*')
+          .eq('conversa_id', conversaId)
+          .order('enviada_em', { ascending: true });
+
+        if (fallbackError) throw fallbackError;
+        return (fallbackData || []).map(m => ({ ...m, atendentes: null })) as Mensagem[];
+      }
+      return (data || []) as Mensagem[];
+    } catch (err) {
+      console.error('getMensagens error:', err);
+      throw err;
+    }
   },
 
   async enviarMensagem(conversaId: string, numero: string, tipo: string, mensagem?: string, midiaUrl?: string) {
