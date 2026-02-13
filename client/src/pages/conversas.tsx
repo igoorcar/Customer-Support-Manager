@@ -17,6 +17,7 @@ import {
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -978,6 +979,7 @@ export default function Conversas() {
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Transferir Conversa</DialogTitle>
+              <DialogDescription>Selecione o atendente para transferir esta conversa</DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
               <div className="space-y-2">
@@ -1016,6 +1018,7 @@ export default function Conversas() {
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Finalizar Conversa</DialogTitle>
+              <DialogDescription>Selecione o motivo para finalizar esta conversa</DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
               <div className="space-y-2">
@@ -1062,6 +1065,7 @@ export default function Conversas() {
           <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Novo Orçamento</DialogTitle>
+              <DialogDescription>Adicione produtos e quantidades para criar um orçamento</DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
               <div className="space-y-2">

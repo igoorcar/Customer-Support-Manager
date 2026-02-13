@@ -6,7 +6,6 @@ import { requireAuth } from "./auth";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
-import { execFile } from "child_process";
 
 const uploadDir = path.join(process.cwd(), "uploads");
 if (!fs.existsSync(uploadDir)) {
@@ -68,33 +67,60 @@ export async function registerRoutes(
     const oggFilename = `${Date.now()}_${Math.random().toString(36).slice(2)}.ogg`;
     const outputPath = path.join(uploadDir, oggFilename);
 
-    execFile("ffmpeg", [
+    console.log(`[audio] Converting: ${req.file.originalname} (${req.file.mimetype}, ${req.file.size} bytes) -> ${oggFilename}`);
+
+    const args = [
       "-i", inputPath,
-      "-c:a", "libopus",
+      "-acodec", "libopus",
       "-b:a", "64k",
+      "-ar", "48000",
+      "-ac", "1",
       "-vn",
       "-y",
       outputPath
-    ], (error) => {
+    ];
+
+    const ffmpegProcess = require("child_process").spawn("ffmpeg", args, {
+      stdio: ["pipe", "pipe", "pipe"]
+    });
+
+    let stderr = "";
+    ffmpegProcess.stderr?.on("data", (data: Buffer) => { stderr += data.toString(); });
+
+    ffmpegProcess.on("close", (code: number) => {
       try { fs.unlinkSync(inputPath); } catch {}
 
-      if (error) {
-        console.error("FFmpeg conversion error:", error);
-        return res.status(500).json({ error: "Erro ao converter áudio para OGG" });
+      if (code !== 0) {
+        console.error(`[audio] FFmpeg exit code ${code}:`, stderr);
+        try { fs.unlinkSync(outputPath); } catch {}
+        return res.status(500).json({ error: "Erro ao converter áudio para OGG", details: stderr.slice(-500) });
       }
 
-      const stats = fs.statSync(outputPath);
-      const protocol = req.headers["x-forwarded-proto"] || req.protocol;
-      const host = req.headers["x-forwarded-host"] || req.headers.host;
-      const fileUrl = `${protocol}://${host}/uploads/${oggFilename}`;
+      try {
+        const stats = fs.statSync(outputPath);
+        const protocol = req.headers["x-forwarded-proto"] || req.protocol;
+        const host = req.headers["x-forwarded-host"] || req.headers.host;
+        const fileUrl = `${protocol}://${host}/uploads/${oggFilename}`;
 
-      res.json({
-        url: fileUrl,
-        path: oggFilename,
-        mimeType: "audio/ogg",
-        tamanho: stats.size,
-        nomeArquivo: oggFilename,
-      });
+        console.log(`[audio] Converted successfully: ${stats.size} bytes`);
+
+        res.json({
+          url: fileUrl,
+          path: oggFilename,
+          mimeType: "audio/ogg",
+          tamanho: stats.size,
+          nomeArquivo: oggFilename,
+        });
+      } catch (err: any) {
+        console.error("[audio] Error reading output file:", err);
+        res.status(500).json({ error: "Erro ao processar áudio convertido" });
+      }
+    });
+
+    ffmpegProcess.on("error", (err: Error) => {
+      try { fs.unlinkSync(inputPath); } catch {}
+      console.error("[audio] FFmpeg spawn error:", err);
+      res.status(500).json({ error: "FFmpeg não disponível" });
     });
   });
 
@@ -121,7 +147,10 @@ export async function registerRoutes(
 
       const response = await fetch(url);
       if (!response.ok) {
-        return res.status(response.status).json({ error: "Erro ao acessar mídia" });
+        const statusMsg = response.status === 401 || response.status === 403
+          ? "Mídia expirada ou indisponível"
+          : "Erro ao acessar mídia";
+        return res.status(response.status).json({ error: statusMsg, expired: response.status === 401 || response.status === 403 });
       }
 
       const contentType = response.headers.get("content-type") || "application/octet-stream";
