@@ -65,6 +65,17 @@ function getInitials(name: string) {
   return name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase();
 }
 
+function getLastMessagePreview(msg?: { conteudo: string; tipo: string; direcao: string }) {
+  if (!msg) return "";
+  const prefix = msg.direcao === "enviada" ? "Voce: " : "";
+  if (msg.tipo === "image") return `${prefix}Imagem`;
+  if (msg.tipo === "video") return `${prefix}Video`;
+  if (msg.tipo === "audio" || msg.tipo === "ptt") return `${prefix}Audio`;
+  if (msg.tipo === "document") return `${prefix}Documento`;
+  if (msg.tipo === "sticker") return `${prefix}Figurinha`;
+  return `${prefix}${msg.conteudo || ""}`;
+}
+
 function MessageStatus({ status }: { status: string }) {
   if (status === "enviada") {
     return <Check className="w-3.5 h-3.5 text-muted-foreground" />;
@@ -345,6 +356,14 @@ export default function Conversas() {
     refetchInterval: 5000,
   });
 
+  const conversaIds = conversations?.map(c => c.id) || [];
+  const { data: ultimasMensagens } = useQuery<Record<string, { conteudo: string; tipo: string; direcao: string; enviada_em: string }>>({
+    queryKey: ["ultimas-mensagens", conversaIds.join(",")],
+    queryFn: () => api.getUltimasMensagens(conversaIds),
+    enabled: conversaIds.length > 0,
+    refetchInterval: 5000,
+  });
+
   useEffect(() => {
     const channel = supabase
       .channel('conversas-realtime')
@@ -353,6 +372,15 @@ export default function Conversas() {
         { event: '*', schema: 'public', table: 'conversas' },
         () => {
           queryClient.invalidateQueries({ queryKey: ["supabase-conversas"] });
+          queryClient.invalidateQueries({ queryKey: ["ultimas-mensagens"] });
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'mensagens' },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ["supabase-conversas"] });
+          queryClient.invalidateQueries({ queryKey: ["ultimas-mensagens"] });
         }
       )
       .subscribe();
@@ -808,6 +836,8 @@ export default function Conversas() {
               const st = statusConfig[conv.status] || statusConfig.nova;
               const isSelected = conv.id === selectedConvId;
               const name = conv.clientes?.nome || "Cliente";
+              const lastMsg = ultimasMensagens?.[conv.id];
+              const timeToShow = lastMsg?.enviada_em || conv.updated_at || conv.iniciada_em;
               return (
                 <div
                   key={conv.id}
@@ -827,9 +857,11 @@ export default function Conversas() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-1">
                       <p className="text-sm font-medium truncate">{name}</p>
-                      <span className="text-xs text-muted-foreground flex-shrink-0">{formatTime(conv.iniciada_em)}</span>
+                      <span className="text-xs text-muted-foreground flex-shrink-0">{formatTime(timeToShow)}</span>
                     </div>
-                    <p className="text-xs text-muted-foreground truncate">{conv.clientes?.whatsapp || ""}</p>
+                    <p className="text-xs text-muted-foreground truncate" data-testid={`text-last-msg-${conv.id}`}>
+                      {getLastMessagePreview(lastMsg) || conv.clientes?.whatsapp || ""}
+                    </p>
                   </div>
                 </div>
               );

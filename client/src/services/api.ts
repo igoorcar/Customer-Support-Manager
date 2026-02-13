@@ -22,7 +22,7 @@ export const api = {
           avatar_url
         )
       `)
-      .order('iniciada_em', { ascending: false });
+      .order('updated_at', { ascending: false });
 
     if (atendenteId && filtro !== 'aguardando') {
       query = query.eq('atendente_id', atendenteId);
@@ -42,6 +42,26 @@ export const api = {
       throw error;
     }
     return (data || []) as Conversa[];
+  },
+
+  async getUltimasMensagens(conversaIds: string[]) {
+    if (conversaIds.length === 0) return {} as Record<string, { conteudo: string; tipo: string; direcao: string; enviada_em: string }>;
+
+    const { data } = await supabase
+      .from('mensagens')
+      .select('conversa_id, conteudo, tipo, direcao, enviada_em')
+      .in('conversa_id', conversaIds)
+      .order('enviada_em', { ascending: false });
+
+    const result: Record<string, any> = {};
+    if (data) {
+      for (const msg of data) {
+        if (!result[msg.conversa_id]) {
+          result[msg.conversa_id] = msg;
+        }
+      }
+    }
+    return result;
   },
 
   async getConversa(id: string) {

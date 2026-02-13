@@ -19,6 +19,8 @@ export type Conversa = {
   ia_ativa?: boolean;
   ia_modo?: 'manual' | 'horario' | 'feriado' | 'domingo';
   atendente_ausente?: boolean;
+  updated_at?: string;
+  created_at?: string;
   clientes: {
     id: string;
     nome: string;
