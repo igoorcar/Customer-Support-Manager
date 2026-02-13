@@ -1,0 +1,390 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "botao/criar",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "5e8d2265-a6d7-4977-a2c7-20feadd12e7c",
+      "name": "Webhook Criar",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -656,
+        112
+      ],
+      "webhookId": "259a40fc-9f07-4ce5-97d0-8c9a0e42159d"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body;\n\nif (!body.label) {\n  throw new Error('Label é obrigatório');\n}\n\n// FUNÇÃO AUXILIAR (tem que vir ANTES!)\nfunction gerarSequenciaPreview(botao, midias) {\n  const sequencia = [];\n  \n  switch(botao.ordenacao) {\n    case 'texto_primeiro':\n      if (botao.texto_mensagem) sequencia.push({ tipo: 'text', conteudo: botao.texto_mensagem });\n      midias.forEach(m => sequencia.push({ tipo: m.tipo, url: m.url }));\n      break;\n      \n    case 'midias_primeiro':\n      midias.forEach(m => sequencia.push({ tipo: m.tipo, url: m.url }));\n      if (botao.texto_mensagem) sequencia.push({ tipo: 'text', conteudo: botao.texto_mensagem });\n      break;\n      \n    case 'caption_primeira_midia':\n      if (midias.length > 0) {\n        sequencia.push({ \n          tipo: midias[0].tipo, \n          url: midias[0].url, \n          caption: botao.texto_mensagem \n        });\n        midias.slice(1).forEach(m => sequencia.push({ tipo: m.tipo, url: m.url }));\n      }\n      break;\n      \n    case 'intercalado':\n      midias.forEach((m, i) => {\n        sequencia.push({ tipo: m.tipo, url: m.url });\n        if (i === 0 && botao.texto_mensagem) {\n          sequencia.push({ tipo: 'text', conteudo: botao.texto_mensagem });\n        }\n      });\n      break;\n  }\n  \n  return sequencia;\n}\n\nconst botao = {\n  label: body.label,\n  tipo: body.tipo || 'mensagem',\n  produto_id: body.produtoId || null,\n  texto_mensagem: body.textoMensagem || null,\n  usar_template_produto: body.usarTemplateProduto !== false,\n  contexto: body.contexto || 'todos',\n  ordem: body.ordem || 0,\n  cor: body.cor || 'blue',\n  icone: body.icone || null,\n  ativo: body.ativo !== false,\n  ordenacao: body.ordenacao || 'midias_primeiro',\n  usar_caption: body.usarCaption || false,\n  preview_config: body.previewConfig || {}\n};\n\nconst midias = body.midias || [];\n\nconst midiasComPreview = midias.map((midia, index) => ({\n  ...midia,\n  ordem: midia.ordem !== undefined ? midia.ordem : index,\n  posicao: index + 1,\n  totalMidias: midias.length\n}));\n\nreturn [{\n  json: {\n    botao,\n    midias: midiasComPreview,\n    operacao: body.botaoId ? 'atualizar' : 'criar',\n    botaoId: body.botaoId || null,\n    preview: {\n      totalMidias: midias.length,\n      tipos: [...new Set(midias.map(m => m.tipo))],\n      temTexto: !!botao.texto_mensagem,\n      ordenacao: botao.ordenacao,\n      sequencia: gerarSequenciaPreview(botao, midiasComPreview)\n    }\n  }\n}];"
+      },
+      "id": "909a7105-0579-4d56-bf6c-db8a216758f0",
+      "name": "Validar Dados",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -448,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.operacao }}",
+              "value2": "criar"
+            }
+          ]
+        }
+      },
+      "id": "797389c9-7363-4de2-b2b7-45a6a61b0c68",
+      "name": "É Criar?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        -224,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "tableId": "botoes_resposta",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "label",
+              "fieldValue": "={{ $json.botao.label }}"
+            },
+            {
+              "fieldId": "tipo",
+              "fieldValue": "={{ $json.botao.tipo }}"
+            },
+            {
+              "fieldId": "produto_id",
+              "fieldValue": "={{ $json.botao.produto_id }}"
+            },
+            {
+              "fieldId": "texto_mensagem",
+              "fieldValue": "={{ $json.botao.texto_mensagem }}"
+            },
+            {
+              "fieldId": "contexto",
+              "fieldValue": "={{ $json.botao.contexto }}"
+            },
+            {
+              "fieldId": "ordem",
+              "fieldValue": "={{ $json.botao.ordem }}"
+            },
+            {
+              "fieldId": "cor",
+              "fieldValue": "={{ $json.botao.cor }}"
+            },
+            {
+              "fieldId": "icone",
+              "fieldValue": "={{ $json.botao.icone }}"
+            },
+            {
+              "fieldId": "ativo",
+              "fieldValue": "={{ $json.botao.ativo }}"
+            },
+            {
+              "fieldId": "ordenacao",
+              "fieldValue": "={{ $json.botao.ordenacao }}"
+            },
+            {
+              "fieldId": "usar_caption",
+              "fieldValue": "={{ $json.botao.usar_caption }}"
+            },
+            {
+              "fieldId": "preview_config",
+              "fieldValue": "={{ JSON.stringify($json.botao.preview_config) }}"
+            }
+          ]
+        }
+      },
+      "id": "b903ea81-0799-4012-ba8e-cd4e5bcbfb29",
+      "name": "Criar Botão",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "M6aicnv6Kys67vb5",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "botoes_resposta",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $json.botaoId }}"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "label",
+              "fieldValue": "={{ $json.botao.label }}"
+            },
+            {
+              "fieldId": "tipo",
+              "fieldValue": "={{ $json.botao.tipo }}"
+            },
+            {
+              "fieldId": "texto_mensagem",
+              "fieldValue": "={{ $json.botao.texto_mensagem }}"
+            },
+            {
+              "fieldId": "cor",
+              "fieldValue": "={{ $json.botao.cor }}"
+            },
+            {
+              "fieldId": "ativo",
+              "fieldValue": "={{ $json.botao.ativo }}"
+            }
+          ]
+        }
+      },
+      "id": "c2ca9bb3-9178-4217-9104-a883c5efd62e",
+      "name": "Atualizar Botão",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        0,
+        208
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "M6aicnv6Kys67vb5",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $('Validar Dados').first().json.midias.length }}",
+              "operation": "larger"
+            }
+          ]
+        }
+      },
+      "id": "640159bd-8443-4e1c-84a1-299b1e031c07",
+      "name": "Tem Mídias?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        224,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const botaoId = $json.id || $('Validar Dados').first().json.botaoId;\nconst midias = $('Validar Dados').first().json.midias;\n\nconst rows = midias.map((midia, index) => ({\n  botao_id: botaoId,\n  tipo: midia.tipo,\n  url: midia.url,\n  mime_type: midia.mimeType || null,\n  tamanho: midia.tamanho || null,\n  nome_arquivo: midia.nomeArquivo || null,\n  ordem: midia.ordem || index\n}));\n\nreturn rows.map(row => ({ json: row }));"
+      },
+      "id": "68eefb98-ba47-4a47-b573-d39ffcdbd14d",
+      "name": "Preparar Mídias",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        448,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "tableId": "botoes_midias",
+        "dataToSend": "autoMapInputData"
+      },
+      "id": "dcc8f140-e2d3-43c0-8fc7-dadd62b2e7c3",
+      "name": "Salvar Mídias",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        672,
+        0
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "M6aicnv6Kys67vb5",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ \n  success: true, \n  botaoId: $json.botao_id || $('Criar Botão').first().json.id || $('Atualizar Botão').first().json.id,\n  preview: $('Validar Dados').first().json.preview\n}) }}",
+        "options": {}
+      },
+      "id": "1c5b1889-50a6-413d-953d-38c4f3c30e75",
+      "name": "Responder",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        672,
+        208
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook Criar": {
+      "main": [
+        [
+          {
+            "node": "Validar Dados",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validar Dados": {
+      "main": [
+        [
+          {
+            "node": "É Criar?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "É Criar?": {
+      "main": [
+        [
+          {
+            "node": "Criar Botão",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Atualizar Botão",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Criar Botão": {
+      "main": [
+        [
+          {
+            "node": "Tem Mídias?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Atualizar Botão": {
+      "main": [
+        [
+          {
+            "node": "Tem Mídias?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tem Mídias?": {
+      "main": [
+        [
+          {
+            "node": "Preparar Mídias",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Responder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Mídias": {
+      "main": [
+        [
+          {
+            "node": "Salvar Mídias",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Salvar Mídias": {
+      "main": [
+        [
+          {
+            "node": "Responder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {
+    "Webhook Criar": [
+      {
+        "headers": {
+          "host": "n8n-n8n-otica-suellenn.gycquy.easypanel.host",
+          "user-agent": "curl/8.7.1",
+          "content-length": "265",
+          "accept": "*/*",
+          "content-type": "application/json",
+          "x-forwarded-for": "191.11.211.106",
+          "x-forwarded-host": "n8n-n8n-otica-suellenn.gycquy.easypanel.host",
+          "x-forwarded-port": "443",
+          "x-forwarded-proto": "https",
+          "x-forwarded-server": "16cf8b31d688",
+          "x-real-ip": "191.11.211.106",
+          "accept-encoding": "gzip"
+        },
+        "params": {},
+        "query": {},
+        "body": {
+          "label": "🎯 Teste Corrigido",
+          "textoMensagem": "Texto de teste",
+          "ordenacao": "texto_primeiro",
+          "usarCaption": false,
+          "midias": [
+            {
+              "tipo": "image",
+              "url": "https://images.unsplash.com/photo-1574258495973-f010dfbb5371?w=800"
+            }
+          ]
+        },
+        "webhookUrl": "https://n8n-n8n-otica-suellenn.gycquy.easypanel.host/webhook/botao/criar",
+        "executionMode": "production"
+      }
+    ]
+  },
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "12512bdfd26ce7703132595c7809e94fb1358b3dd0212f53c30762160aa40893"
+  }
+}

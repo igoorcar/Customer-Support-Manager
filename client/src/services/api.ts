@@ -220,28 +220,27 @@ export const api = {
     return response.json();
   },
 
-  async uploadMidia(file: File, tipo: 'conversas' | 'botoes') {
-    const fileName = `${tipo}/${Date.now()}_${file.name}`;
+  async uploadMidia(file: File) {
+    const formData = new FormData();
+    formData.append('file', file);
 
-    const { data, error } = await supabase.storage
-      .from('midias')
-      .upload(fileName, file, {
-        cacheControl: '3600',
-        upsert: false
-      });
+    const response = await fetch('/api/upload', {
+      method: 'POST',
+      credentials: 'include',
+      body: formData,
+    });
 
-    if (error) throw error;
+    if (!response.ok) {
+      const err = await response.text();
+      throw new Error(`Erro no upload: ${err}`);
+    }
 
-    const { data: { publicUrl } } = supabase.storage
-      .from('midias')
-      .getPublicUrl(fileName);
-
-    return {
-      url: publicUrl,
-      path: data.path,
-      mimeType: file.type,
-      tamanho: file.size,
-      nomeArquivo: file.name
-    };
+    return response.json() as Promise<{
+      url: string;
+      path: string;
+      mimeType: string;
+      tamanho: number;
+      nomeArquivo: string;
+    }>;
   }
 };

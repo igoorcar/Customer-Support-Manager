@@ -214,7 +214,7 @@ export function CriarBotaoModal({
     try {
       const midiasComUrl = await Promise.all(
         midias.map(async (midia, index) => {
-          const resultado = await api.uploadMidia(midia.file, "botoes");
+          const resultado = await api.uploadMidia(midia.file);
           return {
             tipo: midia.tipo,
             url: resultado.url,

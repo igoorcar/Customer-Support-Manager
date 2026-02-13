@@ -3,11 +3,34 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertClientSchema, insertQuickReplySchema, insertProductSchema, insertClientNoteSchema, insertMessageSchema } from "@shared/schema";
 import { requireAuth } from "./auth";
+import multer from "multer";
+import path from "path";
+import fs from "fs";
+
+const uploadDir = path.join(process.cwd(), "uploads");
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+}
+
+const multerStorage = multer.diskStorage({
+  destination: (_req, _file, cb) => cb(null, uploadDir),
+  filename: (_req, file, cb) => {
+    const uniqueName = `${Date.now()}_${Math.random().toString(36).slice(2)}_${file.originalname}`;
+    cb(null, uniqueName);
+  },
+});
+
+const upload = multer({
+  storage: multerStorage,
+  limits: { fileSize: 20 * 1024 * 1024 },
+});
 
 export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
+
+  app.use("/uploads", (await import("express")).default.static(uploadDir));
 
   app.use("/api/stats", requireAuth);
   app.use("/api/conversations", requireAuth);
@@ -17,6 +40,23 @@ export async function registerRoutes(
   app.use("/api/products", requireAuth);
   app.use("/api/activities", requireAuth);
   app.use("/api/reports", requireAuth);
+  app.use("/api/upload", requireAuth);
+
+  app.post("/api/upload", upload.single("file"), (req, res) => {
+    if (!req.file) {
+      return res.status(400).json({ error: "Nenhum arquivo enviado" });
+    }
+    const protocol = req.headers["x-forwarded-proto"] || req.protocol;
+    const host = req.headers["x-forwarded-host"] || req.headers.host;
+    const fileUrl = `${protocol}://${host}/uploads/${req.file.filename}`;
+    res.json({
+      url: fileUrl,
+      path: req.file.filename,
+      mimeType: req.file.mimetype,
+      tamanho: req.file.size,
+      nomeArquivo: req.file.originalname,
+    });
+  });
 
   app.get("/api/stats", async (_req, res) => {
     const stats = await storage.getStats();
