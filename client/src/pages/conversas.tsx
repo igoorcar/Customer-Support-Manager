@@ -27,7 +27,7 @@ import {
   UserPlus, Pause, CheckCircle, PanelRight, PanelRightClose,
   Check, Zap, Hand, Info, Package, Smile, ChevronDown, Clock, ArrowDown,
   Calendar, Image, Video, Music, FileText, Download, Play, Trash2,
-  Plus, StickyNote, Receipt, Minus, ShoppingCart, ImageOff, AlertTriangle,
+  Plus, StickyNote, Receipt, Minus, ShoppingCart, ImageOff, AlertTriangle, Bot,
 } from "lucide-react";
 import { useState, useRef, useEffect, useCallback } from "react";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -956,10 +956,18 @@ export default function Conversas() {
             ) : mensagens && mensagens.length > 0 ? (
               mensagens.map((msg) => {
                 const isAttendant = msg.direcao === "enviada";
+                const parsedMeta = msg.metadata ? (() => { try { return JSON.parse(msg.metadata); } catch { return null; } })() : null;
+                const isIA = parsedMeta?.remetente === "ia" || msg.enviada_por === "ia";
                 return (
                   <div key={msg.id} className={`flex ${isAttendant ? "justify-end" : "justify-start"}`} data-testid={`message-${msg.id}`}>
-                    <div className={`max-w-[70%] rounded-lg px-3 py-2 ${isAttendant ? "bg-primary text-primary-foreground" : "bg-card border"}`}>
-                      {msg.atendentes && isAttendant && (
+                    <div className={`max-w-[70%] rounded-lg px-3 py-2 ${isIA ? "bg-chart-2/90 text-white" : isAttendant ? "bg-primary text-primary-foreground" : "bg-card border"}`}>
+                      {isIA && (
+                        <div className="flex items-center gap-1 mb-1">
+                          <Bot className="w-3 h-3" />
+                          <span className="text-xs font-medium opacity-80">IA Assistente</span>
+                        </div>
+                      )}
+                      {!isIA && msg.atendentes && isAttendant && (
                         <p className={`text-xs mb-1 font-medium ${isAttendant ? "text-primary-foreground/80" : "text-muted-foreground"}`}>
                           {msg.atendentes.nome}
                         </p>

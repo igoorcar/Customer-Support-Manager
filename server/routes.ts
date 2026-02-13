@@ -524,5 +524,57 @@ export async function registerRoutes(
     res.status(204).send();
   });
 
+  app.post("/api/webhook/salvar-mensagem-ia", async (req, res) => {
+    try {
+      const { conversa_id, conteudo, tipo, midia_url, midia_mime_type, whatsapp_message_id } = req.body;
+
+      if (!conversa_id) {
+        return res.status(400).json({ error: "conversa_id é obrigatório" });
+      }
+
+      if (!supabaseServer) {
+        return res.status(500).json({ error: "Supabase não configurado" });
+      }
+
+      const now = new Date().toISOString();
+
+      const insertData: Record<string, any> = {
+        conversa_id,
+        direcao: 'enviada',
+        tipo: tipo || 'text',
+        conteudo: conteudo || null,
+        midia_url: midia_url || null,
+        midia_mime_type: midia_mime_type || null,
+        whatsapp_message_id: whatsapp_message_id || null,
+        status: 'enviada',
+        enviada_em: now,
+        enviada_por: null,
+        metadata: JSON.stringify({ remetente: 'ia' }),
+      };
+
+      const { data, error } = await supabaseServer
+        .from('mensagens')
+        .insert(insertData)
+        .select()
+        .single();
+
+      if (error) {
+        console.error("[webhook] Erro ao salvar mensagem IA:", error.message);
+        return res.status(500).json({ error: error.message });
+      }
+
+      await supabaseServer
+        .from('conversas')
+        .update({ ultima_mensagem_em: now, updated_at: now })
+        .eq('id', conversa_id);
+
+      console.log(`[webhook] Mensagem IA salva: conversa=${conversa_id}, tipo=${tipo || 'text'}`);
+      res.json({ success: true, mensagem: data });
+    } catch (error: any) {
+      console.error("[webhook] Erro:", error.message);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   return httpServer;
 }

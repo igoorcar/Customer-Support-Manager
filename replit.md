@@ -82,6 +82,7 @@ WhatsApp customer service management panel for an optical shop called "Ótica Su
 - GET /api/activities - Recent activity feed
 - GET /api/reports - Reports data
 - GET /api/attendants - Attendants list
+- POST /api/webhook/salvar-mensagem-ia - Webhook for n8n to save AI-sent messages (no auth required, saves to Supabase mensagens with enviada_por=null, metadata={"remetente":"ia"}). Accepts: conversa_id (required), conteudo, tipo, midia_url, midia_mime_type, whatsapp_message_id
 
 ## User Preferences
 - Language: Portuguese (Brazilian)
