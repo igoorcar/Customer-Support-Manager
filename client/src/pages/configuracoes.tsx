@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,6 +17,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/use-auth";
+import { apiRequest } from "@/lib/queryClient";
+import { api } from "@/services/api";
 import {
   Building2,
   User,
@@ -30,10 +33,8 @@ import {
   Sun,
   Moon,
   Monitor,
-  Trash2,
   Plus,
 } from "lucide-react";
-import type { Attendant } from "@shared/schema";
 
 const STORAGE_KEY = "otica-suellen-settings";
 
@@ -47,7 +48,7 @@ type SectionId =
   | "aparencia"
   | "seguranca";
 
-const sections: { id: SectionId; label: string; icon: typeof Building2 }[] = [
+const sectionsList: { id: SectionId; label: string; icon: typeof Building2 }[] = [
   { id: "perfil", label: "Perfil da Empresa", icon: Building2 },
   { id: "conta", label: "Conta", icon: User },
   { id: "notificacoes", label: "Notificações", icon: Bell },
@@ -65,11 +66,6 @@ function getDefaultSettings() {
     businessEmail: "",
     businessAddress: "",
     businessCnpj: "",
-    accountUsername: "admin",
-    accountEmail: "",
-    currentPassword: "",
-    newPassword: "",
-    confirmPassword: "",
     notifBrowser: true,
     notifSound: true,
     notifEmail: false,
@@ -125,7 +121,7 @@ export default function Configuracoes() {
       case "perfil":
         return <PerfilSection settings={settings} update={update} onSave={handleSave} />;
       case "conta":
-        return <ContaSection settings={settings} update={update} onSave={handleSave} />;
+        return <ContaSection />;
       case "notificacoes":
         return <NotificacoesSection settings={settings} update={update} onSave={handleSave} />;
       case "atendimento":
@@ -158,7 +154,7 @@ export default function Configuracoes() {
         <Card className="lg:w-64 shrink-0">
           <CardContent className="p-2">
             <nav className="flex flex-col gap-1" data-testid="nav-settings">
-              {sections.map((section) => {
+              {sectionsList.map((section) => {
                 const Icon = section.icon;
                 const isActive = activeSection === section.id;
                 return (
@@ -278,7 +274,53 @@ function PerfilSection({ settings, update, onSave }: SectionProps) {
   );
 }
 
-function ContaSection({ settings, update, onSave }: SectionProps) {
+function ContaSection() {
+  const { toast } = useToast();
+  const { user } = useAuth();
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+
+  const changePasswordMutation = useMutation({
+    mutationFn: async (data: { currentPassword: string; newPassword: string }) => {
+      const res = await apiRequest("POST", "/api/auth/change-password", data);
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Senha alterada com sucesso!" });
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Erro ao alterar senha",
+        description: error?.message || "Verifique a senha atual e tente novamente",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleChangePassword = () => {
+    if (!currentPassword) {
+      toast({ title: "Digite a senha atual", variant: "destructive" });
+      return;
+    }
+    if (!newPassword) {
+      toast({ title: "Digite a nova senha", variant: "destructive" });
+      return;
+    }
+    if (newPassword.length < 4) {
+      toast({ title: "A nova senha deve ter pelo menos 4 caracteres", variant: "destructive" });
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      toast({ title: "As senhas não coincidem", variant: "destructive" });
+      return;
+    }
+    changePasswordMutation.mutate({ currentPassword, newPassword });
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -291,19 +333,17 @@ function ContaSection({ settings, update, onSave }: SectionProps) {
         <div className="space-y-2">
           <Label>Nome de usuário</Label>
           <Input
-            value={settings.accountUsername}
+            value={user?.username || ""}
             disabled
             data-testid="input-account-username"
           />
         </div>
         <div className="space-y-2">
-          <Label>E-mail</Label>
+          <Label>Função</Label>
           <Input
-            type="email"
-            value={settings.accountEmail}
-            onChange={(e) => update("accountEmail", e.target.value)}
-            placeholder="seu@email.com"
-            data-testid="input-account-email"
+            value={user?.role === "admin" ? "Administrador" : "Atendente"}
+            disabled
+            data-testid="input-account-role"
           />
         </div>
         <Separator />
@@ -313,8 +353,8 @@ function ContaSection({ settings, update, onSave }: SectionProps) {
             <Label>Senha atual</Label>
             <Input
               type="password"
-              value={settings.currentPassword}
-              onChange={(e) => update("currentPassword", e.target.value)}
+              value={currentPassword}
+              onChange={(e) => setCurrentPassword(e.target.value)}
               data-testid="input-current-password"
             />
           </div>
@@ -322,8 +362,8 @@ function ContaSection({ settings, update, onSave }: SectionProps) {
             <Label>Nova senha</Label>
             <Input
               type="password"
-              value={settings.newPassword}
-              onChange={(e) => update("newPassword", e.target.value)}
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
               data-testid="input-new-password"
             />
           </div>
@@ -331,13 +371,21 @@ function ContaSection({ settings, update, onSave }: SectionProps) {
             <Label>Confirmar nova senha</Label>
             <Input
               type="password"
-              value={settings.confirmPassword}
-              onChange={(e) => update("confirmPassword", e.target.value)}
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
               data-testid="input-confirm-password"
             />
           </div>
         </div>
-        <SaveButton onSave={onSave} />
+        <div className="flex justify-end pt-4">
+          <Button
+            onClick={handleChangePassword}
+            disabled={changePasswordMutation.isPending}
+            data-testid="button-change-password"
+          >
+            {changePasswordMutation.isPending ? "Alterando..." : "Alterar Senha"}
+          </Button>
+        </div>
       </CardContent>
     </Card>
   );
@@ -560,9 +608,9 @@ function HorarioSection({ settings, update, onSave }: SectionProps) {
 }
 
 function EquipeSection() {
-  const { toast } = useToast();
-  const { data: attendants, isLoading } = useQuery<Attendant[]>({
-    queryKey: ["/api/attendants"],
+  const { data: atendentes, isLoading } = useQuery({
+    queryKey: ["supabase-atendentes-equipe"],
+    queryFn: () => api.getAtendentes(),
   });
 
   return (
@@ -572,15 +620,6 @@ function EquipeSection() {
           <Users className="w-5 h-5" />
           Equipe
         </CardTitle>
-        <Button
-          onClick={() =>
-            toast({ title: "Funcionalidade em desenvolvimento" })
-          }
-          data-testid="button-add-attendant"
-        >
-          <Plus className="w-4 h-4 mr-2" />
-          Adicionar Atendente
-        </Button>
       </CardHeader>
       <CardContent>
         {isLoading ? (
@@ -589,54 +628,50 @@ function EquipeSection() {
               <Skeleton key={i} className="h-12 w-full" />
             ))}
           </div>
-        ) : (
+        ) : atendentes && atendentes.length > 0 ? (
           <div className="overflow-x-auto">
             <table className="w-full text-sm" data-testid="table-attendants">
               <thead>
                 <tr className="border-b text-left">
-                  <th className="pb-2 font-medium text-muted-foreground">Nome</th>
-                  <th className="pb-2 font-medium text-muted-foreground">E-mail</th>
-                  <th className="pb-2 font-medium text-muted-foreground">Status</th>
-                  <th className="pb-2 font-medium text-muted-foreground">Ações</th>
+                  <th className="pb-2 px-3 text-xs font-medium text-muted-foreground uppercase tracking-wide">Nome</th>
+                  <th className="pb-2 px-3 text-xs font-medium text-muted-foreground uppercase tracking-wide">WhatsApp</th>
+                  <th className="pb-2 px-3 text-xs font-medium text-muted-foreground uppercase tracking-wide">Status</th>
                 </tr>
               </thead>
               <tbody>
-                {attendants?.map((att) => (
-                  <tr key={att.id} className="border-b last:border-0" data-testid={`row-attendant-${att.id}`}>
-                    <td className="py-3 font-medium">{att.name}</td>
-                    <td className="py-3 text-muted-foreground">{att.email}</td>
-                    <td className="py-3">
-                      <Badge
-                        variant={att.status === "online" ? "default" : "secondary"}
-                        className="text-xs"
-                        data-testid={`badge-status-${att.id}`}
-                      >
-                        {att.status === "online" ? "Online" : att.status === "offline" ? "Offline" : att.status}
-                      </Badge>
-                    </td>
-                    <td className="py-3">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() =>
-                          toast({ title: "Funcionalidade em desenvolvimento" })
-                        }
-                        data-testid={`button-remove-attendant-${att.id}`}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </td>
-                  </tr>
-                ))}
-                {attendants?.length === 0 && (
-                  <tr>
-                    <td colSpan={4} className="py-6 text-center text-muted-foreground">
-                      Nenhum atendente cadastrado
-                    </td>
-                  </tr>
-                )}
+                {atendentes.map((att: any) => {
+                  const statusVariant: Record<string, "default" | "secondary" | "outline"> = {
+                    online: "default",
+                    offline: "secondary",
+                    ausente: "outline",
+                  };
+                  const statusLabel: Record<string, string> = {
+                    online: "Online",
+                    offline: "Offline",
+                    ausente: "Ausente",
+                  };
+                  return (
+                    <tr key={att.id} className="border-b last:border-0" data-testid={`row-attendant-${att.id}`}>
+                      <td className="py-3 px-3 font-medium">{att.nome}</td>
+                      <td className="py-3 px-3 text-muted-foreground">{att.whatsapp || "--"}</td>
+                      <td className="py-3 px-3">
+                        <Badge
+                          variant={statusVariant[att.status] ?? "secondary"}
+                          className="text-xs"
+                          data-testid={`badge-status-${att.id}`}
+                        >
+                          {statusLabel[att.status] ?? att.status}
+                        </Badge>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
+          </div>
+        ) : (
+          <div className="text-center py-8 text-sm text-muted-foreground">
+            Nenhum atendente cadastrado no Supabase
           </div>
         )}
       </CardContent>
@@ -740,27 +775,6 @@ function AparenciaSection({ settings, update, onSave }: SectionProps) {
 function SegurancaSection({ settings, update, onSave }: SectionProps) {
   const { toast } = useToast();
 
-  const mockSessions = [
-    {
-      id: "1",
-      device: "Chrome - Windows",
-      ip: "192.168.1.10",
-      lastActivity: "Agora",
-    },
-    {
-      id: "2",
-      device: "Safari - iPhone",
-      ip: "192.168.1.25",
-      lastActivity: "Há 15 minutos",
-    },
-    {
-      id: "3",
-      device: "Firefox - macOS",
-      ip: "10.0.0.5",
-      lastActivity: "Há 2 horas",
-    },
-  ];
-
   return (
     <Card>
       <CardHeader>
@@ -800,39 +814,6 @@ function SegurancaSection({ settings, update, onSave }: SectionProps) {
               <SelectItem value="120">2 horas</SelectItem>
             </SelectContent>
           </Select>
-        </div>
-        <Separator />
-        <div className="space-y-3">
-          <h3 className="text-sm font-semibold">Sessões ativas</h3>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm" data-testid="table-sessions">
-              <thead>
-                <tr className="border-b text-left">
-                  <th className="pb-2 font-medium text-muted-foreground">Dispositivo</th>
-                  <th className="pb-2 font-medium text-muted-foreground">IP</th>
-                  <th className="pb-2 font-medium text-muted-foreground">Última atividade</th>
-                </tr>
-              </thead>
-              <tbody>
-                {mockSessions.map((s) => (
-                  <tr key={s.id} className="border-b last:border-0" data-testid={`row-session-${s.id}`}>
-                    <td className="py-3">{s.device}</td>
-                    <td className="py-3 text-muted-foreground">{s.ip}</td>
-                    <td className="py-3 text-muted-foreground">{s.lastActivity}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <Button
-            variant="destructive"
-            onClick={() =>
-              toast({ title: "Todas as sessões foram encerradas" })
-            }
-            data-testid="button-end-sessions"
-          >
-            Encerrar todas as sessões
-          </Button>
         </div>
         <SaveButton onSave={onSave} />
       </CardContent>

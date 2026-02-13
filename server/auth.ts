@@ -134,6 +134,34 @@ export function setupAuth(app: Express) {
     const user = req.user!;
     res.json({ id: user.id, username: user.username, role: user.role });
   });
+
+  app.post("/api/auth/change-password", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: "Não autenticado" });
+    }
+    try {
+      const { currentPassword, newPassword } = req.body;
+      if (!currentPassword || !newPassword) {
+        return res.status(400).json({ message: "Senha atual e nova senha são obrigatórias" });
+      }
+      if (newPassword.length < 4) {
+        return res.status(400).json({ message: "A nova senha deve ter pelo menos 4 caracteres" });
+      }
+      const user = await storage.getUser(req.user!.id);
+      if (!user) {
+        return res.status(404).json({ message: "Usuário não encontrado" });
+      }
+      const valid = await comparePasswords(currentPassword, user.password);
+      if (!valid) {
+        return res.status(400).json({ message: "Senha atual incorreta" });
+      }
+      const hashed = await hashPassword(newPassword);
+      await storage.updateUserPassword(user.id, hashed);
+      res.json({ ok: true });
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao alterar senha" });
+    }
+  });
 }
 
 export const requireAuth: RequestHandler = (req, res, next) => {
