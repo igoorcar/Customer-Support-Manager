@@ -347,11 +347,13 @@ export default function Conversas() {
   const { data: conversations, isLoading } = useQuery<Conversa[]>({
     queryKey: ["supabase-conversas", activeFilter, atendenteId],
     queryFn: () => {
-      if (activeFilter === "todas") return api.getConversas('todas');
-      if (activeFilter === "nova") return api.getConversas('aguardando');
-      if (activeFilter === "finalizada") return api.getConversas('finalizadas');
-      return api.getConversas('ativas');
+      if (!atendenteId) return Promise.resolve([]);
+      if (activeFilter === "todas") return api.getConversas('todas', atendenteId);
+      if (activeFilter === "nova") return api.getConversas('aguardando', atendenteId);
+      if (activeFilter === "finalizada") return api.getConversas('finalizadas', atendenteId);
+      return api.getConversas('ativas', atendenteId);
     },
+    enabled: !!atendenteId,
     refetchInterval: 5000,
   });
 
@@ -592,7 +594,9 @@ export default function Conversas() {
         selectedConv.id,
         selectedConv.clientes.whatsapp,
         "text",
-        content
+        content,
+        undefined,
+        atendenteId || undefined
       );
     },
     onSuccess: () => {
@@ -614,7 +618,8 @@ export default function Conversas() {
         selectedConv.clientes.whatsapp,
         type,
         caption || "",
-        uploadResult.url
+        uploadResult.url,
+        atendenteId || undefined
       );
       queryClient.invalidateQueries({ queryKey: ["supabase-mensagens", selectedConvId] });
     } catch {
@@ -671,7 +676,8 @@ export default function Conversas() {
           selectedConv.clientes.whatsapp,
           "image",
           text,
-          imageUrl
+          imageUrl,
+          atendenteId || undefined
         );
       } else {
         addOptimisticMessage(text, "text");
@@ -679,7 +685,9 @@ export default function Conversas() {
           selectedConv.id,
           selectedConv.clientes.whatsapp,
           "text",
-          text
+          text,
+          undefined,
+          atendenteId || undefined
         );
       }
       queryClient.invalidateQueries({ queryKey: ["supabase-mensagens", selectedConvId] });

@@ -21,44 +21,23 @@ export const api = {
       )
     `;
 
-    if (filtro === 'aguardando') {
-      const { data, error } = await supabase
-        .from('conversas')
-        .select(selectFields)
-        .eq('status', 'nova')
-        .order('updated_at', { ascending: false });
-      if (error) { console.error('getConversas error:', error.message); throw error; }
-      return (data || []) as Conversa[];
-    }
-
-    if (filtro === 'finalizadas') {
-      let query = supabase.from('conversas').select(selectFields).eq('status', 'finalizada').order('updated_at', { ascending: false });
-      if (atendenteId) query = query.eq('atendente_id', atendenteId);
-      const { data, error } = await query;
-      if (error) { console.error('getConversas error:', error.message); throw error; }
-      return (data || []) as Conversa[];
-    }
+    let query = supabase
+      .from('conversas')
+      .select(selectFields)
+      .order('updated_at', { ascending: false });
 
     if (atendenteId) {
-      let query = supabase
-        .from('conversas')
-        .select(selectFields)
-        .or(`atendente_id.eq.${atendenteId},atendente_id.is.null`)
-        .order('updated_at', { ascending: false });
-
-      if (filtro === 'ativas') {
-        query = query.in('status', ['nova', 'em_atendimento', 'pausada']);
-      }
-
-      const { data, error } = await query;
-      if (error) { console.error('getConversas error:', error.message); throw error; }
-      return (data || []) as Conversa[];
+      query = query.eq('atendente_id', atendenteId);
     }
 
-    let query = supabase.from('conversas').select(selectFields).order('updated_at', { ascending: false });
-    if (filtro === 'ativas') {
+    if (filtro === 'aguardando') {
+      query = query.eq('status', 'nova');
+    } else if (filtro === 'finalizadas') {
+      query = query.eq('status', 'finalizada');
+    } else if (filtro === 'ativas') {
       query = query.in('status', ['nova', 'em_atendimento', 'pausada']);
     }
+
     const { data, error } = await query;
     if (error) { console.error('getConversas error:', error.message); throw error; }
     return (data || []) as Conversa[];
@@ -147,7 +126,7 @@ export const api = {
     return true;
   },
 
-  async enviarMensagem(conversaId: string, numero: string, tipo: string, mensagem?: string, midiaUrl?: string) {
+  async enviarMensagem(conversaId: string, numero: string, tipo: string, mensagem?: string, midiaUrl?: string, atendenteId?: string) {
     const response = await fetch(`${N8N_BASE_URL}/webhook/whatsapp/send`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -171,6 +150,15 @@ export const api = {
       document: 'application/octet-stream',
     };
 
+    const conversaUpdate: Record<string, any> = {
+      ultima_mensagem_em: now,
+      updated_at: now,
+      status: 'em_atendimento',
+    };
+    if (atendenteId) {
+      conversaUpdate.atendente_id = atendenteId;
+    }
+
     await Promise.all([
       supabase.from('mensagens').insert({
         conversa_id: conversaId,
@@ -185,7 +173,7 @@ export const api = {
         if (error) console.error('Erro ao salvar mensagem no Supabase:', error.message);
       }),
       supabase.from('conversas')
-        .update({ ultima_mensagem_em: now })
+        .update(conversaUpdate)
         .eq('id', conversaId),
     ]);
 
