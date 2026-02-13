@@ -51,7 +51,8 @@ export const api = {
       .from('mensagens')
       .select('conversa_id, conteudo, tipo, direcao, enviada_em')
       .in('conversa_id', conversaIds)
-      .order('enviada_em', { ascending: false });
+      .order('enviada_em', { ascending: false })
+      .limit(500);
 
     const result: Record<string, any> = {};
     if (data) {

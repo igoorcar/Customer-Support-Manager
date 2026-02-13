@@ -372,15 +372,6 @@ export default function Conversas() {
         { event: '*', schema: 'public', table: 'conversas' },
         () => {
           queryClient.invalidateQueries({ queryKey: ["supabase-conversas"] });
-          queryClient.invalidateQueries({ queryKey: ["ultimas-mensagens"] });
-        }
-      )
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'mensagens' },
-        () => {
-          queryClient.invalidateQueries({ queryKey: ["supabase-conversas"] });
-          queryClient.invalidateQueries({ queryKey: ["ultimas-mensagens"] });
         }
       )
       .subscribe();
