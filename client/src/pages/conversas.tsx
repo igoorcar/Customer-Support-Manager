@@ -314,18 +314,34 @@ export default function Conversas() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
+  const [atendenteId, setAtendenteId] = useState<string | null>(null);
 
   useEffect(() => {
     localStorage.setItem("rightPanelOpen", String(rightPanelOpen));
   }, [rightPanelOpen]);
 
+  useEffect(() => {
+    if (!user) return;
+    const fetchAtendenteId = async () => {
+      const { data } = await supabase
+        .from('atendentes')
+        .select('id')
+        .eq('email', user.username)
+        .single();
+      if (data) setAtendenteId(data.id);
+    };
+    fetchAtendenteId();
+  }, [user]);
+
   const { data: conversations, isLoading } = useQuery<Conversa[]>({
-    queryKey: ["supabase-conversas", activeFilter],
-    queryFn: () => api.getConversas(
-      activeFilter === "todas" ? "todas" :
-      activeFilter === "nova" ? "aguardando" :
-      activeFilter === "finalizada" ? "finalizadas" : "ativas"
-    ),
+    queryKey: ["supabase-conversas", activeFilter, atendenteId],
+    queryFn: () => {
+      if (!atendenteId) return api.getConversas('todas');
+      if (activeFilter === "todas") return api.getConversas('todas', atendenteId);
+      if (activeFilter === "nova") return api.getConversas('aguardando');
+      if (activeFilter === "finalizada") return api.getConversas('finalizadas', atendenteId);
+      return api.getConversas('ativas', atendenteId);
+    },
     refetchInterval: 5000,
   });
 

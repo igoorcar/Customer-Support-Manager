@@ -24,10 +24,12 @@ export const api = {
       `)
       .order('iniciada_em', { ascending: false });
 
+    if (atendenteId && filtro !== 'aguardando') {
+      query = query.eq('atendente_id', atendenteId);
+    }
+
     if (filtro === 'aguardando') {
       query = query.eq('status', 'nova');
-    } else if (filtro === 'minhas' && atendenteId) {
-      query = query.eq('atendente_id', atendenteId).in('status', ['em_atendimento', 'pausada']);
     } else if (filtro === 'finalizadas') {
       query = query.eq('status', 'finalizada');
     } else if (filtro === 'ativas') {
