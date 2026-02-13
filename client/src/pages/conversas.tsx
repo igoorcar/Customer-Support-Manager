@@ -25,7 +25,7 @@ import {
   Search, Filter, MessageCircle, Send, ArrowLeft, Phone, Mail,
   UserPlus, Pause, CheckCircle, PanelRight, PanelRightClose,
   Check, Zap, Hand, Info, Package, Smile, ChevronDown, Clock, ArrowDown,
-  Calendar, Image, Video, Music, FileText, Download, Play,
+  Calendar, Image, Video, Music, FileText, Download, Play, Trash2,
 } from "lucide-react";
 import { useState, useRef, useEffect, useCallback } from "react";
 import { queryClient } from "@/lib/queryClient";
@@ -594,6 +594,26 @@ export default function Conversas() {
               </Button>
               <Button variant="ghost" size="icon" onClick={() => setFinalizeDialogOpen(true)} data-testid="button-finalize">
                 <CheckCircle className="w-4 h-4" />
+              </Button>
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                onClick={async () => {
+                  if (confirm("Tem certeza que deseja apagar permanentemente esta conversa?")) {
+                    try {
+                      await api.deleteConversa(selectedConvId);
+                      setSelectedConvId(null);
+                      queryClient.invalidateQueries({ queryKey: ["supabase-conversas"] });
+                      toast({ title: "Conversa apagada com sucesso" });
+                    } catch (e) {
+                      toast({ title: "Erro ao apagar conversa", variant: "destructive" });
+                    }
+                  }
+                }} 
+                className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                data-testid="button-delete-conversa"
+              >
+                <Trash2 className="w-4 h-4" />
               </Button>
               <Button
                 variant="ghost"

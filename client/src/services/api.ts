@@ -71,6 +71,30 @@ export const api = {
     return (data || []).map(m => ({ ...m, atendentes: null })) as Mensagem[];
   },
 
+  async deleteConversa(id: string) {
+    // Primeiro deletar mensagens (chave estrangeira)
+    const { error: msgError } = await supabase
+      .from('mensagens')
+      .delete()
+      .eq('conversa_id', id);
+    
+    if (msgError) {
+      console.error('deleteMensagens error:', msgError.message);
+      throw msgError;
+    }
+
+    const { error: convError } = await supabase
+      .from('conversas')
+      .delete()
+      .eq('id', id);
+
+    if (convError) {
+      console.error('deleteConversa error:', convError.message);
+      throw convError;
+    }
+    return true;
+  },
+
   async enviarMensagem(conversaId: string, numero: string, tipo: string, mensagem?: string, midiaUrl?: string) {
     const response = await fetch(`${N8N_BASE_URL}/webhook/whatsapp/send`, {
       method: 'POST',
