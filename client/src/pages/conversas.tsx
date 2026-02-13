@@ -30,6 +30,7 @@ import {
 import { useState, useRef, useEffect, useCallback } from "react";
 import { queryClient } from "@/lib/queryClient";
 import { api } from "@/services/api";
+import { supabase } from "@/lib/supabase";
 import type { Conversa, Mensagem, BotaoResposta, BotaoMidia } from "@/lib/supabase";
 import MessageInput from "@/components/message-input";
 import { IAToggle } from "@/components/ia-toggle";
@@ -285,8 +286,23 @@ export default function Conversas() {
       activeFilter === "nova" ? "aguardando" :
       activeFilter === "finalizada" ? "finalizadas" : "ativas"
     ),
-    refetchInterval: 3000,
+    refetchInterval: 5000,
   });
+
+  useEffect(() => {
+    const channel = supabase
+      .channel('conversas-realtime')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'conversas' },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ["supabase-conversas"] });
+        }
+      )
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, []);
 
   const optimisticMsgsRef = useRef<Mensagem[]>([]);
 
@@ -298,19 +314,38 @@ export default function Conversas() {
     queryKey: ["supabase-mensagens", selectedConvId],
     queryFn: () => api.getMensagens(selectedConvId!),
     enabled: !!selectedConvId,
-    refetchInterval: 2000,
+    refetchInterval: 3000,
   });
+
+  useEffect(() => {
+    if (!selectedConvId) return;
+
+    const channel = supabase
+      .channel(`mensagens-realtime-${selectedConvId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'mensagens',
+          filter: `conversa_id=eq.${selectedConvId}`
+        },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ["supabase-mensagens", selectedConvId] });
+        }
+      )
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [selectedConvId]);
 
   const mensagens = (() => {
     const real = rawMensagens || [];
-    if (optimisticMsgsRef.current.length === 0) return real;
-    const realTimestamps = new Set(real.map(m => m.enviada_em?.slice(0, 16)));
+    const realIds = new Set(real.map(m => m.id));
     const realContents = new Set(real.map(m => m.conteudo));
     const pending = optimisticMsgsRef.current.filter(opt => {
-      const optTime = opt.enviada_em?.slice(0, 16);
-      if (opt.tipo === "text") {
-        return !realContents.has(opt.conteudo) && !realTimestamps.has(optTime);
-      }
+      if (realIds.has(opt.id)) return false;
+      if (opt.tipo === "text" && realContents.has(opt.conteudo)) return false;
       return !real.some(r =>
         r.direcao === "enviada" &&
         r.tipo === opt.tipo &&
@@ -318,7 +353,13 @@ export default function Conversas() {
       );
     });
     optimisticMsgsRef.current = pending;
-    return [...real, ...pending];
+    const all = [...real, ...pending];
+    all.sort((a, b) => {
+      const tA = new Date(a.created_at || a.enviada_em).getTime();
+      const tB = new Date(b.created_at || b.enviada_em).getTime();
+      return tA - tB;
+    });
+    return all;
   })();
 
   const { data: botoes } = useQuery<BotaoResposta[]>({

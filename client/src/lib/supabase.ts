@@ -47,6 +47,7 @@ export type Mensagem = {
   entregue_em: string | null;
   lida_em: string | null;
   enviada_por: string | null;
+  created_at?: string;
   atendentes: {
     nome: string;
     avatar_url: string | null;

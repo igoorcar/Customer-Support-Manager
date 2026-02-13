@@ -62,9 +62,18 @@ export const api = {
       .from('mensagens')
       .select('*')
       .eq('conversa_id', conversaId)
-      .order('enviada_em', { ascending: true });
+      .order('created_at', { ascending: true });
 
     if (error) {
+      if (error.message?.includes('created_at')) {
+        const { data: fallbackData, error: fallbackError } = await supabase
+          .from('mensagens')
+          .select('*')
+          .eq('conversa_id', conversaId)
+          .order('enviada_em', { ascending: true });
+        if (fallbackError) throw fallbackError;
+        return (fallbackData || []).map(m => ({ ...m, atendentes: null })) as Mensagem[];
+      }
       console.error('getMensagens error:', error.message, error);
       throw error;
     }
