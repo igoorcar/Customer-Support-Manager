@@ -1,0 +1,89 @@
+💻 3. CÓDIGO NO REPLIT
+No seu componente de gravação de áudio, adicione:
+typescriptimport { supabase } from '@/lib/supabase';
+
+const uploadAudioToSupabase = async (audioBlob: Blob) => {
+  try {
+    // Gerar nome único
+    const fileName = `audios/${Date.now()}_${Math.random().toString(36).substring(7)}.ogg`;
+    
+    // Upload para Supabase
+    const { data: uploadData, error: uploadError } = await supabase.storage
+      .from('midias')
+      .upload(fileName, audioBlob, {
+        contentType: 'audio/ogg',
+        cacheControl: '3600',
+        upsert: false
+      });
+
+    if (uploadError) {
+      console.error('Erro no upload:', uploadError);
+      throw uploadError;
+    }
+
+    // Pegar URL pública
+    const { data: urlData } = supabase.storage
+      .from('midias')
+      .getPublicUrl(fileName);
+
+    console.log('URL pública do áudio:', urlData.publicUrl);
+    
+    return urlData.publicUrl;
+    
+  } catch (error) {
+    console.error('Erro ao fazer upload:', error);
+    throw error;
+  }
+};
+
+// Quando terminar de gravar
+const handleStopRecording = async () => {
+  // ... seu código de parar gravação ...
+  
+  // Upload para Supabase
+  const publicUrl = await uploadAudioToSupabase(audioBlob);
+  
+  // Enviar para n8n com URL do Supabase
+  await fetch('https://n8n-n8n-otica-suellenn.gycquy.easypanel.host/webhook/whatsapp/send', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      numero: clienteWhatsapp,
+      conversaId: conversaAtual.id,
+      tipo: 'audio',
+      mensagem: '',
+      midiaUrl: publicUrl  // ← URL do Supabase!
+    })
+  });
+};
+
+🎯 4. GRAVAR EM OGG (NÃO WEBM)
+No início da gravação:
+typescriptconst startRecording = async () => {
+  const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  
+  // Tentar OGG primeiro
+  let mimeType = 'audio/ogg; codecs=opus';
+  
+  if (!MediaRecorder.isTypeSupported(mimeType)) {
+    // Fallback para WebM (você precisará converter depois)
+    mimeType = 'audio/webm';
+  }
+  
+  const mediaRecorder = new MediaRecorder(stream, { mimeType });
+  
+  // ... resto do código ...
+};
+```
+
+---
+
+## ✅ FLUXO COMPLETO:
+```
+1. Usuário grava áudio no navegador (OGG)
+2. Upload para Supabase Storage
+3. Recebe URL pública permanente
+4. Envia URL para n8n
+5. n8n monta payload com link do Supabase
+6. WhatsApp baixa áudio do Supabase
+7. ✅ ÁUDIO CHEGA NO WHATSAPP!
