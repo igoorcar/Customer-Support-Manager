@@ -288,6 +288,8 @@ export default function Conversas() {
   const [quoteItems, setQuoteItems] = useState<Array<{ productId: string; productName: string; quantity: number; unitPrice: number }>>([]);
   const [quoteObservacoes, setQuoteObservacoes] = useState("");
   const [productSearch, setProductSearch] = useState("");
+  const [productPickerOpen, setProductPickerOpen] = useState(false);
+  const [productPickerSearch, setProductPickerSearch] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
@@ -564,6 +566,51 @@ export default function Conversas() {
     }
   };
 
+  const handleSendProduct = async (product: import("@shared/schema").Product) => {
+    if (!selectedConv) return;
+    try {
+      const price = product.promoPrice || product.price;
+      const priceFormatted = `R$ ${(price / 100).toFixed(2).replace(".", ",")}`;
+      const lines = [`*${product.name}*`];
+      if (product.brand) lines.push(`Marca: ${product.brand}`);
+      if (product.description) lines.push(`\n${product.description}`);
+      lines.push(`\n*Preço: ${priceFormatted}*`);
+      if (product.promoPrice && product.price > product.promoPrice) {
+        lines.push(`~De: R$ ${(product.price / 100).toFixed(2).replace(".", ",")}~`);
+      }
+      if (product.material) lines.push(`Material: ${product.material}`);
+      if (product.color) lines.push(`Cor: ${product.color}`);
+      if (product.format) lines.push(`Formato: ${product.format}`);
+      if (product.stock > 0) lines.push(`Estoque: ${product.stock} un.`);
+      const text = lines.join("\n");
+
+      if (product.image) {
+        addOptimisticMessage(text, "image", product.image);
+        await api.enviarMensagem(
+          selectedConv.id,
+          selectedConv.clientes.whatsapp,
+          "image",
+          text,
+          product.image
+        );
+      } else {
+        addOptimisticMessage(text, "text");
+        await api.enviarMensagem(
+          selectedConv.id,
+          selectedConv.clientes.whatsapp,
+          "text",
+          text
+        );
+      }
+      queryClient.invalidateQueries({ queryKey: ["supabase-mensagens", selectedConvId] });
+      setProductPickerOpen(false);
+      setProductPickerSearch("");
+      toast({ title: "Produto enviado" });
+    } catch {
+      toast({ title: "Erro ao enviar produto", variant: "destructive" });
+    }
+  };
+
   const finalizeMutation = useMutation({
     mutationFn: async (motivo: string) => {
       if (!selectedConvId) throw new Error("Nenhuma conversa selecionada");
@@ -768,6 +815,9 @@ export default function Conversas() {
               </Badge>
             </div>
             <div className="flex items-center gap-1 flex-shrink-0">
+              <Button variant="ghost" size="icon" onClick={() => { setProductPickerOpen(true); setProductPickerSearch(""); }} data-testid="button-send-product" title="Enviar Produto">
+                <ShoppingCart className="w-4 h-4" />
+              </Button>
               <Button variant="ghost" size="icon" onClick={() => setQuoteDialogOpen(true)} data-testid="button-quote">
                 <Package className="w-4 h-4" />
               </Button>
@@ -1223,6 +1273,71 @@ export default function Conversas() {
                   <ShoppingCart className="w-4 h-4 mr-1" />
                   {createQuoteMutation.isPending ? "Criando..." : "Criar Orçamento"}
                 </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={productPickerOpen} onOpenChange={(open) => {
+          setProductPickerOpen(open);
+          if (!open) setProductPickerSearch("");
+        }}>
+          <DialogContent className="max-w-md max-h-[80vh] overflow-hidden flex flex-col">
+            <DialogHeader>
+              <DialogTitle>Enviar Produto</DialogTitle>
+              <DialogDescription>Selecione um produto para enviar ao cliente</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-3 flex-1 overflow-hidden flex flex-col">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  value={productPickerSearch}
+                  onChange={(e) => setProductPickerSearch(e.target.value)}
+                  placeholder="Buscar produto..."
+                  className="pl-9"
+                  data-testid="input-product-picker-search"
+                />
+              </div>
+              <div className="flex-1 overflow-y-auto space-y-2">
+                {(productsData || [])
+                  .filter(p => p.active !== false)
+                  .filter(p => !productPickerSearch || p.name.toLowerCase().includes(productPickerSearch.toLowerCase()) || (p.brand && p.brand.toLowerCase().includes(productPickerSearch.toLowerCase())))
+                  .map((product: any) => {
+                    const price = product.promoPrice || product.price;
+                    return (
+                      <div
+                        key={product.id}
+                        className="flex items-center gap-3 p-2 rounded-md hover-elevate cursor-pointer border"
+                        onClick={() => handleSendProduct(product)}
+                        data-testid={`product-pick-${product.id}`}
+                      >
+                        {product.image ? (
+                          <div className="w-12 h-12 rounded-md overflow-hidden bg-muted flex-shrink-0">
+                            <img src={product.image} alt={product.name} className="w-full h-full object-cover" />
+                          </div>
+                        ) : (
+                          <div className="w-12 h-12 rounded-md bg-muted/50 flex items-center justify-center flex-shrink-0">
+                            <Package className="w-5 h-5 text-muted-foreground/40" />
+                          </div>
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate">{product.name}</p>
+                          <div className="flex items-center gap-2">
+                            {product.brand && <span className="text-xs text-muted-foreground">{product.brand}</span>}
+                            <span className="text-xs font-semibold text-green-600">
+                              R$ {(price / 100).toFixed(2).replace(".", ",")}
+                            </span>
+                          </div>
+                        </div>
+                        <Button size="sm" variant="outline" data-testid={`button-send-pick-${product.id}`}>
+                          <Send className="w-3 h-3 mr-1" /> Enviar
+                        </Button>
+                      </div>
+                    );
+                  })}
+                {(productsData || []).filter(p => p.active !== false).length === 0 && (
+                  <p className="text-sm text-muted-foreground text-center py-8">Nenhum produto cadastrado</p>
+                )}
               </div>
             </div>
           </DialogContent>

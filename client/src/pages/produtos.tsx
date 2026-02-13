@@ -24,9 +24,9 @@ import { useToast } from "@/hooks/use-toast";
 import {
   Search, Plus, Package, Grid3X3, List, Edit, Trash2,
   AlertTriangle, CheckCircle, Eye, ChevronLeft, ChevronRight,
-  ShoppingCart, TrendingUp, Archive, X,
+  ShoppingCart, TrendingUp, Archive, X, Upload, ImageIcon,
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { Product } from "@shared/schema";
 
@@ -90,6 +90,7 @@ const emptyForm = {
   color: "",
   gender: "",
   active: true,
+  image: "",
 };
 
 export default function Produtos() {
@@ -107,6 +108,8 @@ export default function Produtos() {
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [formData, setFormData] = useState({ ...emptyForm });
+  const [imageUploading, setImageUploading] = useState(false);
+  const imageInputRef = useRef<HTMLInputElement>(null);
 
   const { toast } = useToast();
 
@@ -132,6 +135,7 @@ export default function Produtos() {
         color: data.color || null,
         gender: data.gender || null,
         active: data.active,
+        image: data.image || null,
       };
       const res = await apiRequest("POST", "/api/products", body);
       return res.json();
@@ -164,6 +168,7 @@ export default function Produtos() {
         color: data.color || null,
         gender: data.gender || null,
         active: data.active,
+        image: data.image || null,
       };
       const res = await apiRequest("PATCH", `/api/products/${id}`, body);
       return res.json();
@@ -224,8 +229,29 @@ export default function Produtos() {
       color: product.color || "",
       gender: product.gender || "",
       active: product.active ?? true,
+      image: product.image || "",
     });
     setFormDialogOpen(true);
+  }
+
+  async function handleImageUpload(file: File) {
+    setImageUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch("/api/upload", {
+        method: "POST",
+        body: fd,
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("Upload falhou");
+      const data = await res.json();
+      setFormData(prev => ({ ...prev, image: data.url }));
+    } catch {
+      toast({ title: "Erro ao enviar imagem", variant: "destructive" });
+    } finally {
+      setImageUploading(false);
+    }
   }
 
   function openDetailDialog(product: Product) {
@@ -429,11 +455,17 @@ export default function Produtos() {
                 </div>
               )}
               <CardContent className="p-4">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex items-center justify-center w-10 h-10 rounded-md bg-chart-4/10 flex-shrink-0">
-                    <Package className="w-5 h-5 text-chart-4" />
+                {product.image ? (
+                  <div className="w-full h-32 rounded-md overflow-hidden mb-3 bg-muted">
+                    <img src={product.image} alt={product.name} className="w-full h-full object-cover" />
                   </div>
-                  <div className="flex items-center gap-1 flex-wrap justify-end">
+                ) : (
+                  <div className="w-full h-32 rounded-md mb-3 bg-muted/50 flex items-center justify-center">
+                    <Package className="w-8 h-8 text-muted-foreground/40" />
+                  </div>
+                )}
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-center gap-1 flex-wrap">
                     <Badge variant="secondary" className="text-xs">{getCategoryLabel(product.category)}</Badge>
                     {product.brand && <Badge variant="outline" className="text-xs">{product.brand}</Badge>}
                   </div>
@@ -768,6 +800,63 @@ export default function Produtos() {
                   </SelectContent>
                 </Select>
               </div>
+              <div className="col-span-2 space-y-2">
+                <Label>Foto do Produto</Label>
+                <input
+                  ref={imageInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) handleImageUpload(file);
+                    e.target.value = "";
+                  }}
+                  data-testid="input-product-image"
+                />
+                {formData.image ? (
+                  <div className="relative w-full h-40 rounded-md overflow-hidden bg-muted">
+                    <img src={formData.image} alt="Preview" className="w-full h-full object-cover" />
+                    <div className="absolute top-2 right-2 flex gap-1">
+                      <Button
+                        type="button"
+                        size="icon"
+                        variant="secondary"
+                        onClick={() => imageInputRef.current?.click()}
+                        data-testid="button-change-image"
+                      >
+                        <Upload className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        type="button"
+                        size="icon"
+                        variant="secondary"
+                        onClick={() => setFormData(prev => ({ ...prev, image: "" }))}
+                        data-testid="button-remove-image"
+                      >
+                        <X className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    className="w-full h-28 rounded-md border-2 border-dashed border-muted-foreground/25 flex flex-col items-center justify-center gap-2 hover-elevate transition-colors"
+                    onClick={() => imageInputRef.current?.click()}
+                    disabled={imageUploading}
+                    data-testid="button-upload-image"
+                  >
+                    {imageUploading ? (
+                      <span className="text-sm text-muted-foreground">Enviando...</span>
+                    ) : (
+                      <>
+                        <ImageIcon className="w-6 h-6 text-muted-foreground/50" />
+                        <span className="text-sm text-muted-foreground">Clique para adicionar foto</span>
+                      </>
+                    )}
+                  </button>
+                )}
+              </div>
               <div className="col-span-2 flex items-center justify-between gap-2 pt-2">
                 <Label>Produto ativo</Label>
                 <Switch
@@ -795,6 +884,11 @@ export default function Produtos() {
                 </DialogTitle>
               </DialogHeader>
               <div className="space-y-4">
+                {selectedProduct.image && (
+                  <div className="w-full h-48 rounded-md overflow-hidden bg-muted">
+                    <img src={selectedProduct.image} alt={selectedProduct.name} className="w-full h-full object-cover" data-testid="img-product-detail" />
+                  </div>
+                )}
                 <div className="flex items-center gap-2 flex-wrap">
                   <Badge variant="secondary">{getCategoryLabel(selectedProduct.category)}</Badge>
                   {selectedProduct.brand && <Badge variant="outline">{selectedProduct.brand}</Badge>}
