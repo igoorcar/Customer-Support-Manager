@@ -6,6 +6,7 @@ import { requireAuth } from "./auth";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
+import { execFile } from "child_process";
 
 const uploadDir = path.join(process.cwd(), "uploads");
 if (!fs.existsSync(uploadDir)) {
@@ -55,6 +56,45 @@ export async function registerRoutes(
       mimeType: req.file.mimetype,
       tamanho: req.file.size,
       nomeArquivo: req.file.originalname,
+    });
+  });
+
+  app.post("/api/upload/audio", upload.single("file"), (req, res) => {
+    if (!req.file) {
+      return res.status(400).json({ error: "Nenhum arquivo de áudio enviado" });
+    }
+
+    const inputPath = req.file.path;
+    const oggFilename = `${Date.now()}_${Math.random().toString(36).slice(2)}.ogg`;
+    const outputPath = path.join(uploadDir, oggFilename);
+
+    execFile("ffmpeg", [
+      "-i", inputPath,
+      "-c:a", "libopus",
+      "-b:a", "64k",
+      "-vn",
+      "-y",
+      outputPath
+    ], (error) => {
+      try { fs.unlinkSync(inputPath); } catch {}
+
+      if (error) {
+        console.error("FFmpeg conversion error:", error);
+        return res.status(500).json({ error: "Erro ao converter áudio para OGG" });
+      }
+
+      const stats = fs.statSync(outputPath);
+      const protocol = req.headers["x-forwarded-proto"] || req.protocol;
+      const host = req.headers["x-forwarded-host"] || req.headers.host;
+      const fileUrl = `${protocol}://${host}/uploads/${oggFilename}`;
+
+      res.json({
+        url: fileUrl,
+        path: oggFilename,
+        mimeType: "audio/ogg",
+        tamanho: stats.size,
+        nomeArquivo: oggFilename,
+      });
     });
   });
 

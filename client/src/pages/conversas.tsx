@@ -266,12 +266,38 @@ export default function Conversas() {
     refetchInterval: 10000,
   });
 
-  const { data: mensagens, isLoading: messagesLoading } = useQuery<Mensagem[]>({
+  const optimisticMsgsRef = useRef<Mensagem[]>([]);
+
+  useEffect(() => {
+    optimisticMsgsRef.current = [];
+  }, [selectedConvId]);
+
+  const { data: rawMensagens, isLoading: messagesLoading } = useQuery<Mensagem[]>({
     queryKey: ["supabase-mensagens", selectedConvId],
     queryFn: () => api.getMensagens(selectedConvId!),
     enabled: !!selectedConvId,
     refetchInterval: 2000,
   });
+
+  const mensagens = (() => {
+    const real = rawMensagens || [];
+    if (optimisticMsgsRef.current.length === 0) return real;
+    const realTimestamps = new Set(real.map(m => m.enviada_em?.slice(0, 16)));
+    const realContents = new Set(real.map(m => m.conteudo));
+    const pending = optimisticMsgsRef.current.filter(opt => {
+      const optTime = opt.enviada_em?.slice(0, 16);
+      if (opt.tipo === "text") {
+        return !realContents.has(opt.conteudo) && !realTimestamps.has(optTime);
+      }
+      return !real.some(r =>
+        r.direcao === "enviada" &&
+        r.tipo === opt.tipo &&
+        Math.abs(new Date(r.enviada_em).getTime() - new Date(opt.enviada_em).getTime()) < 30000
+      );
+    });
+    optimisticMsgsRef.current = pending;
+    return [...real, ...pending];
+  })();
 
   const { data: botoes } = useQuery<BotaoResposta[]>({
     queryKey: ["supabase-botoes"],
@@ -287,10 +313,9 @@ export default function Conversas() {
 
   const addOptimisticMessage = (content: string, tipo: string, midiaUrl?: string) => {
     if (!selectedConvId) return;
-    const convId = selectedConvId;
     const optimistic: Mensagem = {
       id: `opt-${Date.now()}`,
-      conversa_id: convId,
+      conversa_id: selectedConvId,
       whatsapp_message_id: null,
       direcao: "enviada",
       tipo: tipo as Mensagem["tipo"],
@@ -304,18 +329,8 @@ export default function Conversas() {
       enviada_por: null,
       atendentes: null,
     };
-    queryClient.setQueryData<Mensagem[]>(
-      ["supabase-mensagens", convId],
-      (old) => [...(old || []), optimistic]
-    );
-  };
-
-  const refetchMessages = () => {
+    optimisticMsgsRef.current = [...optimisticMsgsRef.current, optimistic];
     queryClient.invalidateQueries({ queryKey: ["supabase-mensagens", selectedConvId] });
-    queryClient.invalidateQueries({ queryKey: ["supabase-conversas"] });
-    setTimeout(() => {
-      queryClient.invalidateQueries({ queryKey: ["supabase-mensagens", selectedConvId] });
-    }, 3000);
   };
 
   const sendMessageMutation = useMutation({
@@ -329,9 +344,6 @@ export default function Conversas() {
         content
       );
     },
-    onSettled: () => {
-      refetchMessages();
-    },
     onError: () => {
       toast({ title: "Erro ao enviar mensagem", variant: "destructive" });
     },
@@ -339,7 +351,8 @@ export default function Conversas() {
 
   const handleSendMedia = async (file: File, type: string, caption: string) => {
     if (!selectedConv) throw new Error("Nenhuma conversa selecionada");
-    const uploadResult = await api.uploadMidia(file);
+    const isAudio = type === "audio";
+    const uploadResult = await api.uploadMidia(file, isAudio);
     addOptimisticMessage(caption, type, uploadResult.url);
     await api.enviarMensagem(
       selectedConv.id,
@@ -348,7 +361,6 @@ export default function Conversas() {
       caption || "",
       uploadResult.url
     );
-    refetchMessages();
   };
 
   const finalizeMutation = useMutation({

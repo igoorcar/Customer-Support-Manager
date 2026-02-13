@@ -244,20 +244,72 @@ export const api = {
     }
   },
 
-  async uploadMidia(file: File) {
+  async uploadMidia(file: File, isAudio?: boolean) {
+    const mimeBase = file.type.split(';')[0].trim();
+
+    if (isAudio || mimeBase.startsWith('audio/')) {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const response = await fetch('/api/upload/audio', {
+        method: 'POST',
+        credentials: 'include',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const err = await response.text();
+        throw new Error(`Erro no upload de áudio: ${err}`);
+      }
+
+      const localResult = await response.json() as {
+        url: string;
+        path: string;
+        mimeType: string;
+        tamanho: number;
+        nomeArquivo: string;
+      };
+
+      try {
+        const oggResponse = await fetch(localResult.url);
+        const oggBlob = await oggResponse.blob();
+        const oggFile = new File([oggBlob], localResult.nomeArquivo, { type: 'audio/ogg' });
+        const folder = `audios/${Date.now()}_${Math.random().toString(36).slice(2)}.ogg`;
+
+        const { error } = await supabase.storage
+          .from('midias')
+          .upload(folder, oggFile, {
+            contentType: 'audio/ogg',
+            cacheControl: '3600',
+            upsert: false,
+          });
+
+        if (!error) {
+          const { data } = supabase.storage.from('midias').getPublicUrl(folder);
+          return {
+            url: data.publicUrl,
+            path: folder,
+            mimeType: 'audio/ogg',
+            tamanho: localResult.tamanho,
+            nomeArquivo: localResult.nomeArquivo,
+          };
+        }
+      } catch (e) {
+        console.warn('Supabase upload do OGG falhou, usando URL local:', e);
+      }
+
+      return localResult;
+    }
+
     const extMap: Record<string, string> = {
       'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp',
       'video/mp4': 'mp4', 'video/3gpp': '3gp',
-      'audio/ogg': 'ogg', 'audio/mpeg': 'mp3', 'audio/mp4': 'm4a',
-      'audio/webm': 'webm', 'audio/amr': 'amr',
       'application/pdf': 'pdf',
     };
 
-    const mimeBase = file.type.split(';')[0].trim();
     const ext = extMap[mimeBase] || file.name.split('.').pop() || 'bin';
     const folder = mimeBase.startsWith('image') ? 'imagens'
       : mimeBase.startsWith('video') ? 'videos'
-      : mimeBase.startsWith('audio') ? 'audios'
       : 'documentos';
     const fileName = `${folder}/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
 
