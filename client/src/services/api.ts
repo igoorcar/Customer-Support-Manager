@@ -261,27 +261,52 @@ export const api = {
       : 'documentos';
     const fileName = `${folder}/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
 
-    const { error } = await supabase.storage
-      .from('midias')
-      .upload(fileName, file, {
-        contentType: mimeBase,
-        cacheControl: '3600',
-        upsert: false,
+    try {
+      const { error } = await supabase.storage
+        .from('midias')
+        .upload(fileName, file, {
+          contentType: mimeBase,
+          cacheControl: '3600',
+          upsert: false,
+        });
+
+      if (error) throw error;
+
+      const { data } = supabase.storage
+        .from('midias')
+        .getPublicUrl(fileName);
+
+      return {
+        url: data.publicUrl,
+        path: fileName,
+        mimeType: mimeBase,
+        tamanho: file.size,
+        nomeArquivo: file.name,
+      };
+    } catch (supabaseError) {
+      console.warn('Supabase Storage falhou, usando upload local:', supabaseError);
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const response = await fetch('/api/upload', {
+        method: 'POST',
+        credentials: 'include',
+        body: formData,
       });
 
-    if (error) throw new Error(`Erro no upload: ${error.message}`);
+      if (!response.ok) {
+        const err = await response.text();
+        throw new Error(`Erro no upload: ${err}`);
+      }
 
-    const { data } = supabase.storage
-      .from('midias')
-      .getPublicUrl(fileName);
-
-    return {
-      url: data.publicUrl,
-      path: fileName,
-      mimeType: mimeBase,
-      tamanho: file.size,
-      nomeArquivo: file.name,
-    };
+      return response.json() as Promise<{
+        url: string;
+        path: string;
+        mimeType: string;
+        tamanho: number;
+        nomeArquivo: string;
+      }>;
+    }
   },
 
   async getDashboardStats() {
