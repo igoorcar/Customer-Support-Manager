@@ -269,11 +269,14 @@ export default function MessageInput({ onSendMessage, onSendMedia, disabled, isP
     if (!recordedBlob) return;
     setSending(true);
     try {
-      const file = new File([recordedBlob], `audio_${Date.now()}.webm`, { type: "audio/webm" });
+      const fileName = `audio_${Date.now()}.webm`;
+      const file = new File([recordedBlob], fileName, { type: "audio/webm" });
+      console.log("Sending recorded audio:", file.name, file.size, file.type);
       await onSendMedia(file, "audio", "");
       cancelRecording();
       toast({ title: "Áudio enviado" });
-    } catch {
+    } catch (error) {
+      console.error("Erro ao enviar áudio:", error);
       toast({ title: "Erro ao enviar áudio", variant: "destructive" });
     } finally {
       setSending(false);
