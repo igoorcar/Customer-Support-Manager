@@ -158,59 +158,90 @@ export async function registerRoutes(
     });
 
     let stderr = "";
+    let responded = false;
     ffmpegProcess.stderr?.on("data", (data: Buffer) => { stderr += data.toString(); });
 
-    ffmpegProcess.on("close", async (code: number) => {
+    const ffmpegTimeout = setTimeout(() => {
+      if (!responded) {
+        responded = true;
+        console.error("[audio] FFmpeg timed out after 30s");
+        try { ffmpegProcess.kill("SIGKILL"); } catch {}
+        try { fs.unlinkSync(inputPath); } catch {}
+        try { fs.unlinkSync(outputPath); } catch {}
+        if (!res.headersSent) {
+          res.status(504).json({ error: "Timeout na conversão de áudio" });
+        }
+      }
+    }, 30000);
+
+    ffmpegProcess.on("close", (code: number) => {
+      clearTimeout(ffmpegTimeout);
+      if (responded) return;
       try { fs.unlinkSync(inputPath); } catch {}
 
       if (code !== 0) {
+        responded = true;
         console.error(`[audio] FFmpeg exit code ${code}:`, stderr);
         try { fs.unlinkSync(outputPath); } catch {}
-        return res.status(500).json({ error: "Erro ao converter áudio para OGG", details: stderr.slice(-500) });
+        if (!res.headersSent) {
+          return res.status(500).json({ error: "Erro ao converter áudio para OGG", details: stderr.slice(-500) });
+        }
+        return;
       }
 
-      try {
-        const stats = fs.statSync(outputPath);
-        console.log(`[audio] Converted successfully: ${stats.size} bytes`);
+      (async () => {
+        try {
+          const stats = fs.statSync(outputPath);
+          console.log(`[audio] Converted successfully: ${stats.size} bytes`);
 
-        const storagePath = `audios/${oggFilename}`;
-        const publicUrl = await uploadToSupabase(outputPath, storagePath, "audio/ogg");
+          const storagePath = `audios/${oggFilename}`;
+          const publicUrl = await uploadToSupabase(outputPath, storagePath, "audio/ogg");
 
-        if (publicUrl) {
+          responded = true;
+          if (publicUrl) {
+            try { fs.unlinkSync(outputPath); } catch {}
+            return res.json({
+              url: publicUrl,
+              path: storagePath,
+              mimeType: "audio/ogg",
+              tamanho: stats.size,
+              nomeArquivo: oggFilename,
+            });
+          }
+
+          const localDest = path.join(uploadDir, oggFilename);
+          try { fs.copyFileSync(outputPath, localDest); } catch {}
           try { fs.unlinkSync(outputPath); } catch {}
-          return res.json({
-            url: publicUrl,
-            path: storagePath,
+          const protocol = req.headers["x-forwarded-proto"] || req.protocol;
+          const host = req.headers["x-forwarded-host"] || req.headers.host;
+          const fileUrl = `${protocol}://${host}/uploads/${oggFilename}`;
+
+          res.json({
+            url: fileUrl,
+            path: oggFilename,
             mimeType: "audio/ogg",
             tamanho: stats.size,
             nomeArquivo: oggFilename,
           });
+        } catch (err: any) {
+          console.error("[audio] Error processing converted audio:", err);
+          responded = true;
+          if (!res.headersSent) {
+            res.status(500).json({ error: "Erro ao processar áudio convertido" });
+          }
         }
-
-        const localDest = path.join(uploadDir, oggFilename);
-        try { fs.copyFileSync(outputPath, localDest); } catch {}
-        try { fs.unlinkSync(outputPath); } catch {}
-        const protocol = req.headers["x-forwarded-proto"] || req.protocol;
-        const host = req.headers["x-forwarded-host"] || req.headers.host;
-        const fileUrl = `${protocol}://${host}/uploads/${oggFilename}`;
-
-        res.json({
-          url: fileUrl,
-          path: oggFilename,
-          mimeType: "audio/ogg",
-          tamanho: stats.size,
-          nomeArquivo: oggFilename,
-        });
-      } catch (err: any) {
-        console.error("[audio] Error reading output file:", err);
-        res.status(500).json({ error: "Erro ao processar áudio convertido" });
-      }
+      })();
     });
 
     ffmpegProcess.on("error", (err: Error) => {
+      clearTimeout(ffmpegTimeout);
+      if (responded) return;
+      responded = true;
       try { fs.unlinkSync(inputPath); } catch {}
       console.error("[audio] FFmpeg spawn error:", err);
-      res.status(500).json({ error: "FFmpeg não disponível" });
+      if (!res.headersSent) {
+        res.status(500).json({ error: "FFmpeg não disponível" });
+      }
     });
   });
 
@@ -241,12 +272,18 @@ export async function registerRoutes(
         headers["Authorization"] = `Bearer ${process.env.WHATSAPP_ACCESS_TOKEN}`;
       }
 
-      const response = await fetch(url, { headers });
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 15000);
+
+      const response = await fetch(url, { headers, signal: controller.signal });
+      clearTimeout(timeout);
+
       if (!response.ok) {
-        const statusMsg = response.status === 401 || response.status === 403
-          ? "Mídia expirada ou indisponível. Verifique o token do WhatsApp."
+        const isExpired = response.status === 401 || response.status === 403 || response.status === 404;
+        const statusMsg = isExpired
+          ? "Mídia expirada ou indisponível"
           : "Erro ao acessar mídia";
-        return res.status(response.status).json({ error: statusMsg, expired: response.status === 401 || response.status === 403 });
+        return res.status(response.status).json({ error: statusMsg, expired: isExpired });
       }
 
       const contentType = response.headers.get("content-type") || "application/octet-stream";
@@ -256,7 +293,10 @@ export async function registerRoutes(
 
       const buffer = await response.arrayBuffer();
       res.send(Buffer.from(buffer));
-    } catch (error) {
+    } catch (error: any) {
+      if (error?.name === "AbortError") {
+        return res.status(504).json({ error: "Timeout ao buscar mídia", expired: true });
+      }
       console.error("Media proxy error:", error);
       res.status(500).json({ error: "Erro ao buscar mídia" });
     }

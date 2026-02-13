@@ -27,7 +27,7 @@ import {
   UserPlus, Pause, CheckCircle, PanelRight, PanelRightClose,
   Check, Zap, Hand, Info, Package, Smile, ChevronDown, Clock, ArrowDown,
   Calendar, Image, Video, Music, FileText, Download, Play, Trash2,
-  Plus, StickyNote, Receipt, Minus, ShoppingCart,
+  Plus, StickyNote, Receipt, Minus, ShoppingCart, ImageOff, AlertTriangle,
 } from "lucide-react";
 import { useState, useRef, useEffect, useCallback } from "react";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -96,10 +96,42 @@ function getMediaUrl(url: string | null): string | null {
   return `/api/media-proxy?url=${encodeURIComponent(url)}`;
 }
 
+function ExpiredMediaPlaceholder({ type, text }: { type: string; text?: string | null }) {
+  const icons: Record<string, typeof ImageOff> = {
+    image: ImageOff,
+    video: Video,
+    audio: Music,
+    document: FileText,
+  };
+  const Icon = icons[type] || AlertTriangle;
+  return (
+    <div className="space-y-1">
+      <div className="flex items-center gap-2 p-3 rounded-md bg-muted/50 border border-border/50">
+        <Icon className="w-4 h-4 flex-shrink-0 text-muted-foreground" />
+        <span className="text-xs text-muted-foreground italic">
+          {type === "image" ? "Imagem indisponível" :
+           type === "video" ? "Vídeo indisponível" :
+           type === "audio" ? "Áudio indisponível" :
+           "Documento indisponível"}
+        </span>
+      </div>
+      {text && <p className="text-sm whitespace-pre-wrap">{text}</p>}
+    </div>
+  );
+}
+
 function MediaContent({ msg }: { msg: Mensagem }) {
   const isAttendant = msg.direcao === "enviada";
   const mediaUrl = getMediaUrl(msg.midia_url);
-  const [audioError, setAudioError] = useState(false);
+  const [mediaError, setMediaError] = useState(false);
+
+  if (!mediaUrl && (msg.tipo === "image" || msg.tipo === "video" || msg.tipo === "audio" || msg.tipo === "document")) {
+    return <ExpiredMediaPlaceholder type={msg.tipo} text={msg.conteudo} />;
+  }
+
+  if (mediaError) {
+    return <ExpiredMediaPlaceholder type={msg.tipo} text={msg.conteudo} />;
+  }
 
   if (msg.tipo === "image" && mediaUrl) {
     return (
@@ -110,6 +142,7 @@ function MediaContent({ msg }: { msg: Mensagem }) {
           className="rounded-md max-w-full max-h-64 object-cover cursor-pointer"
           loading="lazy"
           data-testid={`media-image-${msg.id}`}
+          onError={() => setMediaError(true)}
         />
         {msg.conteudo && <p className="text-sm whitespace-pre-wrap">{msg.conteudo}</p>}
       </div>
@@ -125,6 +158,7 @@ function MediaContent({ msg }: { msg: Mensagem }) {
             controls
             className="rounded-md max-w-full max-h-64"
             data-testid={`media-video-${msg.id}`}
+            onError={() => setMediaError(true)}
           />
         </div>
         {msg.conteudo && <p className="text-sm whitespace-pre-wrap">{msg.conteudo}</p>}
@@ -133,14 +167,6 @@ function MediaContent({ msg }: { msg: Mensagem }) {
   }
 
   if (msg.tipo === "audio" && mediaUrl) {
-    if (audioError) {
-      return (
-        <div className="flex items-center gap-2 py-1">
-          <Music className="w-4 h-4 flex-shrink-0" />
-          <span className="text-sm italic" data-testid={`media-audio-error-${msg.id}`}>Não foi possível carregar o áudio</span>
-        </div>
-      );
-    }
     return (
       <div className="space-y-1">
         <div className="flex items-center gap-2 min-w-[200px]">
@@ -150,19 +176,10 @@ function MediaContent({ msg }: { msg: Mensagem }) {
             preload="metadata"
             className="max-w-full w-full h-10"
             data-testid={`media-audio-${msg.id}`}
-            onError={() => setAudioError(true)}
+            onError={() => setMediaError(true)}
           />
         </div>
         {msg.conteudo && <p className="text-sm whitespace-pre-wrap">{msg.conteudo}</p>}
-      </div>
-    );
-  }
-
-  if (msg.tipo === "audio" && !msg.midia_url) {
-    return (
-      <div className="flex items-center gap-2 py-1">
-        <Music className="w-4 h-4 flex-shrink-0" />
-        <span className="text-sm italic">Áudio indisponível</span>
       </div>
     );
   }
