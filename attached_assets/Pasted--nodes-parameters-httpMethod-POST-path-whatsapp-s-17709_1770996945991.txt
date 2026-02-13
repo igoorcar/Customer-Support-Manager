@@ -1,0 +1,137 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "whatsapp/send",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "position": [
+        -592,
+        -240
+      ],
+      "id": "430e1eea-f100-4305-a6d5-2e1861d38afa",
+      "typeVersion": 2.1,
+      "webhookId": "07fc5dce-6504-4089-aeff-2a536f7fe298"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body;\n\nif (!body.numero || !body.conversaId) {\n  throw new Error('Campos obrigatórios: numero, conversaId');\n}\n\nreturn [{ json: body }];"
+      },
+      "name": "Validar",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        -384,
+        -240
+      ],
+      "id": "01707d36-f8ba-4588-9d33-7d8984bb1baf",
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "jsCode": "const dados = $input.first().json;\n\nconst payload = {\n  messaging_product: 'whatsapp',\n  recipient_type: 'individual',\n  to: dados.numero,\n  type: dados.tipo || 'text'\n};\n\nswitch (payload.type) {\n  case 'text':\n    payload.text = { body: dados.mensagem || '' };\n    break;\n    \n  case 'image':\n    payload.image = { link: dados.midiaUrl };\n    if (dados.mensagem) payload.image.caption = dados.mensagem;\n    break;\n    \n  case 'video':\n    payload.video = { link: dados.midiaUrl };\n    if (dados.mensagem) payload.video.caption = dados.mensagem;\n    break;\n    \n  case 'audio':\n    payload.audio = { link: dados.midiaUrl };\n    break;\n    \n  case 'document':\n    payload.document = {\n      link: dados.midiaUrl,\n      filename: dados.nomeArquivo || 'documento.pdf'\n    };\n    if (dados.mensagem) payload.document.caption = dados.mensagem;\n    break;\n}\n\nreturn [{\n  json: {\n    payload: payload,\n    conversaId: dados.conversaId,\n    atendenteId: dados.atendenteId\n  }\n}];"
+      },
+      "name": "Montar Payload",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        -192,
+        -240
+      ],
+      "id": "84a1a37a-c399-405b-b1f6-558056cf6dcd",
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://graph.facebook.com/v18.0/983888041468396/messages",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "whatsAppApi",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify($json.payload) }}",
+        "options": {}
+      },
+      "name": "Enviar WhatsApp",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        16,
+        -240
+      ],
+      "id": "bfdf988a-29f3-4ec4-af2b-4901e915caf5",
+      "credentials": {
+        "whatsAppApi": {
+          "id": "RPXmUdzVV6Qqqeav",
+          "name": "WhatsApp account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "name": "Responder",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "position": [
+        224,
+        -240
+      ],
+      "id": "63146cd1-6c8c-4c13-a4db-eaa9d26d43ab",
+      "typeVersion": 1.4
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Validar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validar": {
+      "main": [
+        [
+          {
+            "node": "Montar Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Montar Payload": {
+      "main": [
+        [
+          {
+            "node": "Enviar WhatsApp",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar WhatsApp": {
+      "main": [
+        [
+          {
+            "node": "Responder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "instanceId": "12512bdfd26ce7703132595c7809e94fb1358b3dd0212f53c30762160aa40893"
+  }
+}

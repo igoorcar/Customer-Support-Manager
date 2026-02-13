@@ -584,14 +584,38 @@ export default function Conversas() {
       if (product.stock > 0) lines.push(`Estoque: ${product.stock} un.`);
       const text = lines.join("\n");
 
-      if (product.image) {
-        addOptimisticMessage(text, "image", product.image);
+      let imageUrl = product.image;
+      if (imageUrl && !imageUrl.includes('supabase')) {
+        try {
+          const imgResp = await fetch(imageUrl);
+          const imgBlob = await imgResp.blob();
+          const ext = imageUrl.split('.').pop()?.split('?')[0] || 'png';
+          const fileName = `produtos/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
+          const { error } = await supabase.storage
+            .from('midias')
+            .upload(fileName, imgBlob, {
+              contentType: imgBlob.type || 'image/png',
+              cacheControl: '3600',
+              upsert: false,
+            });
+          if (!error) {
+            const { data } = supabase.storage.from('midias').getPublicUrl(fileName);
+            imageUrl = data.publicUrl;
+          }
+        } catch (e) {
+          console.warn('Falha ao enviar imagem para Supabase Storage, enviando como texto:', e);
+          imageUrl = null;
+        }
+      }
+
+      if (imageUrl) {
+        addOptimisticMessage(text, "image", imageUrl);
         await api.enviarMensagem(
           selectedConv.id,
           selectedConv.clientes.whatsapp,
           "image",
           text,
-          product.image
+          imageUrl
         );
       } else {
         addOptimisticMessage(text, "text");
