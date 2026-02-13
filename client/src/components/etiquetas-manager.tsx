@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 
-interface Etiqueta {
+export interface Etiqueta {
   id: string;
   nome: string;
   cor: string;
@@ -14,12 +14,13 @@ interface Etiqueta {
 }
 
 interface EtiquetasManagerProps {
-  conversaId: string;
+  clienteId: string;
+  conversaId?: string;
 }
 
-export function EtiquetasManager({ conversaId }: EtiquetasManagerProps) {
+export function EtiquetasManager({ clienteId, conversaId }: EtiquetasManagerProps) {
   const [etiquetas, setEtiquetas] = useState<Etiqueta[]>([]);
-  const [etiquetasAplicadas, setEtiquetasAplicadas] = useState<Etiqueta[]>([]);
+  const [clienteTags, setClienteTags] = useState<string[]>([]);
   const [mostrarSeletor, setMostrarSeletor] = useState(false);
   const [tipoSelecionado, setTipoSelecionado] = useState<'funil' | 'produto' | 'status'>('funil');
   const { toast } = useToast();
@@ -40,73 +41,71 @@ export function EtiquetasManager({ conversaId }: EtiquetasManagerProps) {
   }, []);
 
   useEffect(() => {
-    const fetchEtiquetasAplicadas = async () => {
+    const fetchClienteTags = async () => {
       const { data } = await supabase
-        .from('conversas_etiquetas')
-        .select(`
-          etiqueta_id,
-          etiquetas (
-            id,
-            nome,
-            cor,
-            tipo
-          )
-        `)
-        .eq('conversa_id', conversaId);
+        .from('clientes')
+        .select('tags')
+        .eq('id', clienteId)
+        .single();
 
-      if (data) {
-        const etiquetasData = data
-          .map(item => (item as any).etiquetas)
-          .filter((e): e is Etiqueta => e != null);
-        setEtiquetasAplicadas(etiquetasData);
+      if (data?.tags) {
+        setClienteTags(data.tags || []);
       }
     };
 
-    fetchEtiquetasAplicadas();
+    fetchClienteTags();
 
     const channel = supabase
-      .channel(`etiquetas-${conversaId}`)
+      .channel(`cliente-tags-${clienteId}`)
       .on(
         'postgres_changes',
         {
-          event: '*',
+          event: 'UPDATE',
           schema: 'public',
-          table: 'conversas_etiquetas',
-          filter: `conversa_id=eq.${conversaId}`
+          table: 'clientes',
+          filter: `id=eq.${clienteId}`
         },
-        () => fetchEtiquetasAplicadas()
+        (payload) => {
+          if (payload.new && (payload.new as any).tags) {
+            setClienteTags((payload.new as any).tags || []);
+          }
+        }
       )
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [conversaId]);
+  }, [clienteId]);
+
+  const etiquetasAplicadas = etiquetas.filter(e => clienteTags.includes(e.id));
 
   const adicionarEtiqueta = async (etiquetaId: string) => {
+    const newTags = [...clienteTags, etiquetaId];
     const { error } = await supabase
-      .from('conversas_etiquetas')
-      .insert({
-        conversa_id: conversaId,
-        etiqueta_id: etiquetaId
-      });
+      .from('clientes')
+      .update({ tags: newTags })
+      .eq('id', clienteId);
 
     if (error) {
       toast({ title: "Erro ao adicionar etiqueta", variant: "destructive" });
     } else {
+      setClienteTags(newTags);
       setMostrarSeletor(false);
     }
   };
 
   const removerEtiqueta = async (etiquetaId: string) => {
+    const newTags = clienteTags.filter(t => t !== etiquetaId);
     const { error } = await supabase
-      .from('conversas_etiquetas')
-      .delete()
-      .eq('conversa_id', conversaId)
-      .eq('etiqueta_id', etiquetaId);
+      .from('clientes')
+      .update({ tags: newTags })
+      .eq('id', clienteId);
 
     if (error) {
       toast({ title: "Erro ao remover etiqueta", variant: "destructive" });
+    } else {
+      setClienteTags(newTags);
     }
   };
 
@@ -190,14 +189,14 @@ export function EtiquetasManager({ conversaId }: EtiquetasManagerProps) {
                   key={etiqueta.id}
                   variant="default"
                   size="sm"
-                  onClick={() => adicionarEtiqueta(etiqueta.id)}
-                  disabled={jaAplicada}
-                  className="justify-start text-white"
+                  onClick={() => jaAplicada ? removerEtiqueta(etiqueta.id) : adicionarEtiqueta(etiqueta.id)}
+                  className={`justify-start text-white ${jaAplicada ? 'opacity-60' : ''}`}
                   style={{ backgroundColor: etiqueta.cor, borderColor: etiqueta.cor }}
                   data-testid={`button-etiqueta-${etiqueta.id}`}
                 >
                   <Tag className="w-3.5 h-3.5" />
                   {etiqueta.nome}
+                  {jaAplicada && <X className="w-3 h-3 ml-auto" />}
                 </Button>
               );
             })}
@@ -206,4 +205,23 @@ export function EtiquetasManager({ conversaId }: EtiquetasManagerProps) {
       )}
     </div>
   );
+}
+
+export function useEtiquetas() {
+  const [etiquetas, setEtiquetas] = useState<Etiqueta[]>([]);
+
+  useEffect(() => {
+    const fetch = async () => {
+      const { data } = await supabase
+        .from('etiquetas')
+        .select('*')
+        .eq('ativo', true)
+        .order('tipo')
+        .order('ordem', { ascending: true, nullsFirst: false });
+      if (data) setEtiquetas(data);
+    };
+    fetch();
+  }, []);
+
+  return etiquetas;
 }

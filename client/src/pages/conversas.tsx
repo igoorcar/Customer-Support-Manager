@@ -28,6 +28,7 @@ import {
   Check, Zap, Hand, Info, Package, Smile, ChevronDown, Clock, ArrowDown,
   Calendar, Image, Video, Music, FileText, Download, Play, Trash2,
   Plus, StickyNote, Receipt, Minus, ShoppingCart, ImageOff, AlertTriangle, Bot,
+  Tag, X,
 } from "lucide-react";
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -36,7 +37,8 @@ import { supabase } from "@/lib/supabase";
 import type { Conversa, Mensagem, BotaoResposta, BotaoMidia } from "@/lib/supabase";
 import MessageInput from "@/components/message-input";
 import { IAToggle } from "@/components/ia-toggle";
-import { EtiquetasManager } from "@/components/etiquetas-manager";
+import { EtiquetasManager, useEtiquetas } from "@/components/etiquetas-manager";
+import type { Etiqueta } from "@/components/etiquetas-manager";
 import { AtendenteStatus } from "@/components/atendente-status";
 import { useAuth } from "@/hooks/use-auth";
 
@@ -302,6 +304,8 @@ export default function Conversas() {
   const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState("");
   const [activeFilter, setActiveFilter] = useState<string>("todas");
+  const [etiquetaFilter, setEtiquetaFilter] = useState<string | null>(null);
+  const allEtiquetas = useEtiquetas();
   const [selectedConvId, setSelectedConvId] = useState<string | null>(null);
   const [rightPanelOpen, setRightPanelOpen] = useState(() => {
     const saved = localStorage.getItem("rightPanelOpen");
@@ -326,6 +330,7 @@ export default function Conversas() {
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
   const [atendenteId, setAtendenteId] = useState<string | null>(null);
+  const isAdmin = user?.role === 'admin';
   const stickyConversasRef = useRef<Map<string, { conversa: Conversa; missCount: number }>>(new Map());
 
   useEffect(() => {
@@ -334,6 +339,10 @@ export default function Conversas() {
 
   useEffect(() => {
     if (!user) return;
+    if (isAdmin) {
+      setAtendenteId('__admin__');
+      return;
+    }
     const fetchAtendenteId = async () => {
       const { data } = await supabase
         .from('atendentes')
@@ -343,16 +352,17 @@ export default function Conversas() {
       if (data) setAtendenteId(data.id);
     };
     fetchAtendenteId();
-  }, [user]);
+  }, [user, isAdmin]);
 
   const { data: rawConversations, isLoading } = useQuery<Conversa[]>({
     queryKey: ["supabase-conversas", activeFilter, atendenteId],
     queryFn: () => {
-      if (!atendenteId) return Promise.resolve([]);
-      if (activeFilter === "todas") return api.getConversas('todas', atendenteId);
-      if (activeFilter === "nova") return api.getConversas('aguardando', atendenteId);
-      if (activeFilter === "finalizada") return api.getConversas('finalizadas', atendenteId);
-      return api.getConversas('ativas', atendenteId);
+      const filteredAtendenteId = isAdmin ? undefined : atendenteId || undefined;
+      if (!isAdmin && !atendenteId) return Promise.resolve([]);
+      if (activeFilter === "todas") return api.getConversas('todas', filteredAtendenteId);
+      if (activeFilter === "nova") return api.getConversas('aguardando', filteredAtendenteId);
+      if (activeFilter === "finalizada") return api.getConversas('finalizadas', filteredAtendenteId);
+      return api.getConversas('ativas', filteredAtendenteId);
     },
     enabled: !!atendenteId,
     refetchInterval: 5000,
@@ -360,35 +370,36 @@ export default function Conversas() {
 
   const conversations = useMemo(() => {
     if (!rawConversations) return undefined;
+    if (isAdmin) return rawConversations;
     const currentIds = new Set(rawConversations.map(c => c.id));
     const sticky = stickyConversasRef.current;
 
-    for (const conv of rawConversations) {
+    rawConversations.forEach(conv => {
       sticky.set(conv.id, { conversa: conv, missCount: 0 });
-    }
+    });
 
-    for (const [id, entry] of sticky) {
+    Array.from(sticky.entries()).forEach(([id, entry]) => {
       if (!currentIds.has(id)) {
         entry.missCount++;
         if (entry.missCount > 3) {
           sticky.delete(id);
         }
       }
-    }
+    });
 
     const merged = [...rawConversations];
-    for (const [id, entry] of sticky) {
+    Array.from(sticky.entries()).forEach(([id, entry]) => {
       if (!currentIds.has(id) && entry.missCount <= 3) {
         merged.push(entry.conversa);
       }
-    }
+    });
 
     return merged.sort((a, b) => {
       const ta = a.updated_at || a.iniciada_em || '';
       const tb = b.updated_at || b.iniciada_em || '';
       return tb.localeCompare(ta);
     });
-  }, [rawConversations]);
+  }, [rawConversations, isAdmin]);
 
   const conversaIds = conversations?.map(c => c.id) || [];
   const { data: ultimasMensagens } = useQuery<Record<string, { conteudo: string; tipo: string; direcao: string; enviada_em: string }>>({
@@ -623,13 +634,14 @@ export default function Conversas() {
     mutationFn: async (content: string) => {
       if (!selectedConv) throw new Error("Nenhuma conversa selecionada");
       addOptimisticMessage(content, "text");
+      const sendAtendenteId = isAdmin ? (selectedConv.atendente_id || undefined) : (atendenteId || undefined);
       return api.enviarMensagem(
         selectedConv.id,
         selectedConv.clientes.whatsapp,
         "text",
         content,
         undefined,
-        atendenteId || undefined
+        sendAtendenteId
       );
     },
     onSuccess: () => {
@@ -646,13 +658,14 @@ export default function Conversas() {
       const isAudio = type === "audio";
       const uploadResult = await api.uploadMidia(file, isAudio);
       addOptimisticMessage(caption, type, uploadResult.url);
+      const sendAtendenteId2 = isAdmin ? (selectedConv.atendente_id || undefined) : (atendenteId || undefined);
       await api.enviarMensagem(
         selectedConv.id,
         selectedConv.clientes.whatsapp,
         type,
         caption || "",
         uploadResult.url,
-        atendenteId || undefined
+        sendAtendenteId2
       );
       queryClient.invalidateQueries({ queryKey: ["supabase-mensagens", selectedConvId] });
     } catch {
@@ -702,6 +715,7 @@ export default function Conversas() {
         }
       }
 
+      const sendAid = isAdmin ? (selectedConv.atendente_id || undefined) : (atendenteId || undefined);
       if (imageUrl) {
         addOptimisticMessage(text, "image", imageUrl);
         await api.enviarMensagem(
@@ -710,7 +724,7 @@ export default function Conversas() {
           "image",
           text,
           imageUrl,
-          atendenteId || undefined
+          sendAid
         );
       } else {
         addOptimisticMessage(text, "text");
@@ -720,7 +734,7 @@ export default function Conversas() {
           "text",
           text,
           undefined,
-          atendenteId || undefined
+          sendAid
         );
       }
       queryClient.invalidateQueries({ queryKey: ["supabase-mensagens", selectedConvId] });
@@ -839,7 +853,9 @@ export default function Conversas() {
         clientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
         clientPhone.includes(searchTerm);
       const matchesFilter = activeFilter === "todas" || c.status === activeFilter;
-      return matchesSearch && matchesFilter;
+      const clientTags = (c.clientes as any)?.tags as string[] | undefined;
+      const matchesEtiqueta = !etiquetaFilter || (clientTags && clientTags.includes(etiquetaFilter));
+      return matchesSearch && matchesFilter && matchesEtiqueta;
     });
   })();
 
@@ -894,6 +910,11 @@ export default function Conversas() {
                     <p className="text-xs text-muted-foreground truncate" data-testid={`text-last-msg-${conv.id}`}>
                       {getLastMessagePreview(lastMsg) || conv.clientes?.whatsapp || ""}
                     </p>
+                    {isAdmin && conv.atendentes?.nome && (
+                      <p className="text-[10px] text-primary/70 truncate" data-testid={`text-atendente-${conv.id}`}>
+                        {conv.atendentes.nome}
+                      </p>
+                    )}
                   </div>
                 </div>
               );
@@ -985,7 +1006,7 @@ export default function Conversas() {
 
           <div className="px-3 py-2 border-b space-y-2">
             <IAToggle conversaId={selectedConvId} />
-            <EtiquetasManager conversaId={selectedConvId} />
+            <EtiquetasManager clienteId={selectedConv.cliente_id} />
           </div>
 
           <div className="flex-1 overflow-y-auto p-4 space-y-3 relative" ref={chatContainerRef} onScroll={handleScroll} data-testid="chat-messages-area">
@@ -1518,6 +1539,33 @@ export default function Conversas() {
             </Button>
           ))}
         </div>
+        {allEtiquetas.length > 0 && (
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <Tag className="w-3.5 h-3.5 text-muted-foreground mr-0.5" />
+            {etiquetaFilter && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setEtiquetaFilter(null)}
+                data-testid="button-clear-etiqueta-filter"
+              >
+                <X className="w-3 h-3 mr-1" />
+                Limpar
+              </Button>
+            )}
+            {allEtiquetas.map((et) => (
+              <Badge
+                key={et.id}
+                className={`cursor-pointer text-xs text-white ${etiquetaFilter === et.id ? 'ring-2 ring-offset-1 ring-foreground' : 'opacity-70'}`}
+                style={{ backgroundColor: et.cor, borderColor: et.cor }}
+                onClick={() => setEtiquetaFilter(etiquetaFilter === et.id ? null : et.id)}
+                data-testid={`filter-etiqueta-${et.id}`}
+              >
+                {et.nome}
+              </Badge>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 gap-3">

@@ -5,6 +5,7 @@ import { apiRequest, queryClient, getQueryFn } from "@/lib/queryClient";
 type AuthUser = {
   id: string;
   username: string;
+  role: string;
 };
 
 type AuthContextType = {

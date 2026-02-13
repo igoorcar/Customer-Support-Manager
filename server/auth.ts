@@ -28,6 +28,7 @@ declare global {
       id: string;
       username: string;
       password: string;
+      role: string;
     }
   }
 }
@@ -101,7 +102,7 @@ export function setupAuth(app: Express) {
       const user = await storage.createUser({ username, password: hashedPassword });
       req.login(user, (err) => {
         if (err) return res.status(500).json({ message: "Erro ao criar sessão" });
-        res.status(201).json({ id: user.id, username: user.username });
+        res.status(201).json({ id: user.id, username: user.username, role: user.role });
       });
     } catch (error) {
       res.status(500).json({ message: "Erro ao registrar usuário" });
@@ -114,7 +115,7 @@ export function setupAuth(app: Express) {
       if (!user) return res.status(401).json({ message: info?.message || "Credenciais inválidas" });
       req.login(user, (err) => {
         if (err) return res.status(500).json({ message: "Erro ao criar sessão" });
-        res.json({ id: user.id, username: user.username });
+        res.json({ id: user.id, username: user.username, role: user.role });
       });
     })(req, res, next);
   });
@@ -131,7 +132,7 @@ export function setupAuth(app: Express) {
       return res.status(401).json({ message: "Não autenticado" });
     }
     const user = req.user!;
-    res.json({ id: user.id, username: user.username });
+    res.json({ id: user.id, username: user.username, role: user.role });
   });
 }
 
