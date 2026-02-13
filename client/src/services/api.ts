@@ -65,7 +65,7 @@ export const api = {
       .order('enviada_em', { ascending: true });
 
     if (error) {
-      console.error('getMensagens error:', error.message);
+      console.error('getMensagens error:', error.message, error);
       throw error;
     }
     return (data || []).map(m => ({ ...m, atendentes: null })) as Mensagem[];

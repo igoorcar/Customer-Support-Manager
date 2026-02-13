@@ -285,9 +285,43 @@ export default function Conversas() {
 
   const selectedConv = conversations?.find(c => c.id === selectedConvId);
 
+  const addOptimisticMessage = (content: string, tipo: string, midiaUrl?: string) => {
+    if (!selectedConvId) return;
+    const convId = selectedConvId;
+    const optimistic: Mensagem = {
+      id: `opt-${Date.now()}`,
+      conversa_id: convId,
+      whatsapp_message_id: null,
+      direcao: "enviada",
+      tipo: tipo as Mensagem["tipo"],
+      conteudo: content || null,
+      midia_url: midiaUrl || null,
+      midia_mime_type: null,
+      status: "enviada",
+      enviada_em: new Date().toISOString(),
+      entregue_em: null,
+      lida_em: null,
+      enviada_por: null,
+      atendentes: null,
+    };
+    queryClient.setQueryData<Mensagem[]>(
+      ["supabase-mensagens", convId],
+      (old) => [...(old || []), optimistic]
+    );
+  };
+
+  const refetchMessages = () => {
+    queryClient.invalidateQueries({ queryKey: ["supabase-mensagens", selectedConvId] });
+    queryClient.invalidateQueries({ queryKey: ["supabase-conversas"] });
+    setTimeout(() => {
+      queryClient.invalidateQueries({ queryKey: ["supabase-mensagens", selectedConvId] });
+    }, 3000);
+  };
+
   const sendMessageMutation = useMutation({
     mutationFn: async (content: string) => {
       if (!selectedConv) throw new Error("Nenhuma conversa selecionada");
+      addOptimisticMessage(content, "text");
       return api.enviarMensagem(
         selectedConv.id,
         selectedConv.clientes.whatsapp,
@@ -295,9 +329,8 @@ export default function Conversas() {
         content
       );
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["supabase-mensagens", selectedConvId] });
-      queryClient.invalidateQueries({ queryKey: ["supabase-conversas"] });
+    onSettled: () => {
+      refetchMessages();
     },
     onError: () => {
       toast({ title: "Erro ao enviar mensagem", variant: "destructive" });
@@ -307,6 +340,7 @@ export default function Conversas() {
   const handleSendMedia = async (file: File, type: string, caption: string) => {
     if (!selectedConv) throw new Error("Nenhuma conversa selecionada");
     const uploadResult = await api.uploadMidia(file);
+    addOptimisticMessage(caption, type, uploadResult.url);
     await api.enviarMensagem(
       selectedConv.id,
       selectedConv.clientes.whatsapp,
@@ -314,8 +348,7 @@ export default function Conversas() {
       caption || "",
       uploadResult.url
     );
-    queryClient.invalidateQueries({ queryKey: ["supabase-mensagens", selectedConvId] });
-    queryClient.invalidateQueries({ queryKey: ["supabase-conversas"] });
+    refetchMessages();
   };
 
   const finalizeMutation = useMutation({
