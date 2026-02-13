@@ -72,6 +72,7 @@ export default function MessageInput({ onSendMessage, onSendMedia, disabled, isP
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const audioPlayerRef = useRef<HTMLAudioElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const recordingMimeRef = useRef<string>("audio/ogg; codecs=opus");
 
   const { toast } = useToast();
 
@@ -185,7 +186,17 @@ export default function MessageInput({ onSendMessage, onSendMedia, disabled, isP
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mr = new MediaRecorder(stream, { mimeType: "audio/webm" });
+
+      let mimeType = "audio/ogg; codecs=opus";
+      if (!MediaRecorder.isTypeSupported(mimeType)) {
+        mimeType = "audio/webm; codecs=opus";
+      }
+      if (!MediaRecorder.isTypeSupported(mimeType)) {
+        mimeType = "audio/webm";
+      }
+      recordingMimeRef.current = mimeType;
+
+      const mr = new MediaRecorder(stream, { mimeType });
       chunksRef.current = [];
 
       mr.ondataavailable = (e) => {
@@ -193,7 +204,7 @@ export default function MessageInput({ onSendMessage, onSendMedia, disabled, isP
       };
 
       mr.onstop = () => {
-        const blob = new Blob(chunksRef.current, { type: "audio/webm" });
+        const blob = new Blob(chunksRef.current, { type: mimeType });
         const url = URL.createObjectURL(blob);
         setRecordedBlob(blob);
         setRecordedUrl(url);
@@ -269,8 +280,10 @@ export default function MessageInput({ onSendMessage, onSendMedia, disabled, isP
     if (!recordedBlob) return;
     setSending(true);
     try {
-      const fileName = `audio_${Date.now()}.webm`;
-      const file = new File([recordedBlob], fileName, { type: "audio/webm" });
+      const mime = recordingMimeRef.current;
+      const ext = mime.includes("ogg") ? "ogg" : mime.includes("mp4") ? "m4a" : "webm";
+      const fileName = `audio_${Date.now()}.${ext}`;
+      const file = new File([recordedBlob], fileName, { type: mime.split(";")[0].trim() });
       await onSendMedia(file, "audio", "");
       cancelRecording();
       toast({ title: "Áudio enviado" });

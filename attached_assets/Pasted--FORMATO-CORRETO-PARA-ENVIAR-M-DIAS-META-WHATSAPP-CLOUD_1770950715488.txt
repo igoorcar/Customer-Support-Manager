@@ -1,0 +1,247 @@
+# 📱 FORMATO CORRETO PARA ENVIAR MÍDIAS - META WHATSAPP CLOUD API
+
+---
+
+## 🎯 FORMATOS OFICIAIS SUPORTADOS
+
+### **📸 IMAGENS**
+- **Formatos:** JPEG, PNG
+- **Tamanho máximo:** 5 MB
+- **Recomendado:** JPEG comprimido
+
+### **🎥 VÍDEOS**
+- **Formatos:** MP4, 3GPP
+- **Codecs:** H.264, MPEG-4
+- **Tamanho máximo:** 16 MB
+- **Duração máxima:** Sem limite oficial
+
+### **🎵 ÁUDIOS**
+- **Formatos:** AAC, MP4 (áudio), MPEG, AMR, OGG (Opus codec)
+- **Tamanho máximo:** 16 MB
+- **⚠️ IMPORTANTE:** WhatsApp prefere **OGG com codec Opus**
+
+### **📄 DOCUMENTOS**
+- **Formatos:** PDF, DOC, DOCX, XLS, XLSX, PPT, PPTX, TXT
+- **Tamanho máximo:** 100 MB
+
+---
+
+## 🔧 SOLUÇÃO PARA ÁUDIO: CONVERTER WEBM → OGG
+
+Vamos configurar a conversão automática no frontend!
+
+---
+
+## 📝 CÓDIGO PARA CONVERSÃO DE ÁUDIO NO REPLIT
+
+### **1. Instalar dependências:**
+
+```bash
+npm install lamejs
+```
+
+### **2. Função de conversão (adicionar no frontend):**
+
+```typescript
+// src/utils/audioConverter.ts
+
+import lamejs from 'lamejs';
+
+export async function convertWebMToMP3(webmBlob: Blob): Promise<Blob> {
+  // Converter WebM para WAV primeiro
+  const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+  const arrayBuffer = await webmBlob.arrayBuffer();
+  const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+  
+  // Extrair dados do canal (mono)
+  const samples = audioBuffer.getChannelData(0);
+  const sampleRate = audioBuffer.sampleRate;
+  
+  // Converter Float32Array para Int16Array
+  const int16Array = new Int16Array(samples.length);
+  for (let i = 0; i < samples.length; i++) {
+    const s = Math.max(-1, Math.min(1, samples[i]));
+    int16Array[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+  }
+  
+  // Encoder MP3
+  const mp3encoder = new lamejs.Mp3Encoder(1, sampleRate, 128);
+  const mp3Data: Int8Array[] = [];
+  
+  const sampleBlockSize = 1152;
+  for (let i = 0; i < int16Array.length; i += sampleBlockSize) {
+    const sampleChunk = int16Array.subarray(i, i + sampleBlockSize);
+    const mp3buf = mp3encoder.encodeBuffer(sampleChunk);
+    if (mp3buf.length > 0) {
+      mp3Data.push(mp3buf);
+    }
+  }
+  
+  const mp3buf = mp3encoder.flush();
+  if (mp3buf.length > 0) {
+    mp3Data.push(mp3buf);
+  }
+  
+  // Criar Blob MP3
+  const mp3Blob = new Blob(mp3Data, { type: 'audio/mp3' });
+  return mp3Blob;
+}
+```
+
+---
+
+## 🎯 SOLUÇÃO MAIS SIMPLES: GRAVAR DIRETO EM OGG
+
+Ao invés de converter, grave o áudio **direto em OGG**!
+
+### **Código para gravação em OGG:**
+
+```typescript
+// src/components/MessageInput.tsx
+
+const startRecording = async () => {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    
+    // IMPORTANTE: Especificar mimeType como OGG
+    const options = {
+      mimeType: 'audio/ogg; codecs=opus' // Formato preferido do WhatsApp
+    };
+    
+    // Fallback para navegadores que não suportam OGG
+    if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+      options.mimeType = 'audio/webm; codecs=opus';
+      console.warn('OGG não suportado, usando WebM');
+    }
+    
+    const recorder = new MediaRecorder(stream, options);
+    const chunks: Blob[] = [];
+    
+    recorder.ondataavailable = (e) => {
+      if (e.data.size > 0) {
+        chunks.push(e.data);
+      }
+    };
+    
+    recorder.onstop = async () => {
+      let audioBlob = new Blob(chunks, { type: recorder.mimeType });
+      
+      // Se gravou em WebM, mostrar warning
+      if (recorder.mimeType.includes('webm')) {
+        console.warn('⚠️ Áudio gravado em WebM - pode não funcionar no WhatsApp');
+        // Aqui você pode converter ou avisar o usuário
+      }
+      
+      setAudioBlob(audioBlob);
+      setAudioUrl(URL.createObjectURL(audioBlob));
+      
+      // Parar stream
+      stream.getTracks().forEach(track => track.stop());
+    };
+    
+    recorder.start();
+    mediaRecorderRef.current = recorder;
+    setRecordingState('recording');
+    
+  } catch (error) {
+    console.error('Erro ao acessar microfone:', error);
+    alert('Erro ao acessar o microfone');
+  }
+};
+```
+
+---
+
+## 🔧 VERIFICAR COMPATIBILIDADE DO NAVEGADOR
+
+```typescript
+// Adicionar ao componente
+useEffect(() => {
+  const checkAudioSupport = () => {
+    const types = [
+      'audio/ogg; codecs=opus',
+      'audio/webm; codecs=opus',
+      'audio/mp4'
+    ];
+    
+    console.log('Formatos de áudio suportados:');
+    types.forEach(type => {
+      const supported = MediaRecorder.isTypeSupported(type);
+      console.log(`${type}: ${supported ? '✅' : '❌'}`);
+    });
+  };
+  
+  checkAudioSupport();
+}, []);
+```
+
+---
+
+## 📋 EXTENSÕES CORRETAS POR TIPO
+
+Ao salvar no Supabase Storage, use a extensão correta:
+
+```typescript
+const getFileExtension = (mimeType: string, tipo: string): string => {
+  const extensionMap: Record<string, string> = {
+    // Imagens
+    'image/jpeg': 'jpg',
+    'image/png': 'png',
+    'image/webp': 'webp',
+    
+    // Vídeos
+    'video/mp4': 'mp4',
+    'video/3gpp': '3gp',
+    
+    // Áudios
+    'audio/ogg': 'ogg',           // ✅ Preferido
+    'audio/mpeg': 'mp3',          // ✅ Aceito
+    'audio/mp4': 'm4a',           // ✅ Aceito
+    'audio/amr': 'amr',           // ✅ Aceito
+    'audio/webm': 'webm',         // ⚠️ Pode não funcionar
+    
+    // Documentos
+    'application/pdf': 'pdf',
+    'application/msword': 'doc',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'docx',
+    'application/vnd.ms-excel': 'xls',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'xlsx'
+  };
+  
+  return extensionMap[mimeType] || 'bin';
+};
+
+// Ao fazer upload
+const fileName = `${conversaId}/${Date.now()}_audio.${getFileExtension(audioBlob.type, 'audio')}`;
+```
+
+---
+
+## 🎯 RESUMO - O QUE FAZER:
+
+### **OPÇÃO 1: Gravar direto em OGG (RECOMENDADO)**
+```typescript
+mimeType: 'audio/ogg; codecs=opus'
+```
+✅ Formato nativo do WhatsApp
+✅ Sem conversão necessária
+✅ Melhor qualidade
+
+### **OPÇÃO 2: Converter WebM → MP3**
+```typescript
+const mp3Blob = await convertWebMToMP3(webmBlob);
+```
+✅ Compatível com WhatsApp
+⚠️ Requer processamento extra
+⚠️ Pode aumentar tamanho do arquivo
+
+### **OPÇÃO 3: Aceitar upload de arquivos**
+Permitir que o usuário faça upload de arquivos de áudio prontos (.mp3, .ogg)
+
+---
+
+## 🚀 CÓDIGO COMPLETO PARA O REPLIT
+
+Quer que eu te passe o **prompt completo** para ajustar o componente de gravação de áudio no Replit para gravar direto em OGG? 
+
+**Responde "sim" e eu monto o prompt!** 🎤✨
