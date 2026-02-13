@@ -146,10 +146,16 @@ export async function registerRoutes(
         return res.status(403).json({ error: "Domínio não permitido" });
       }
 
-      const response = await fetch(url);
+      const headers: Record<string, string> = {};
+      const isFacebookMedia = parsed.hostname.includes("fbsbx.com") || parsed.hostname.includes("facebook.com") || parsed.hostname.includes("whatsapp.com");
+      if (isFacebookMedia && process.env.WHATSAPP_ACCESS_TOKEN) {
+        headers["Authorization"] = `Bearer ${process.env.WHATSAPP_ACCESS_TOKEN}`;
+      }
+
+      const response = await fetch(url, { headers });
       if (!response.ok) {
         const statusMsg = response.status === 401 || response.status === 403
-          ? "Mídia expirada ou indisponível"
+          ? "Mídia expirada ou indisponível. Verifique o token do WhatsApp."
           : "Erro ao acessar mídia";
         return res.status(response.status).json({ error: statusMsg, expired: response.status === 401 || response.status === 403 });
       }
