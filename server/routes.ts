@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertClientSchema, insertQuickReplySchema, insertProductSchema, insertClientNoteSchema, insertMessageSchema } from "@shared/schema";
+import { insertClientSchema, insertQuickReplySchema, insertProductSchema, insertClientNoteSchema, insertMessageSchema, insertQuoteSchema } from "@shared/schema";
 import { requireAuth } from "./auth";
 import multer from "multer";
 import path from "path";
@@ -314,6 +314,48 @@ export async function registerRoutes(
   app.get("/api/reports", async (_req, res) => {
     const reports = await storage.getReports();
     res.json(reports);
+  });
+
+  app.get("/api/quotes", requireAuth, async (req, res) => {
+    const conversaId = String(req.query.conversaId || "");
+    if (!conversaId) return res.status(400).json({ message: "conversaId obrigatório" });
+    const result = await storage.getQuotesByConversa(conversaId);
+    res.json(result);
+  });
+
+  app.get("/api/quotes/:id", requireAuth, async (req, res) => {
+    const quote = await storage.getQuote(req.params.id as string);
+    if (!quote) return res.status(404).json({ message: "Orçamento não encontrado" });
+    res.json(quote);
+  });
+
+  app.post("/api/quotes", requireAuth, async (req, res) => {
+    try {
+      const { items, ...quoteData } = req.body;
+      const parsed = insertQuoteSchema.safeParse(quoteData);
+      if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
+      if (!items || !Array.isArray(items) || items.length === 0) {
+        return res.status(400).json({ message: "Itens obrigatórios" });
+      }
+      const quote = await storage.createQuote(parsed.data, items);
+      res.status(201).json(quote);
+    } catch (error: any) {
+      console.error("Create quote error:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.patch("/api/quotes/:id/status", requireAuth, async (req, res) => {
+    const { status } = req.body;
+    if (!status) return res.status(400).json({ message: "Status obrigatório" });
+    const quote = await storage.updateQuoteStatus(req.params.id as string, status);
+    if (!quote) return res.status(404).json({ message: "Orçamento não encontrado" });
+    res.json(quote);
+  });
+
+  app.delete("/api/quotes/:id", requireAuth, async (req, res) => {
+    await storage.deleteQuote(req.params.id as string);
+    res.status(204).send();
   });
 
   return httpServer;

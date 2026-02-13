@@ -26,9 +26,10 @@ import {
   UserPlus, Pause, CheckCircle, PanelRight, PanelRightClose,
   Check, Zap, Hand, Info, Package, Smile, ChevronDown, Clock, ArrowDown,
   Calendar, Image, Video, Music, FileText, Download, Play, Trash2,
+  Plus, StickyNote, Receipt, Minus, ShoppingCart,
 } from "lucide-react";
 import { useState, useRef, useEffect, useCallback } from "react";
-import { queryClient } from "@/lib/queryClient";
+import { queryClient, apiRequest } from "@/lib/queryClient";
 import { api } from "@/services/api";
 import { supabase } from "@/lib/supabase";
 import type { Conversa, Mensagem, BotaoResposta, BotaoMidia } from "@/lib/supabase";
@@ -97,6 +98,7 @@ function getMediaUrl(url: string | null): string | null {
 function MediaContent({ msg }: { msg: Mensagem }) {
   const isAttendant = msg.direcao === "enviada";
   const mediaUrl = getMediaUrl(msg.midia_url);
+  const [audioError, setAudioError] = useState(false);
 
   if (msg.tipo === "image" && mediaUrl) {
     return (
@@ -130,6 +132,14 @@ function MediaContent({ msg }: { msg: Mensagem }) {
   }
 
   if (msg.tipo === "audio" && mediaUrl) {
+    if (audioError) {
+      return (
+        <div className="flex items-center gap-2 py-1">
+          <Music className="w-4 h-4 flex-shrink-0" />
+          <span className="text-sm italic" data-testid={`media-audio-error-${msg.id}`}>Não foi possível carregar o áudio</span>
+        </div>
+      );
+    }
     return (
       <div className="space-y-1">
         <div className="flex items-center gap-2 min-w-[200px]">
@@ -137,8 +147,10 @@ function MediaContent({ msg }: { msg: Mensagem }) {
             src={mediaUrl}
             controls
             preload="metadata"
+            crossOrigin="anonymous"
             className="max-w-full w-full h-10"
             data-testid={`media-audio-${msg.id}`}
+            onError={() => setAudioError(true)}
           />
         </div>
         {msg.conteudo && <p className="text-sm whitespace-pre-wrap">{msg.conteudo}</p>}
@@ -271,6 +283,11 @@ export default function Conversas() {
   const [finalizeNotes, setFinalizeNotes] = useState("");
   const [showScrollDown, setShowScrollDown] = useState(false);
   const [sendingBotao, setSendingBotao] = useState(false);
+  const [quoteDialogOpen, setQuoteDialogOpen] = useState(false);
+  const [newNote, setNewNote] = useState("");
+  const [quoteItems, setQuoteItems] = useState<Array<{ productId: string; productName: string; quantity: number; unitPrice: number }>>([]);
+  const [quoteObservacoes, setQuoteObservacoes] = useState("");
+  const [productSearch, setProductSearch] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
@@ -373,6 +390,101 @@ export default function Conversas() {
   });
 
   const selectedConv = conversations?.find(c => c.id === selectedConvId);
+  const clienteId = selectedConv?.clientes?.id;
+
+  const { data: clientNotes, isLoading: notesLoading } = useQuery<any[]>({
+    queryKey: ["/api/clients", clienteId, "notes"],
+    queryFn: async () => {
+      const res = await fetch(`/api/clients/${clienteId}/notes`, { credentials: "include" });
+      if (!res.ok) throw new Error("Erro ao buscar notas");
+      return res.json();
+    },
+    enabled: !!clienteId,
+  });
+
+  const addNoteMutation = useMutation({
+    mutationFn: async (content: string) => {
+      const res = await apiRequest("POST", `/api/clients/${clienteId}/notes`, { content, author: "Atendente" });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/clients", clienteId, "notes"] });
+      setNewNote("");
+      toast({ title: "Nota adicionada" });
+    },
+    onError: () => {
+      toast({ title: "Erro ao adicionar nota", variant: "destructive" });
+    },
+  });
+
+  const { data: quotes, isLoading: quotesLoading } = useQuery<any[]>({
+    queryKey: ["/api/quotes", selectedConvId],
+    queryFn: async () => {
+      const res = await fetch(`/api/quotes?conversaId=${selectedConvId}`, { credentials: "include" });
+      if (!res.ok) throw new Error("Erro ao buscar orçamentos");
+      return res.json();
+    },
+    enabled: !!selectedConvId,
+  });
+
+  const { data: productsData } = useQuery<any[]>({
+    queryKey: ["/api/products"],
+    queryFn: async () => {
+      const res = await fetch("/api/products", { credentials: "include" });
+      if (!res.ok) throw new Error("Erro ao buscar produtos");
+      return res.json();
+    },
+    enabled: quoteDialogOpen,
+  });
+
+  const createQuoteMutation = useMutation({
+    mutationFn: async () => {
+      if (!selectedConvId || !clienteId) throw new Error("Dados incompletos");
+      const res = await apiRequest("POST", "/api/quotes", {
+        conversaId: selectedConvId,
+        clienteId,
+        clienteNome: selectedConv?.clientes?.nome || "",
+        observacoes: quoteObservacoes || null,
+        items: quoteItems.map(item => ({
+          quoteId: "",
+          productId: item.productId,
+          productName: item.productName,
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+        })),
+      });
+      return res.json();
+    },
+    onSuccess: (data: any) => {
+      const savedItems = [...quoteItems];
+      const clienteName = selectedConv?.clientes?.nome || "";
+
+      queryClient.invalidateQueries({ queryKey: ["/api/quotes", selectedConvId] });
+      setQuoteDialogOpen(false);
+      setQuoteItems([]);
+      setQuoteObservacoes("");
+      setProductSearch("");
+      toast({ title: "Orçamento criado" });
+
+      const total = savedItems.reduce((acc, item) => acc + item.quantity * item.unitPrice, 0);
+      const itemsText = savedItems.map(item =>
+        `${item.productName} - ${item.quantity}x R$ ${(item.unitPrice / 100).toFixed(2).replace(".", ",")}`
+      ).join("\n");
+      const message = `*ORÇAMENTO - Ótica Suellen*\n\nCliente: ${clienteName}\n\n${itemsText}\n\n*Total: R$ ${(total / 100).toFixed(2).replace(".", ",")}*`;
+
+      if (confirm("Deseja enviar o orçamento por WhatsApp?")) {
+        sendMessageMutation.mutate(message);
+      }
+    },
+    onError: () => {
+      toast({ title: "Erro ao criar orçamento", variant: "destructive" });
+    },
+  });
+
+  const filteredProducts = productsData?.filter(p =>
+    p.active !== false &&
+    (productSearch ? p.name.toLowerCase().includes(productSearch.toLowerCase()) : true)
+  ) || [];
 
   const addOptimisticMessage = (content: string, tipo: string, midiaUrl?: string) => {
     if (!selectedConvId) return;
@@ -630,6 +742,9 @@ export default function Conversas() {
               </Badge>
             </div>
             <div className="flex items-center gap-1 flex-shrink-0">
+              <Button variant="ghost" size="icon" onClick={() => setQuoteDialogOpen(true)} data-testid="button-quote">
+                <Package className="w-4 h-4" />
+              </Button>
               <Button variant="ghost" size="icon" onClick={() => setTransferDialogOpen(true)} data-testid="button-transfer">
                 <UserPlus className="w-4 h-4" />
               </Button>
@@ -774,6 +889,86 @@ export default function Conversas() {
                     )}
                   </div>
                 </div>
+
+                <div>
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Notas</p>
+                  <div className="space-y-2">
+                    <div className="flex gap-2">
+                      <Textarea
+                        value={newNote}
+                        onChange={(e) => setNewNote(e.target.value)}
+                        placeholder="Adicionar nota..."
+                        className="text-xs min-h-[60px]"
+                        data-testid="input-new-note"
+                      />
+                    </div>
+                    <Button
+                      size="sm"
+                      className="w-full"
+                      disabled={!newNote.trim() || addNoteMutation.isPending}
+                      onClick={() => newNote.trim() && addNoteMutation.mutate(newNote.trim())}
+                      data-testid="button-add-note"
+                    >
+                      <Plus className="w-3.5 h-3.5 mr-1" />
+                      {addNoteMutation.isPending ? "Salvando..." : "Adicionar Nota"}
+                    </Button>
+                    {notesLoading ? (
+                      <Skeleton className="h-12 w-full" />
+                    ) : clientNotes && clientNotes.length > 0 ? (
+                      clientNotes.map((note: any) => (
+                        <div key={note.id} className="border rounded-md p-2 space-y-1" data-testid={`note-${note.id}`}>
+                          <p className="text-xs text-muted-foreground">
+                            {new Date(note.createdAt).toLocaleDateString("pt-BR")} - {note.author}
+                          </p>
+                          <p className="text-sm">{note.content}</p>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-xs text-muted-foreground italic">Nenhuma nota</p>
+                    )}
+                  </div>
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between gap-1 mb-2">
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Orçamentos</p>
+                    <Button size="sm" variant="ghost" onClick={() => setQuoteDialogOpen(true)} data-testid="button-new-quote-panel">
+                      <Plus className="w-3.5 h-3.5" />
+                    </Button>
+                  </div>
+                  <div className="space-y-2">
+                    {quotesLoading ? (
+                      <Skeleton className="h-12 w-full" />
+                    ) : quotes && quotes.length > 0 ? (
+                      quotes.map((quote: any) => {
+                        const total = quote.items?.reduce((acc: number, item: any) => acc + item.quantity * item.unitPrice, 0) || 0;
+                        const statusVariant = quote.status === "rascunho" ? "outline" : quote.status === "enviado" ? "default" : "secondary";
+                        return (
+                          <div key={quote.id} className="border rounded-md p-2 space-y-1" data-testid={`quote-${quote.id}`}>
+                            <div className="flex items-center justify-between gap-1 flex-wrap">
+                              <Badge variant={statusVariant} className="text-xs">
+                                {quote.status}
+                              </Badge>
+                              <span className="text-xs text-muted-foreground">
+                                {new Date(quote.createdAt).toLocaleDateString("pt-BR")}
+                              </span>
+                            </div>
+                            <p className="text-sm font-semibold" data-testid={`quote-total-${quote.id}`}>
+                              R$ {(total / 100).toFixed(2).replace(".", ",")}
+                            </p>
+                            {quote.items?.map((item: any) => (
+                              <p key={item.id} className="text-xs text-muted-foreground">
+                                {item.productName} - {item.quantity}x R$ {(item.unitPrice / 100).toFixed(2).replace(".", ",")}
+                              </p>
+                            ))}
+                          </div>
+                        );
+                      })
+                    ) : (
+                      <p className="text-xs text-muted-foreground italic">Nenhum orçamento</p>
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
           )}
@@ -850,6 +1045,154 @@ export default function Conversas() {
                 <Button variant="outline" onClick={() => setFinalizeDialogOpen(false)} data-testid="button-cancel-finalize">Cancelar</Button>
                 <Button onClick={handleFinalize} disabled={finalizeMutation.isPending} data-testid="button-confirm-finalize">
                   {finalizeMutation.isPending ? "Finalizando..." : "Finalizar"}
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={quoteDialogOpen} onOpenChange={(open) => {
+          setQuoteDialogOpen(open);
+          if (!open) {
+            setQuoteItems([]);
+            setQuoteObservacoes("");
+            setProductSearch("");
+          }
+        }}>
+          <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Novo Orçamento</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label>Buscar Produto</Label>
+                <Input
+                  value={productSearch}
+                  onChange={(e) => setProductSearch(e.target.value)}
+                  placeholder="Buscar produto..."
+                  data-testid="input-product-search"
+                />
+                {productSearch && filteredProducts.length > 0 && (
+                  <div className="border rounded-md max-h-40 overflow-y-auto">
+                    {filteredProducts.slice(0, 10).map((product: any) => (
+                      <div
+                        key={product.id}
+                        className="flex items-center justify-between gap-2 p-2 hover-elevate cursor-pointer"
+                        onClick={() => {
+                          if (!quoteItems.find(i => i.productId === product.id)) {
+                            setQuoteItems([...quoteItems, {
+                              productId: product.id,
+                              productName: product.name,
+                              quantity: 1,
+                              unitPrice: product.price,
+                            }]);
+                          }
+                          setProductSearch("");
+                        }}
+                        data-testid={`product-option-${product.id}`}
+                      >
+                        <span className="text-sm truncate">{product.name}</span>
+                        <span className="text-xs text-muted-foreground flex-shrink-0">
+                          R$ {(product.price / 100).toFixed(2).replace(".", ",")}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {quoteItems.length > 0 && (
+                <div className="space-y-2">
+                  <Label>Itens do Orçamento</Label>
+                  {quoteItems.map((item, index) => (
+                    <div key={item.productId} className="flex items-center gap-2 border rounded-md p-2" data-testid={`quote-item-${item.productId}`}>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm truncate">{item.productName}</p>
+                        <p className="text-xs text-muted-foreground">
+                          R$ {(item.unitPrice / 100).toFixed(2).replace(".", ",")} un.
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-1 flex-shrink-0">
+                        <Button
+                          size="icon"
+                          variant="outline"
+                          onClick={() => {
+                            const updated = [...quoteItems];
+                            updated[index].quantity = Math.max(1, updated[index].quantity - 1);
+                            setQuoteItems(updated);
+                          }}
+                          data-testid={`button-qty-minus-${item.productId}`}
+                        >
+                          <Minus className="w-3 h-3" />
+                        </Button>
+                        <Input
+                          type="number"
+                          min={1}
+                          value={item.quantity}
+                          onChange={(e) => {
+                            const updated = [...quoteItems];
+                            updated[index].quantity = Math.max(1, parseInt(e.target.value) || 1);
+                            setQuoteItems(updated);
+                          }}
+                          className="w-14 text-center"
+                          data-testid={`input-qty-${item.productId}`}
+                        />
+                        <Button
+                          size="icon"
+                          variant="outline"
+                          onClick={() => {
+                            const updated = [...quoteItems];
+                            updated[index].quantity += 1;
+                            setQuoteItems(updated);
+                          }}
+                          data-testid={`button-qty-plus-${item.productId}`}
+                        >
+                          <Plus className="w-3 h-3" />
+                        </Button>
+                      </div>
+                      <p className="text-sm font-medium flex-shrink-0 w-20 text-right" data-testid={`text-subtotal-${item.productId}`}>
+                        R$ {((item.quantity * item.unitPrice) / 100).toFixed(2).replace(".", ",")}
+                      </p>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={() => setQuoteItems(quoteItems.filter((_, i) => i !== index))}
+                        data-testid={`button-remove-item-${item.productId}`}
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </Button>
+                    </div>
+                  ))}
+                  <div className="flex items-center justify-between gap-2 pt-2 border-t">
+                    <span className="text-sm font-semibold">Total:</span>
+                    <span className="text-base font-bold" data-testid="text-quote-grand-total">
+                      R$ {(quoteItems.reduce((acc, item) => acc + item.quantity * item.unitPrice, 0) / 100).toFixed(2).replace(".", ",")}
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              <div className="space-y-2">
+                <Label>Observações (opcional)</Label>
+                <Textarea
+                  value={quoteObservacoes}
+                  onChange={(e) => setQuoteObservacoes(e.target.value)}
+                  placeholder="Observações do orçamento..."
+                  data-testid="input-quote-observacoes"
+                />
+              </div>
+
+              <div className="flex gap-2 justify-end">
+                <Button variant="outline" onClick={() => setQuoteDialogOpen(false)} data-testid="button-cancel-quote">
+                  Cancelar
+                </Button>
+                <Button
+                  onClick={() => createQuoteMutation.mutate()}
+                  disabled={quoteItems.length === 0 || createQuoteMutation.isPending}
+                  data-testid="button-create-quote"
+                >
+                  <ShoppingCart className="w-4 h-4 mr-1" />
+                  {createQuoteMutation.isPending ? "Criando..." : "Criar Orçamento"}
                 </Button>
               </div>
             </div>

@@ -8,7 +8,9 @@ import {
   type Product, type InsertProduct,
   type Activity, type InsertActivity,
   type ClientNote, type InsertClientNote,
-  users, attendants, clients, conversations, messages, quickReplies, products, activities, clientNotes,
+  type Quote, type InsertQuote,
+  type QuoteItem, type InsertQuoteItem,
+  users, attendants, clients, conversations, messages, quickReplies, products, activities, clientNotes, quotes, quoteItems,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, sql, and, gte, or, ilike, inArray } from "drizzle-orm";
@@ -62,6 +64,11 @@ export interface IStorage {
     weeklyData: { day: string; conversas: number; finalizadas: number }[];
     statusDistribution: { name: string; value: number; color: string }[];
   }>;
+  getQuotesByConversa(conversaId: string): Promise<(Quote & { items: QuoteItem[] })[]>;
+  getQuote(id: string): Promise<(Quote & { items: QuoteItem[] }) | undefined>;
+  createQuote(data: InsertQuote, items: InsertQuoteItem[]): Promise<Quote & { items: QuoteItem[] }>;
+  updateQuoteStatus(id: string, status: string): Promise<Quote | undefined>;
+  deleteQuote(id: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -415,6 +422,43 @@ export class DatabaseStorage implements IStorage {
       weeklyData,
       statusDistribution,
     };
+  }
+
+  async getQuotesByConversa(conversaId: string) {
+    const allQuotes = await db.select().from(quotes).where(eq(quotes.conversaId, conversaId)).orderBy(desc(quotes.createdAt));
+    const result: (Quote & { items: QuoteItem[] })[] = [];
+    for (const q of allQuotes) {
+      const items = await db.select().from(quoteItems).where(eq(quoteItems.quoteId, q.id));
+      result.push({ ...q, items });
+    }
+    return result;
+  }
+
+  async getQuote(id: string) {
+    const [q] = await db.select().from(quotes).where(eq(quotes.id, id));
+    if (!q) return undefined;
+    const items = await db.select().from(quoteItems).where(eq(quoteItems.quoteId, q.id));
+    return { ...q, items };
+  }
+
+  async createQuote(data: InsertQuote, items: InsertQuoteItem[]) {
+    const [q] = await db.insert(quotes).values(data).returning();
+    const createdItems: QuoteItem[] = [];
+    for (const item of items) {
+      const [created] = await db.insert(quoteItems).values({ ...item, quoteId: q.id }).returning();
+      createdItems.push(created);
+    }
+    return { ...q, items: createdItems };
+  }
+
+  async updateQuoteStatus(id: string, status: string) {
+    const [q] = await db.update(quotes).set({ status }).where(eq(quotes.id, id)).returning();
+    return q;
+  }
+
+  async deleteQuote(id: string) {
+    await db.delete(quoteItems).where(eq(quoteItems.quoteId, id));
+    await db.delete(quotes).where(eq(quotes.id, id));
   }
 }
 

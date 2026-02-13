@@ -127,6 +127,30 @@ export const insertProductSchema = createInsertSchema(products).omit({ id: true,
 export const insertActivitySchema = createInsertSchema(activities).omit({ id: true, timestamp: true });
 export const insertClientNoteSchema = createInsertSchema(clientNotes).omit({ id: true, createdAt: true });
 
+export const quotes = pgTable("quotes", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  conversaId: varchar("conversa_id").notNull(),
+  clienteId: varchar("cliente_id").notNull(),
+  clienteNome: text("cliente_nome"),
+  status: text("status").notNull().default("rascunho"),
+  desconto: integer("desconto").default(0),
+  observacoes: text("observacoes"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const quoteItems = pgTable("quote_items", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  quoteId: varchar("quote_id").notNull(),
+  productId: varchar("product_id"),
+  productName: text("product_name").notNull(),
+  quantity: integer("quantity").notNull().default(1),
+  unitPrice: integer("unit_price").notNull(),
+  discount: integer("discount").default(0),
+});
+
+export const insertQuoteSchema = createInsertSchema(quotes).omit({ id: true, createdAt: true });
+export const insertQuoteItemSchema = createInsertSchema(quoteItems).omit({ id: true });
+
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 export type InsertAttendant = z.infer<typeof insertAttendantSchema>;
@@ -145,3 +169,7 @@ export type InsertActivity = z.infer<typeof insertActivitySchema>;
 export type Activity = typeof activities.$inferSelect;
 export type InsertClientNote = z.infer<typeof insertClientNoteSchema>;
 export type ClientNote = typeof clientNotes.$inferSelect;
+export type InsertQuote = z.infer<typeof insertQuoteSchema>;
+export type Quote = typeof quotes.$inferSelect;
+export type InsertQuoteItem = z.infer<typeof insertQuoteItemSchema>;
+export type QuoteItem = typeof quoteItems.$inferSelect;
