@@ -74,13 +74,31 @@ app.use((req, res, next) => {
     const { db: dbInstance } = await import("./db");
     const { users: usersTable } = await import("@shared/schema");
     const { eq } = await import("drizzle-orm");
+    const { scrypt, randomBytes, timingSafeEqual } = await import("crypto");
+    const { promisify } = await import("util");
+    const scryptAsync = promisify(scrypt);
+
     const [adminUser] = await dbInstance.select().from(usersTable).where(eq(usersTable.username, "Admin"));
-    if (adminUser && adminUser.role !== "admin") {
-      await dbInstance.update(usersTable).set({ role: "admin" }).where(eq(usersTable.id, adminUser.id));
-      console.log("[startup] Admin user promoted to admin role");
+    if (adminUser) {
+      const updates: Record<string, any> = {};
+      if (adminUser.role !== "admin") {
+        updates.role = "admin";
+      }
+      const [hashed, salt] = adminUser.password.split(".");
+      const buf = (await scryptAsync("123456", salt, 64)) as Buffer;
+      const matches = timingSafeEqual(Buffer.from(hashed, "hex"), buf);
+      if (!matches) {
+        const newSalt = randomBytes(16).toString("hex");
+        const newBuf = (await scryptAsync("123456", newSalt, 64)) as Buffer;
+        updates.password = `${newBuf.toString("hex")}.${newSalt}`;
+      }
+      if (Object.keys(updates).length > 0) {
+        await dbInstance.update(usersTable).set(updates).where(eq(usersTable.id, adminUser.id));
+        console.log("[startup] Admin user updated:", Object.keys(updates).join(", "));
+      }
     }
   } catch (e) {
-    console.error("Admin promotion error:", e);
+    console.error("Admin setup error:", e);
   }
 
   await registerRoutes(httpServer, app);
