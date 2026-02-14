@@ -822,7 +822,17 @@ export default function Conversas() {
 
   useEffect(() => {
     if (mensagens && mensagens.length > 0) {
-      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+      // Somente rola para baixo se o usuário estiver próximo do fundo ou se for uma mensagem enviada por ele
+      const container = chatContainerRef.current;
+      if (container) {
+        const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 200;
+        const lastMsg = mensagens[mensagens.length - 1];
+        const sentByMe = lastMsg.direcao === "enviada";
+
+        if (isNearBottom || sentByMe) {
+          messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+        }
+      }
     }
   }, [mensagens]);
 
