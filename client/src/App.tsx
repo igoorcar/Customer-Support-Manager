@@ -17,16 +17,20 @@ import Configuracoes from "@/pages/configuracoes";
 import AuthPage from "@/pages/auth";
 import NotFound from "@/pages/not-found";
 
+function PageWrapper({ children }: { children: React.ReactNode }) {
+  return <div className="p-4 md:p-6">{children}</div>;
+}
+
 function Router() {
   return (
     <Switch>
-      <Route path="/" component={Dashboard} />
+      <Route path="/">{() => <PageWrapper><Dashboard /></PageWrapper>}</Route>
       <Route path="/conversas" component={Conversas} />
-      <Route path="/clientes" component={Clientes} />
-      <Route path="/respostas" component={RespostasRapidas} />
-      <Route path="/produtos" component={Produtos} />
-      <Route path="/relatorios" component={Relatorios} />
-      <Route path="/configuracoes" component={Configuracoes} />
+      <Route path="/clientes">{() => <PageWrapper><Clientes /></PageWrapper>}</Route>
+      <Route path="/respostas">{() => <PageWrapper><RespostasRapidas /></PageWrapper>}</Route>
+      <Route path="/produtos">{() => <PageWrapper><Produtos /></PageWrapper>}</Route>
+      <Route path="/relatorios">{() => <PageWrapper><Relatorios /></PageWrapper>}</Route>
+      <Route path="/configuracoes">{() => <PageWrapper><Configuracoes /></PageWrapper>}</Route>
       <Route component={NotFound} />
     </Switch>
   );
@@ -75,7 +79,7 @@ function AuthenticatedApp() {
               </button>
             </div>
           </header>
-          <main className="flex-1 overflow-y-auto p-4 md:p-6">
+          <main className="flex-1 overflow-y-auto">
             <Router />
           </main>
         </div>

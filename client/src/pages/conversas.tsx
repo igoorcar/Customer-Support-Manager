@@ -320,6 +320,7 @@ export default function Conversas() {
   const [finalizeNotes, setFinalizeNotes] = useState("");
   const [showScrollDown, setShowScrollDown] = useState(false);
   const [sendingBotao, setSendingBotao] = useState(false);
+  const [botoesOpenMobile, setBotoesOpenMobile] = useState(false);
   const [quoteDialogOpen, setQuoteDialogOpen] = useState(false);
   const [newNote, setNewNote] = useState("");
   const [quoteItems, setQuoteItems] = useState<Array<{ productId: string; productName: string; quantity: number; unitPrice: number }>>([]);
@@ -866,7 +867,7 @@ export default function Conversas() {
     const clientAvatar = selectedConv.clientes?.avatar_url;
 
     return (
-      <div className="flex h-[calc(100vh-4rem)] -m-4 md:-m-6">
+      <div className="flex h-full">
         <div className="hidden md:flex flex-col w-72 border-r bg-background flex-shrink-0">
           <div className="p-3 border-b">
             <div className="relative">
@@ -962,6 +963,18 @@ export default function Conversas() {
               </Badge>
             </div>
             <div className="flex items-center gap-1 flex-shrink-0">
+              {botoes && botoes.length > 0 && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="lg:hidden toggle-elevate"
+                  onClick={() => setBotoesOpenMobile(!botoesOpenMobile)}
+                  data-testid="button-botoes-mobile"
+                  title="Botões de Resposta"
+                >
+                  <Zap className="w-4 h-4" />
+                </Button>
+              )}
               <Button variant="ghost" size="icon" onClick={() => { setProductPickerOpen(true); setProductPickerSearch(""); }} data-testid="button-send-product" title="Enviar Produto">
                 <ShoppingCart className="w-4 h-4" />
               </Button>
@@ -1009,6 +1022,22 @@ export default function Conversas() {
             <IAToggle conversaId={selectedConvId} />
             <EtiquetasManager clienteId={selectedConv.cliente_id} />
           </div>
+
+          {botoesOpenMobile && botoes && botoes.length > 0 && (
+            <div className="lg:hidden border-b bg-muted/30 p-2 max-h-48 overflow-y-auto" data-testid="botoes-mobile-panel">
+              <div className="flex items-center justify-between mb-1 px-1">
+                <span className="text-xs font-semibold text-muted-foreground">Botões de Resposta</span>
+                <Button variant="ghost" size="icon" onClick={() => setBotoesOpenMobile(false)} data-testid="button-close-botoes-mobile">
+                  <X className="w-3.5 h-3.5" />
+                </Button>
+              </div>
+              <BotaoRespostaPanel
+                botoes={botoes}
+                onEnviar={(botao) => { handleEnviarBotao(botao); setBotoesOpenMobile(false); }}
+                isPending={sendingBotao}
+              />
+            </div>
+          )}
 
           <div className="flex-1 overflow-y-auto p-4 space-y-3 relative" ref={chatContainerRef} onScroll={handleScroll} data-testid="chat-messages-area">
             {messagesLoading ? (
@@ -1503,7 +1532,7 @@ export default function Conversas() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-4 md:p-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-xl font-bold" data-testid="text-conversas-title">Conversas</h1>
