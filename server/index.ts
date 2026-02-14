@@ -78,6 +78,24 @@ app.use((req, res, next) => {
     const { promisify } = await import("util");
     const scryptAsync = promisify(scrypt);
 
+    const requiredUsers = [
+      { username: "Admin", role: "admin" },
+      { username: "bruna@oticasuellenn.com", role: "atendente" },
+      { username: "thamirys@oticasuellenn.com", role: "atendente" },
+    ];
+    const defaultPassword = "123456";
+
+    for (const req of requiredUsers) {
+      const [existing] = await dbInstance.select().from(usersTable).where(eq(usersTable.username, req.username));
+      if (!existing) {
+        const salt = randomBytes(16).toString("hex");
+        const buf = (await scryptAsync(defaultPassword, salt, 64)) as Buffer;
+        const hashedPw = `${buf.toString("hex")}.${salt}`;
+        await dbInstance.insert(usersTable).values({ username: req.username, password: hashedPw, role: req.role });
+        console.log(`[startup] User ${req.username} created with role ${req.role}`);
+      }
+    }
+
     const allUsers = await dbInstance.select().from(usersTable);
     for (const u of allUsers) {
       const updates: Record<string, any> = {};
