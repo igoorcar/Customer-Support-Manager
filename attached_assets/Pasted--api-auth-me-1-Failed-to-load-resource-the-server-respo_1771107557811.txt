@@ -1,0 +1,83 @@
+/api/auth/me:1  Failed to load resource: the server responded with a status of 401 ()Entenda o erro
+index-UUaCywgu.js:8 NotFoundError: Failed to execute 'removeChild' on 'Node': The node to be removed is not a child of this node.
+    at L3 (index-UUaCywgu.js:8:26317)
+    at ua (index-UUaCywgu.js:8:27619)
+    at E3 (index-UUaCywgu.js:8:28085)
+    at ua (index-UUaCywgu.js:8:27771)
+    at E3 (index-UUaCywgu.js:8:27884)
+    at ua (index-UUaCywgu.js:8:27771)
+    at E3 (index-UUaCywgu.js:8:28085)
+    at ua (index-UUaCywgu.js:8:27771)
+    at E3 (index-UUaCywgu.js:8:28085)
+    at ua (index-UUaCywgu.js:8:27771)
+o1 @ index-UUaCywgu.js:8
+m.callback @ index-UUaCywgu.js:8
+_k @ index-UUaCywgu.js:6
+A3 @ index-UUaCywgu.js:8
+T3 @ index-UUaCywgu.js:8
+C7 @ index-UUaCywgu.js:8
+E7 @ index-UUaCywgu.js:8
+cs @ index-UUaCywgu.js:8
+P3 @ index-UUaCywgu.js:8
+lo @ index-UUaCywgu.js:6
+(anônimo) @ index-UUaCywgu.js:8Entenda o erro
+index-UUaCywgu.js:8 Uncaught NotFoundError: Failed to execute 'removeChild' on 'Node': The node to be removed is not a child of this node.
+    at L3 (index-UUaCywgu.js:8:26317)
+    at ua (index-UUaCywgu.js:8:27619)
+    at E3 (index-UUaCywgu.js:8:28085)
+    at ua (index-UUaCywgu.js:8:27771)
+    at E3 (index-UUaCywgu.js:8:27884)
+    at ua (index-UUaCywgu.js:8:27771)
+    at E3 (index-UUaCywgu.js:8:28085)
+    at ua (index-UUaCywgu.js:8:27771)
+    at E3 (index-UUaCywgu.js:8:28085)
+    at ua (index-UUaCywgu.js:8:27771)
+L3 @ index-UUaCywgu.js:8
+ua @ index-UUaCywgu.js:8
+E3 @ index-UUaCywgu.js:8
+ua @ index-UUaCywgu.js:8
+E3 @ index-UUaCywgu.js:8
+ua @ index-UUaCywgu.js:8
+E3 @ index-UUaCywgu.js:8
+ua @ index-UUaCywgu.js:8
+E3 @ index-UUaCywgu.js:8
+ua @ index-UUaCywgu.js:8
+E3 @ index-UUaCywgu.js:8
+ua @ index-UUaCywgu.js:8
+E3 @ index-UUaCywgu.js:8
+ua @ index-UUaCywgu.js:8
+E3 @ index-UUaCywgu.js:8
+ua @ index-UUaCywgu.js:8
+E3 @ index-UUaCywgu.js:8
+ua @ index-UUaCywgu.js:8
+E3 @ index-UUaCywgu.js:8
+ua @ index-UUaCywgu.js:8
+E3 @ index-UUaCywgu.js:8
+ua @ index-UUaCywgu.js:8
+E3 @ index-UUaCywgu.js:8
+ua @ index-UUaCywgu.js:8
+E3 @ index-UUaCywgu.js:8
+ua @ index-UUaCywgu.js:8
+E3 @ index-UUaCywgu.js:8
+ua @ index-UUaCywgu.js:8
+E3 @ index-UUaCywgu.js:8
+ua @ index-UUaCywgu.js:8
+E3 @ index-UUaCywgu.js:8
+ua @ index-UUaCywgu.js:8
+E3 @ index-UUaCywgu.js:8
+ua @ index-UUaCywgu.js:8
+E3 @ index-UUaCywgu.js:8
+ua @ index-UUaCywgu.js:8
+E3 @ index-UUaCywgu.js:8
+ua @ index-UUaCywgu.js:8
+E3 @ index-UUaCywgu.js:8
+ua @ index-UUaCywgu.js:8
+E3 @ index-UUaCywgu.js:8
+ua @ index-UUaCywgu.js:8
+E3 @ index-UUaCywgu.js:8
+E7 @ index-UUaCywgu.js:8
+cs @ index-UUaCywgu.js:8
+P3 @ index-UUaCywgu.js:8
+lo @ index-UUaCywgu.js:6
+(anônimo) @ index-UUaCywgu.js:8Entenda o erro
+index-UUaCywgu.js:8  POST https://customer-support-manager.replit.app/api/auth/login 401 (Unauthorized)
