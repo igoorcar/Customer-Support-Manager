@@ -70,6 +70,19 @@ app.use((req, res, next) => {
     console.error("Seed error:", e);
   }
 
+  try {
+    const { db: dbInstance } = await import("./db");
+    const { users: usersTable } = await import("@shared/schema");
+    const { eq } = await import("drizzle-orm");
+    const [adminUser] = await dbInstance.select().from(usersTable).where(eq(usersTable.username, "Admin"));
+    if (adminUser && adminUser.role !== "admin") {
+      await dbInstance.update(usersTable).set({ role: "admin" }).where(eq(usersTable.id, adminUser.id));
+      console.log("[startup] Admin user promoted to admin role");
+    }
+  } catch (e) {
+    console.error("Admin promotion error:", e);
+  }
+
   await registerRoutes(httpServer, app);
 
   app.use((err: any, _req: Request, res: Response, next: NextFunction) => {
