@@ -653,5 +653,127 @@ export async function registerRoutes(
     }
   });
 
+  app.post("/api/webhook/distribuir-conversa", async (req, res) => {
+    try {
+      const { conversa_id } = req.body;
+
+      if (!conversa_id) {
+        return res.status(400).json({ error: "conversa_id é obrigatório" });
+      }
+
+      if (!supabaseServer) {
+        return res.status(500).json({ error: "Supabase não configurado" });
+      }
+
+      const { data: conversa } = await supabaseServer
+        .from('conversas')
+        .select('id, atendente_id, status')
+        .eq('id', conversa_id)
+        .single();
+
+      if (!conversa) {
+        return res.status(404).json({ error: "Conversa não encontrada" });
+      }
+
+      if (conversa.atendente_id) {
+        return res.json({ success: true, atendente_id: conversa.atendente_id, message: "Conversa já possui atendente" });
+      }
+
+      const { data: atendentes } = await supabaseServer
+        .from('atendentes')
+        .select('id, nome, status')
+        .eq('status', 'online');
+
+      if (!atendentes || atendentes.length === 0) {
+        const { data: allAtendentes } = await supabaseServer
+          .from('atendentes')
+          .select('id, nome, status')
+          .neq('status', 'offline');
+
+        if (!allAtendentes || allAtendentes.length === 0) {
+          return res.json({ success: false, message: "Nenhum atendente disponível" });
+        }
+
+        const counts = await Promise.all(
+          allAtendentes.map(async (at) => {
+            const { count } = await supabaseServer!
+              .from('conversas')
+              .select('id', { count: 'exact', head: true })
+              .eq('atendente_id', at.id)
+              .in('status', ['nova', 'em_atendimento', 'pausada']);
+            return { ...at, activeCount: count || 0 };
+          })
+        );
+
+        counts.sort((a, b) => a.activeCount - b.activeCount);
+        const chosen = counts[0];
+
+        await supabaseServer
+          .from('conversas')
+          .update({ atendente_id: chosen.id, status: 'em_atendimento', updated_at: new Date().toISOString() })
+          .eq('id', conversa_id);
+
+        console.log(`[distribuição] Conversa ${conversa_id} atribuída a ${chosen.nome} (${chosen.activeCount} conversas ativas)`);
+        return res.json({ success: true, atendente_id: chosen.id, atendente_nome: chosen.nome, conversas_ativas: chosen.activeCount });
+      }
+
+      const counts = await Promise.all(
+        atendentes.map(async (at) => {
+          const { count } = await supabaseServer!
+            .from('conversas')
+            .select('id', { count: 'exact', head: true })
+            .eq('atendente_id', at.id)
+            .in('status', ['nova', 'em_atendimento', 'pausada']);
+          return { ...at, activeCount: count || 0 };
+        })
+      );
+
+      counts.sort((a, b) => a.activeCount - b.activeCount);
+      const chosen = counts[0];
+
+      await supabaseServer
+        .from('conversas')
+        .update({ atendente_id: chosen.id, status: 'em_atendimento', updated_at: new Date().toISOString() })
+        .eq('id', conversa_id);
+
+      console.log(`[distribuição] Conversa ${conversa_id} atribuída a ${chosen.nome} (${chosen.activeCount} conversas ativas)`);
+      res.json({ success: true, atendente_id: chosen.id, atendente_nome: chosen.nome, conversas_ativas: chosen.activeCount });
+    } catch (error: any) {
+      console.error("[distribuição] Erro:", error.message);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/webhook/distribuicao-status", async (_req, res) => {
+    try {
+      if (!supabaseServer) {
+        return res.status(500).json({ error: "Supabase não configurado" });
+      }
+
+      const { data: atendentes } = await supabaseServer
+        .from('atendentes')
+        .select('id, nome, status');
+
+      if (!atendentes) {
+        return res.json({ atendentes: [] });
+      }
+
+      const result = await Promise.all(
+        atendentes.map(async (at) => {
+          const { count } = await supabaseServer!
+            .from('conversas')
+            .select('id', { count: 'exact', head: true })
+            .eq('atendente_id', at.id)
+            .in('status', ['nova', 'em_atendimento', 'pausada']);
+          return { id: at.id, nome: at.nome, status: at.status, conversas_ativas: count || 0 };
+        })
+      );
+
+      res.json({ atendentes: result });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   return httpServer;
 }
