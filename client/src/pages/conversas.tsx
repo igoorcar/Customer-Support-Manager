@@ -346,15 +346,22 @@ export default function Conversas() {
       return;
     }
     const fetchAtendenteId = async () => {
-      const { data, error } = await supabase
+      let result = await supabase
         .from('atendentes')
         .select('id')
-        .ilike('nome', user.username)
+        .ilike('email', user.username)
         .single();
-      if (error) {
-        console.warn(`[Conversas] Atendente não encontrado para "${user.username}":`, error.message);
+      if (!result.data) {
+        result = await supabase
+          .from('atendentes')
+          .select('id')
+          .ilike('nome', user.username)
+          .single();
       }
-      if (data) setAtendenteId(data.id);
+      if (result.error && !result.data) {
+        console.warn(`[Conversas] Atendente não encontrado para "${user.username}":`, result.error.message);
+      }
+      if (result.data) setAtendenteId(result.data.id);
     };
     fetchAtendenteId();
   }, [user, isAdmin]);

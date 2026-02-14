@@ -31,13 +31,19 @@ export const useConversasPorAtendente = ({
 
   useEffect(() => {
     const fetchAtendenteId = async () => {
-      const { data } = await supabase
+      let result = await supabase
         .from('atendentes')
         .select('id')
-        .ilike('nome', atendenteNome)
+        .ilike('email', atendenteNome)
         .single();
-
-      if (data) setAtendenteId(data.id);
+      if (!result.data) {
+        result = await supabase
+          .from('atendentes')
+          .select('id')
+          .ilike('nome', atendenteNome)
+          .single();
+      }
+      if (result.data) setAtendenteId(result.data.id);
     };
 
     fetchAtendenteId();

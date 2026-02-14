@@ -25,16 +25,22 @@ export function AtendenteStatus({ atendenteNome }: AtendenteStatusProps) {
 
   useEffect(() => {
     const fetchAtendente = async () => {
-      const { data, error } = await supabase
+      let result = await supabase
         .from('atendentes')
         .select('*')
-        .ilike('nome', atendenteNome)
+        .ilike('email', atendenteNome)
         .single();
-
-      if (error) {
-        console.warn(`[AtendenteStatus] Atendente não encontrado para nome "${atendenteNome}":`, error.message);
+      if (!result.data) {
+        result = await supabase
+          .from('atendentes')
+          .select('*')
+          .ilike('nome', atendenteNome)
+          .single();
       }
-      if (data) setAtendente(data);
+      if (result.error && !result.data) {
+        console.warn(`[AtendenteStatus] Atendente não encontrado para "${atendenteNome}":`, result.error.message);
+      }
+      if (result.data) setAtendente(result.data);
     };
 
     fetchAtendente();
