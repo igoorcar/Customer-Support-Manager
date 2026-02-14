@@ -78,23 +78,29 @@ app.use((req, res, next) => {
     const { promisify } = await import("util");
     const scryptAsync = promisify(scrypt);
 
-    const [adminUser] = await dbInstance.select().from(usersTable).where(eq(usersTable.username, "Admin"));
-    if (adminUser) {
+    const allUsers = await dbInstance.select().from(usersTable);
+    for (const u of allUsers) {
       const updates: Record<string, any> = {};
-      if (adminUser.role !== "admin") {
+      if (u.username === "Admin" && u.role !== "admin") {
         updates.role = "admin";
       }
-      const [hashed, salt] = adminUser.password.split(".");
-      const buf = (await scryptAsync("123456", salt, 64)) as Buffer;
-      const matches = timingSafeEqual(Buffer.from(hashed, "hex"), buf);
-      if (!matches) {
+      try {
+        const [hashed, salt] = u.password.split(".");
+        const buf = (await scryptAsync("123456", salt, 64)) as Buffer;
+        const matches = timingSafeEqual(Buffer.from(hashed, "hex"), buf);
+        if (!matches) {
+          const newSalt = randomBytes(16).toString("hex");
+          const newBuf = (await scryptAsync("123456", newSalt, 64)) as Buffer;
+          updates.password = `${newBuf.toString("hex")}.${newSalt}`;
+        }
+      } catch {
         const newSalt = randomBytes(16).toString("hex");
         const newBuf = (await scryptAsync("123456", newSalt, 64)) as Buffer;
         updates.password = `${newBuf.toString("hex")}.${newSalt}`;
       }
       if (Object.keys(updates).length > 0) {
-        await dbInstance.update(usersTable).set(updates).where(eq(usersTable.id, adminUser.id));
-        console.log("[startup] Admin user updated:", Object.keys(updates).join(", "));
+        await dbInstance.update(usersTable).set(updates).where(eq(usersTable.id, u.id));
+        console.log(`[startup] User ${u.username} updated:`, Object.keys(updates).join(", "));
       }
     }
   } catch (e) {
