@@ -346,11 +346,14 @@ export default function Conversas() {
       return;
     }
     const fetchAtendenteId = async () => {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('atendentes')
         .select('id')
-        .eq('email', user.username)
+        .ilike('nome', user.username)
         .single();
+      if (error) {
+        console.warn(`[Conversas] Atendente não encontrado para "${user.username}":`, error.message);
+      }
       if (data) setAtendenteId(data.id);
     };
     fetchAtendenteId();
@@ -1551,7 +1554,7 @@ export default function Conversas() {
       </div>
 
       {user && (
-        <AtendenteStatus atendenteEmail={user.username} />
+        <AtendenteStatus atendenteNome={user.username} />
       )}
 
       <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">

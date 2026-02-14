@@ -17,12 +17,12 @@ interface ConversaAtendente {
 }
 
 interface UseConversasPorAtendenteProps {
-  atendenteEmail: string;
+  atendenteNome: string;
   filtroStatus?: 'todas' | 'nova' | 'em_atendimento' | 'pausada' | 'finalizada';
 }
 
 export const useConversasPorAtendente = ({
-  atendenteEmail,
+  atendenteNome,
   filtroStatus = 'em_atendimento'
 }: UseConversasPorAtendenteProps) => {
   const [conversas, setConversas] = useState<ConversaAtendente[]>([]);
@@ -34,14 +34,14 @@ export const useConversasPorAtendente = ({
       const { data } = await supabase
         .from('atendentes')
         .select('id')
-        .eq('email', atendenteEmail)
+        .ilike('nome', atendenteNome)
         .single();
 
       if (data) setAtendenteId(data.id);
     };
 
     fetchAtendenteId();
-  }, [atendenteEmail]);
+  }, [atendenteNome]);
 
   useEffect(() => {
     if (!atendenteId) return;

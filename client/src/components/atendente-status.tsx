@@ -16,35 +16,42 @@ interface Atendente {
 }
 
 interface AtendenteStatusProps {
-  atendenteEmail: string;
+  atendenteNome: string;
 }
 
-export function AtendenteStatus({ atendenteEmail }: AtendenteStatusProps) {
+export function AtendenteStatus({ atendenteNome }: AtendenteStatusProps) {
   const [atendente, setAtendente] = useState<Atendente | null>(null);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     const fetchAtendente = async () => {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('atendentes')
         .select('*')
-        .eq('email', atendenteEmail)
+        .ilike('nome', atendenteNome)
         .single();
 
+      if (error) {
+        console.warn(`[AtendenteStatus] Atendente não encontrado para nome "${atendenteNome}":`, error.message);
+      }
       if (data) setAtendente(data);
     };
 
     fetchAtendente();
+  }, [atendenteNome]);
+
+  useEffect(() => {
+    if (!atendente) return;
 
     const channel = supabase
-      .channel(`atendente-status-${atendenteEmail}`)
+      .channel(`atendente-status-${atendente.id}`)
       .on(
         'postgres_changes',
         {
           event: 'UPDATE',
           schema: 'public',
           table: 'atendentes',
-          filter: `email=eq.${atendenteEmail}`
+          filter: `id=eq.${atendente.id}`
         },
         (payload) => {
           if (payload.new) {
@@ -57,7 +64,7 @@ export function AtendenteStatus({ atendenteEmail }: AtendenteStatusProps) {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [atendenteEmail]);
+  }, [atendente?.id]);
 
   useEffect(() => {
     if (!atendente) return;
@@ -71,7 +78,7 @@ export function AtendenteStatus({ atendenteEmail }: AtendenteStatusProps) {
           status: currentStatus,
           ultima_atividade: new Date().toISOString()
         })
-        .eq('email', atendenteEmail);
+        .eq('id', atendente.id);
       setAtendente(prev => prev ? { ...prev, online: true, status: currentStatus } : prev);
     };
 
@@ -83,7 +90,7 @@ export function AtendenteStatus({ atendenteEmail }: AtendenteStatusProps) {
         .update({
           ultima_atividade: new Date().toISOString()
         })
-        .eq('email', atendenteEmail);
+        .eq('id', atendente.id);
     }, 30000);
 
     const marcarOffline = async () => {
@@ -93,7 +100,7 @@ export function AtendenteStatus({ atendenteEmail }: AtendenteStatusProps) {
           online: false,
           status: 'offline'
         })
-        .eq('email', atendenteEmail);
+        .eq('id', atendente.id);
     };
 
     window.addEventListener('beforeunload', marcarOffline);
@@ -103,7 +110,7 @@ export function AtendenteStatus({ atendenteEmail }: AtendenteStatusProps) {
       window.removeEventListener('beforeunload', marcarOffline);
       marcarOffline();
     };
-  }, [atendente?.id, atendenteEmail]);
+  }, [atendente?.id]);
 
   const alternarStatus = async (novoStatus: 'ativo' | 'ausente' | 'offline') => {
     if (!atendente) return;
