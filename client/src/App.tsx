@@ -14,6 +14,7 @@ import RespostasRapidas from "@/pages/respostas-rapidas";
 import Produtos from "@/pages/produtos";
 import Relatorios from "@/pages/relatorios";
 import Configuracoes from "@/pages/configuracoes";
+import FollowUpAnalytics from "@/pages/followup-analytics";
 import AuthPage from "@/pages/auth";
 import NotFound from "@/pages/not-found";
 
@@ -30,6 +31,7 @@ function Router() {
       <Route path="/respostas">{() => <PageWrapper><RespostasRapidas /></PageWrapper>}</Route>
       <Route path="/produtos">{() => <PageWrapper><Produtos /></PageWrapper>}</Route>
       <Route path="/relatorios">{() => <PageWrapper><Relatorios /></PageWrapper>}</Route>
+      <Route path="/followup">{() => <PageWrapper><FollowUpAnalytics /></PageWrapper>}</Route>
       <Route path="/configuracoes">{() => <PageWrapper><Configuracoes /></PageWrapper>}</Route>
       <Route component={NotFound} />
     </Switch>

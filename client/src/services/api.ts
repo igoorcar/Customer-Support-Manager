@@ -1040,4 +1040,142 @@ export const api = {
       return [];
     }
   },
+
+  async getFollowupOverview(dias: number = 30) {
+    try {
+      const { data, error } = await supabase.rpc('get_followup_overview', { dias });
+      if (error) throw error;
+      return data?.[0] || null;
+    } catch (error) {
+      console.error('getFollowupOverview error:', error);
+      return null;
+    }
+  },
+
+  async getFollowupFunil() {
+    try {
+      const { data, error } = await supabase.rpc('get_funil_conversao');
+      if (error) throw error;
+      return data || [];
+    } catch (error) {
+      console.error('getFollowupFunil error:', error);
+      return [];
+    }
+  },
+
+  async getFollowupPerformanceMensagem() {
+    try {
+      const { data, error } = await supabase
+        .from('followup_performance_mensagem')
+        .select('*')
+        .order('mensagem_numero');
+      if (error) throw error;
+      return data || [];
+    } catch (error) {
+      console.error('getFollowupPerformanceMensagem error:', error);
+      return [];
+    }
+  },
+
+  async getFollowupMelhorHorario() {
+    try {
+      const { data, error } = await supabase
+        .from('followup_melhor_horario')
+        .select('*')
+        .order('taxa_resposta_pct', { ascending: false });
+      if (error) throw error;
+      return data || [];
+    } catch (error) {
+      console.error('getFollowupMelhorHorario error:', error);
+      return [];
+    }
+  },
+
+  async getFollowupPerformanceFunil() {
+    try {
+      const { data, error } = await supabase
+        .from('followup_performance_funil')
+        .select('*')
+        .order('taxa_conversao_pct', { ascending: false })
+        .limit(10);
+      if (error) throw error;
+      return data || [];
+    } catch (error) {
+      console.error('getFollowupPerformanceFunil error:', error);
+      return [];
+    }
+  },
+
+  async getFollowupMotivosPerda() {
+    try {
+      const { data, error } = await supabase
+        .from('followup_motivos_perda')
+        .select('*')
+        .order('total', { ascending: false });
+      if (error) throw error;
+      return data || [];
+    } catch (error) {
+      console.error('getFollowupMotivosPerda error:', error);
+      return [];
+    }
+  },
+
+  async getFollowupJornadas(apenasConvertidos: boolean = false, limit: number = 20) {
+    try {
+      let query = supabase
+        .from('followup_jornada_lead')
+        .select('*')
+        .order('janela_72h_inicio', { ascending: false })
+        .limit(limit);
+
+      if (apenasConvertidos) {
+        query = query.eq('converteu', true);
+      }
+
+      const { data, error } = await query;
+      if (error) throw error;
+      return data || [];
+    } catch (error) {
+      console.error('getFollowupJornadas error:', error);
+      return [];
+    }
+  },
+
+  async getFollowupAbTests() {
+    try {
+      const { data, error } = await supabase
+        .from('followup_ab_tests')
+        .select('*')
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return data || [];
+    } catch (error) {
+      console.error('getFollowupAbTests error:', error);
+      return [];
+    }
+  },
+
+  async createFollowupAbTest(teste: {
+    nome: string;
+    descricao?: string;
+    mensagem_numero: number;
+    variante_a: string;
+    variante_b: string;
+  }) {
+    const { data, error } = await supabase
+      .from('followup_ab_tests')
+      .insert(teste)
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  },
+
+  async updateFollowupAbTest(id: string, updates: Record<string, any>) {
+    const { error } = await supabase
+      .from('followup_ab_tests')
+      .update(updates)
+      .eq('id', id);
+    if (error) throw error;
+  },
 };

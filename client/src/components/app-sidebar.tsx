@@ -10,6 +10,7 @@ import {
   BarChart3,
   Settings,
   Glasses,
+  Crosshair,
 } from "lucide-react";
 import {
   Sidebar,
@@ -35,6 +36,7 @@ const menuItems = [
   { title: "Respostas Rápidas", url: "/respostas", icon: Zap },
   { title: "Produtos", url: "/produtos", icon: Package },
   { title: "Relatórios", url: "/relatorios", icon: BarChart3 },
+  { title: "Follow-up 72h", url: "/followup", icon: Crosshair },
   { title: "Configurações", url: "/configuracoes", icon: Settings },
 ];
 

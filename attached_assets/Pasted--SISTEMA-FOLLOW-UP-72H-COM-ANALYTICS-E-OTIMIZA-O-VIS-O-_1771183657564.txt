@@ -1,0 +1,945 @@
+# 🚀 SISTEMA FOLLOW-UP 72H COM ANALYTICS E OTIMIZAÇÃO
+
+## 📊 VISÃO GERAL
+
+Implementar sistema completo de follow-up automático de 9 mensagens em 72 horas para leads de anúncios, com analytics avançado, métricas de performance, otimização baseada em dados e dashboard executivo.
+
+---
+
+## 🗄️ ESTRUTURA DO BANCO DE DADOS
+
+### 1. TABELA: conversas (campos adicionais)
+
+Já existem os campos criados pelos SQLs:
+- origem VARCHAR(50) - 'anuncio', 'organico', 'indicacao'
+- janela_72h_inicio TIMESTAMP
+- janela_72h_ativa BOOLEAN
+- followup_mensagem_num INTEGER (0-9)
+- followup_dia INTEGER (1-3)
+- ultima_resposta_cliente_em TIMESTAMP
+- proximo_followup_agendado_em TIMESTAMP
+
+### 2. NOVA TABELA: followup_logs (para analytics)
+
+```sql
+CREATE TABLE followup_logs (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  conversa_id UUID REFERENCES conversas(id) ON DELETE CASCADE,
+  mensagem_numero INTEGER NOT NULL, -- 1 a 9
+  mensagem_dia INTEGER NOT NULL, -- 1, 2 ou 3
+  estrategia TEXT, -- "Apresentação", "Prova social", etc
+  prompt_usado TEXT, -- prompt completo que foi enviado para IA
+  mensagem_gerada TEXT, -- mensagem que a IA gerou
+  mensagem_enviada TEXT, -- mensagem final enviada (pode ter ajustes)
+  enviada_em TIMESTAMP DEFAULT NOW(),
+  respondida BOOLEAN DEFAULT false,
+  respondida_em TIMESTAMP,
+  tempo_ate_resposta INTERVAL, -- tempo entre envio e resposta
+  tipo_resposta VARCHAR(50), -- 'positiva', 'negativa', 'neutral', 'duvida'
+  converteu BOOLEAN DEFAULT false, -- virou venda?
+  motivo_nao_conversao VARCHAR(100), -- 'preco', 'prazo', 'produto', 'concorrente'
+  metadata JSONB, -- dados extras
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX idx_followup_logs_conversa ON followup_logs(conversa_id);
+CREATE INDEX idx_followup_logs_mensagem_num ON followup_logs(mensagem_numero);
+CREATE INDEX idx_followup_logs_respondida ON followup_logs(respondida);
+CREATE INDEX idx_followup_logs_converteu ON followup_logs(converteu);
+CREATE INDEX idx_followup_logs_enviada_em ON followup_logs(enviada_em);
+
+COMMENT ON TABLE followup_logs IS 'Log detalhado de cada follow-up enviado para analytics';
+```
+
+### 3. NOVA TABELA: followup_metricas_diarias (agregação)
+
+```sql
+CREATE TABLE followup_metricas_diarias (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  data DATE NOT NULL,
+  mensagem_numero INTEGER NOT NULL, -- 1 a 9
+  total_enviadas INTEGER DEFAULT 0,
+  total_respondidas INTEGER DEFAULT 0,
+  taxa_resposta DECIMAL(5,2), -- %
+  tempo_medio_resposta INTERVAL,
+  total_conversoes INTEGER DEFAULT 0,
+  taxa_conversao DECIMAL(5,2), -- %
+  horario_envio TIME, -- 9h, 13h ou 16h
+  melhor_etiqueta_funil VARCHAR(50), -- qual etiqueta teve melhor resultado
+  melhor_produto VARCHAR(50),
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW(),
+  UNIQUE(data, mensagem_numero)
+);
+
+CREATE INDEX idx_metricas_diarias_data ON followup_metricas_diarias(data);
+CREATE INDEX idx_metricas_diarias_msg ON followup_metricas_diarias(mensagem_numero);
+
+COMMENT ON TABLE followup_metricas_diarias IS 'Métricas agregadas por dia e mensagem para dashboard';
+```
+
+### 4. NOVA TABELA: followup_ab_tests (testes A/B)
+
+```sql
+CREATE TABLE followup_ab_tests (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  nome VARCHAR(100) NOT NULL,
+  descricao TEXT,
+  mensagem_numero INTEGER NOT NULL, -- qual mensagem está testando
+  ativo BOOLEAN DEFAULT true,
+  variante_a TEXT, -- versão A da mensagem
+  variante_b TEXT, -- versão B da mensagem
+  total_enviadas_a INTEGER DEFAULT 0,
+  total_enviadas_b INTEGER DEFAULT 0,
+  taxa_resposta_a DECIMAL(5,2),
+  taxa_resposta_b DECIMAL(5,2),
+  taxa_conversao_a DECIMAL(5,2),
+  taxa_conversao_b DECIMAL(5,2),
+  vencedor VARCHAR(1), -- 'A', 'B' ou NULL
+  inicio_em TIMESTAMP DEFAULT NOW(),
+  fim_em TIMESTAMP,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+COMMENT ON TABLE followup_ab_tests IS 'Testes A/B de diferentes versões de mensagens';
+```
+
+### 5. VIEWS PARA ANALYTICS
+
+```sql
+-- View: Performance por mensagem
+CREATE OR REPLACE VIEW followup_performance_mensagem AS
+SELECT 
+  mensagem_numero,
+  mensagem_dia,
+  COUNT(*) as total_enviadas,
+  COUNT(*) FILTER (WHERE respondida = true) as total_respondidas,
+  ROUND(
+    COUNT(*) FILTER (WHERE respondida = true)::numeric / 
+    NULLIF(COUNT(*), 0) * 100, 
+    2
+  ) as taxa_resposta_pct,
+  COUNT(*) FILTER (WHERE converteu = true) as total_conversoes,
+  ROUND(
+    COUNT(*) FILTER (WHERE converteu = true)::numeric / 
+    NULLIF(COUNT(*), 0) * 100, 
+    2
+  ) as taxa_conversao_pct,
+  AVG(EXTRACT(EPOCH FROM tempo_ate_resposta) / 60) as tempo_medio_resposta_minutos,
+  MIN(enviada_em) as primeira_enviada_em,
+  MAX(enviada_em) as ultima_enviada_em
+FROM followup_logs
+GROUP BY mensagem_numero, mensagem_dia
+ORDER BY mensagem_numero;
+
+-- View: Performance por etiqueta de funil
+CREATE OR REPLACE VIEW followup_performance_funil AS
+SELECT 
+  e.nome as etiqueta_funil,
+  fl.mensagem_numero,
+  COUNT(*) as total_enviadas,
+  COUNT(*) FILTER (WHERE fl.respondida = true) as total_respondidas,
+  ROUND(
+    COUNT(*) FILTER (WHERE fl.respondida = true)::numeric / 
+    NULLIF(COUNT(*), 0) * 100, 
+    2
+  ) as taxa_resposta_pct,
+  COUNT(*) FILTER (WHERE fl.converteu = true) as total_conversoes,
+  ROUND(
+    COUNT(*) FILTER (WHERE fl.converteu = true)::numeric / 
+    NULLIF(COUNT(*), 0) * 100, 
+    2
+  ) as taxa_conversao_pct
+FROM followup_logs fl
+JOIN conversas c ON c.id = fl.conversa_id
+LEFT JOIN conversas_etiquetas ce ON ce.conversa_id = c.id
+LEFT JOIN etiquetas e ON e.id = ce.etiqueta_id AND e.tipo = 'funil'
+WHERE e.nome IS NOT NULL
+GROUP BY e.nome, fl.mensagem_numero
+ORDER BY taxa_conversao_pct DESC NULLS LAST;
+
+-- View: Horário de melhor resposta
+CREATE OR REPLACE VIEW followup_melhor_horario AS
+SELECT 
+  EXTRACT(HOUR FROM enviada_em) as hora_envio,
+  COUNT(*) as total_enviadas,
+  COUNT(*) FILTER (WHERE respondida = true) as total_respondidas,
+  ROUND(
+    COUNT(*) FILTER (WHERE respondida = true)::numeric / 
+    NULLIF(COUNT(*), 0) * 100, 
+    2
+  ) as taxa_resposta_pct,
+  AVG(EXTRACT(EPOCH FROM tempo_ate_resposta) / 60) as tempo_medio_resposta_min
+FROM followup_logs
+WHERE respondida = true
+GROUP BY EXTRACT(HOUR FROM enviada_em)
+ORDER BY taxa_resposta_pct DESC;
+
+-- View: Motivos de não conversão
+CREATE OR REPLACE VIEW followup_motivos_perda AS
+SELECT 
+  motivo_nao_conversao,
+  COUNT(*) as total,
+  ROUND(
+    COUNT(*)::numeric / 
+    (SELECT COUNT(*) FROM followup_logs WHERE respondida = true AND converteu = false) * 100,
+    2
+  ) as percentual
+FROM followup_logs
+WHERE respondida = true 
+  AND converteu = false
+  AND motivo_nao_conversao IS NOT NULL
+GROUP BY motivo_nao_conversao
+ORDER BY total DESC;
+
+-- View: Jornada completa do lead
+CREATE OR REPLACE VIEW followup_jornada_lead AS
+SELECT 
+  c.id as conversa_id,
+  cl.nome as cliente_nome,
+  cl.whatsapp,
+  c.janela_72h_inicio,
+  COUNT(fl.id) as total_mensagens_enviadas,
+  MAX(fl.mensagem_numero) as ultima_mensagem_enviada,
+  BOOL_OR(fl.respondida) as respondeu_alguma,
+  MIN(fl.respondida_em) FILTER (WHERE fl.respondida = true) as primeira_resposta_em,
+  ARRAY_AGG(fl.mensagem_numero ORDER BY fl.mensagem_numero) FILTER (WHERE fl.respondida = true) as mensagens_respondidas,
+  BOOL_OR(fl.converteu) as converteu,
+  (
+    SELECT e.nome 
+    FROM conversas_etiquetas ce 
+    JOIN etiquetas e ON e.id = ce.etiqueta_id 
+    WHERE ce.conversa_id = c.id AND e.tipo = 'funil'
+    ORDER BY ce.created_at DESC 
+    LIMIT 1
+  ) as etiqueta_funil_atual
+FROM conversas c
+JOIN clientes cl ON cl.id = c.cliente_id
+LEFT JOIN followup_logs fl ON fl.conversa_id = c.id
+WHERE c.origem = 'anuncio'
+GROUP BY c.id, cl.nome, cl.whatsapp, c.janela_72h_inicio
+ORDER BY c.janela_72h_inicio DESC;
+```
+
+---
+
+## 📈 DASHBOARD ANALYTICS DE FOLLOW-UP
+
+Criar página completa de analytics do follow-up em `src/pages/FollowUpAnalytics.tsx`
+
+### SEÇÃO 1: OVERVIEW (Cards principais)
+
+```typescript
+interface OverviewMetrics {
+  totalLeads: number;
+  taxaRespostaGeral: number;
+  taxaConversaoGeral: number;
+  tempoMedioResposta: string; // "2h 30min"
+  mensagemComMelhorTaxa: number; // 1-9
+  melhorHorarioEnvio: string; // "09:00"
+}
+```
+
+**Cards a exibir:**
+1. **Total de Leads** (últimos 30 dias)
+2. **Taxa de Resposta Geral** (%)
+3. **Taxa de Conversão** (%)
+4. **Tempo Médio de Resposta**
+5. **Melhor Mensagem** (#1-9 com taxa)
+6. **Melhor Horário** (9h, 13h ou 16h)
+
+### SEÇÃO 2: FUNIL DE CONVERSÃO
+
+Gráfico de funil mostrando:
+```
+100% - Mensagem 1 enviada (1000 leads)
+  ↓
+87% - Mensagem 2 enviada (870 - dropou 130)
+  ↓
+75% - Mensagem 3 enviada (750 - dropou 120)
+  ↓
+...
+  ↓
+15% - Converteu (150 conversões)
+```
+
+**Código base:**
+```typescript
+const FunilConversao = () => {
+  const [dados, setDados] = useState([]);
+
+  useEffect(() => {
+    const fetchDados = async () => {
+      const { data } = await supabase.rpc('get_funil_conversao');
+      setDados(data);
+    };
+    fetchDados();
+  }, []);
+
+  return (
+    <div className="space-y-2">
+      {dados.map((etapa, idx) => (
+        <div key={idx} className="flex items-center gap-3">
+          <div 
+            className="h-12 bg-gradient-to-r from-blue-500 to-blue-600 rounded flex items-center justify-between px-4 text-white font-semibold"
+            style={{ width: `${etapa.percentual}%` }}
+          >
+            <span>Mensagem {etapa.numero}</span>
+            <span>{etapa.total} ({etapa.percentual}%)</span>
+          </div>
+          {etapa.dropoff > 0 && (
+            <span className="text-sm text-red-600">
+              -{etapa.dropoff} ({etapa.dropoffPct}%)
+            </span>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+};
+```
+
+### SEÇÃO 3: PERFORMANCE POR MENSAGEM (Tabela + Gráfico)
+
+**Tabela:**
+| Msg | Dia | Enviadas | Respondidas | Taxa Resp | Conversões | Taxa Conv | Tempo Médio | Ação |
+|-----|-----|----------|-------------|-----------|------------|-----------|-------------|------|
+| 1   | 1   | 1000     | 120         | 12%       | 15         | 1.5%      | 3h 20min    | 📊   |
+| 2   | 1   | 870      | 95          | 10.9%     | 12         | 1.4%      | 2h 45min    | 📊   |
+| 3   | 1   | 750      | 110         | 14.7%     | 18         | 2.4%      | 1h 30min    | ⭐   |
+| ... | ... | ...      | ...         | ...       | ...        | ...       | ...         | ...  |
+
+**Gráfico de barras:**
+- Eixo X: Mensagem (1-9)
+- Eixo Y Esquerdo: Taxa de Resposta (%)
+- Eixo Y Direito: Taxa de Conversão (%)
+- Barras: Taxa de resposta (azul)
+- Linha: Taxa de conversão (verde)
+
+**Código base:**
+```typescript
+import { BarChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ComposedChart } from 'recharts';
+
+const PerformanceMensagens = () => {
+  const [dados, setDados] = useState([]);
+
+  useEffect(() => {
+    const fetchDados = async () => {
+      const { data } = await supabase
+        .from('followup_performance_mensagem')
+        .select('*')
+        .order('mensagem_numero');
+      setDados(data);
+    };
+    fetchDados();
+  }, []);
+
+  return (
+    <div className="space-y-6">
+      {/* Gráfico */}
+      <ResponsiveContainer width="100%" height={400}>
+        <ComposedChart data={dados}>
+          <CartesianGrid strokeDasharray="3 3" />
+          <XAxis dataKey="mensagem_numero" label={{ value: 'Mensagem', position: 'insideBottom', offset: -5 }} />
+          <YAxis yAxisId="left" label={{ value: 'Taxa Resposta (%)', angle: -90, position: 'insideLeft' }} />
+          <YAxis yAxisId="right" orientation="right" label={{ value: 'Taxa Conversão (%)', angle: 90, position: 'insideRight' }} />
+          <Tooltip />
+          <Legend />
+          <Bar yAxisId="left" dataKey="taxa_resposta_pct" fill="#3B82F6" name="Taxa de Resposta" />
+          <Line yAxisId="right" type="monotone" dataKey="taxa_conversao_pct" stroke="#10B981" strokeWidth={2} name="Taxa de Conversão" />
+        </ComposedChart>
+      </ResponsiveContainer>
+
+      {/* Tabela */}
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead className="bg-gray-50 border-b">
+            <tr>
+              <th className="px-4 py-3 text-left">Msg</th>
+              <th className="px-4 py-3 text-left">Dia</th>
+              <th className="px-4 py-3 text-right">Enviadas</th>
+              <th className="px-4 py-3 text-right">Respondidas</th>
+              <th className="px-4 py-3 text-right">Taxa Resp</th>
+              <th className="px-4 py-3 text-right">Conversões</th>
+              <th className="px-4 py-3 text-right">Taxa Conv</th>
+              <th className="px-4 py-3 text-right">Tempo Médio</th>
+              <th className="px-4 py-3 text-center">Ação</th>
+            </tr>
+          </thead>
+          <tbody>
+            {dados.map((msg) => (
+              <tr key={msg.mensagem_numero} className="border-b hover:bg-gray-50">
+                <td className="px-4 py-3 font-semibold">#{msg.mensagem_numero}</td>
+                <td className="px-4 py-3">Dia {msg.mensagem_dia}</td>
+                <td className="px-4 py-3 text-right">{msg.total_enviadas}</td>
+                <td className="px-4 py-3 text-right">{msg.total_respondidas}</td>
+                <td className="px-4 py-3 text-right">
+                  <span className={`font-semibold ${msg.taxa_resposta_pct > 15 ? 'text-green-600' : 'text-gray-600'}`}>
+                    {msg.taxa_resposta_pct}%
+                  </span>
+                </td>
+                <td className="px-4 py-3 text-right">{msg.total_conversoes}</td>
+                <td className="px-4 py-3 text-right">
+                  <span className={`font-semibold ${msg.taxa_conversao_pct > 2 ? 'text-green-600' : 'text-gray-600'}`}>
+                    {msg.taxa_conversao_pct}%
+                  </span>
+                </td>
+                <td className="px-4 py-3 text-right text-gray-600">
+                  {Math.round(msg.tempo_medio_resposta_minutos)}min
+                </td>
+                <td className="px-4 py-3 text-center">
+                  {msg.taxa_conversao_pct > 2 ? '⭐' : '📊'}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+};
+```
+
+### SEÇÃO 4: HEATMAP DE HORÁRIOS
+
+Mostrar qual horário (9h, 13h, 16h) tem melhor taxa de resposta:
+
+```typescript
+const HeatmapHorarios = () => {
+  const [dados, setDados] = useState([]);
+
+  useEffect(() => {
+    const fetchDados = async () => {
+      const { data } = await supabase
+        .from('followup_melhor_horario')
+        .select('*')
+        .order('taxa_resposta_pct', { ascending: false });
+      setDados(data);
+    };
+    fetchDados();
+  }, []);
+
+  const getColor = (taxa: number) => {
+    if (taxa > 15) return 'bg-green-500';
+    if (taxa > 10) return 'bg-yellow-500';
+    return 'bg-red-500';
+  };
+
+  return (
+    <div className="grid grid-cols-3 gap-4">
+      {dados.map((horario) => (
+        <div
+          key={horario.hora_envio}
+          className={`p-6 rounded-lg text-white ${getColor(horario.taxa_resposta_pct)}`}
+        >
+          <div className="text-3xl font-bold mb-2">
+            {horario.hora_envio}:00
+          </div>
+          <div className="text-lg mb-1">
+            Taxa: {horario.taxa_resposta_pct}%
+          </div>
+          <div className="text-sm opacity-80">
+            {horario.total_respondidas}/{horario.total_enviadas} responderam
+          </div>
+          <div className="text-xs opacity-70 mt-2">
+            Tempo médio: {Math.round(horario.tempo_medio_resposta_min)}min
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+};
+```
+
+### SEÇÃO 5: PERFORMANCE POR ETIQUETA DE FUNIL
+
+Mostrar qual etapa do funil converte melhor:
+
+```typescript
+const PerformanceFunil = () => {
+  const [dados, setDados] = useState([]);
+
+  useEffect(() => {
+    const fetchDados = async () => {
+      const { data } = await supabase
+        .from('followup_performance_funil')
+        .select('*')
+        .order('taxa_conversao_pct', { ascending: false })
+        .limit(10);
+      setDados(data);
+    };
+    fetchDados();
+  }, []);
+
+  return (
+    <ResponsiveContainer width="100%" height={400}>
+      <BarChart data={dados} layout="vertical">
+        <CartesianGrid strokeDasharray="3 3" />
+        <XAxis type="number" />
+        <YAxis dataKey="etiqueta_funil" type="category" width={150} />
+        <Tooltip />
+        <Legend />
+        <Bar dataKey="taxa_resposta_pct" fill="#3B82F6" name="Taxa Resposta %" />
+        <Bar dataKey="taxa_conversao_pct" fill="#10B981" name="Taxa Conversão %" />
+      </BarChart>
+    </ResponsiveContainer>
+  );
+};
+```
+
+### SEÇÃO 6: MOTIVOS DE NÃO CONVERSÃO
+
+Gráfico pizza mostrando por que leads não converteram:
+
+```typescript
+const MotivosPerda = () => {
+  const [dados, setDados] = useState([]);
+
+  useEffect(() => {
+    const fetchDados = async () => {
+      const { data } = await supabase
+        .from('followup_motivos_perda')
+        .select('*')
+        .order('total', { ascending: false });
+      setDados(data);
+    };
+    fetchDados();
+  }, []);
+
+  const COLORS = ['#EF4444', '#F59E0B', '#3B82F6', '#8B5CF6', '#EC4899'];
+
+  return (
+    <ResponsiveContainer width="100%" height={400}>
+      <PieChart>
+        <Pie
+          data={dados}
+          dataKey="total"
+          nameKey="motivo_nao_conversao"
+          cx="50%"
+          cy="50%"
+          outerRadius={120}
+          label={(entry) => `${entry.motivo_nao_conversao}: ${entry.percentual}%`}
+        >
+          {dados.map((entry, index) => (
+            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+          ))}
+        </Pie>
+        <Tooltip />
+        <Legend />
+      </PieChart>
+    </ResponsiveContainer>
+  );
+};
+```
+
+### SEÇÃO 7: JORNADAS DE SUCESSO (Exemplos reais)
+
+Mostrar jornadas completas de leads que converteram:
+
+```typescript
+const JornadasSucesso = () => {
+  const [jornadas, setJornadas] = useState([]);
+
+  useEffect(() => {
+    const fetchJornadas = async () => {
+      const { data } = await supabase
+        .from('followup_jornada_lead')
+        .select('*')
+        .eq('converteu', true)
+        .order('primeira_resposta_em', { ascending: true })
+        .limit(10);
+      setJornadas(data);
+    };
+    fetchJornadas();
+  }, []);
+
+  return (
+    <div className="space-y-4">
+      {jornadas.map((jornada) => (
+        <div key={jornada.conversa_id} className="border rounded-lg p-4 bg-green-50">
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <div className="font-semibold">{jornada.cliente_nome}</div>
+              <div className="text-sm text-gray-600">{jornada.whatsapp}</div>
+            </div>
+            <div className="text-right">
+              <div className="text-sm text-gray-600">Etiqueta</div>
+              <div className="font-semibold">{jornada.etiqueta_funil_atual}</div>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 text-sm">
+            <div className="flex items-center gap-1">
+              <span className="font-medium">Enviadas:</span>
+              <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded">
+                {jornada.total_mensagens_enviadas}
+              </span>
+            </div>
+            <div className="flex items-center gap-1">
+              <span className="font-medium">Respondeu em:</span>
+              <span className="px-2 py-1 bg-green-100 text-green-700 rounded font-mono">
+                {jornada.mensagens_respondidas?.join(', ') || 'N/A'}
+              </span>
+            </div>
+            <div className="flex items-center gap-1">
+              <span className="font-medium">Primeira resposta:</span>
+              <span className="text-gray-600">
+                {new Date(jornada.primeira_resposta_em).toLocaleDateString()}
+              </span>
+            </div>
+          </div>
+
+          <div className="mt-3 flex items-center gap-2">
+            {Array.from({ length: 9 }, (_, i) => i + 1).map((num) => {
+              const enviou = num <= jornada.ultima_mensagem_enviada;
+              const respondeu = jornada.mensagens_respondidas?.includes(num);
+              return (
+                <div
+                  key={num}
+                  className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${
+                    respondeu
+                      ? 'bg-green-500 text-white'
+                      : enviou
+                      ? 'bg-blue-500 text-white'
+                      : 'bg-gray-200 text-gray-400'
+                  }`}
+                >
+                  {num}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+};
+```
+
+### SEÇÃO 8: TESTES A/B
+
+Interface para criar e monitorar testes A/B:
+
+```typescript
+const TestesAB = () => {
+  const [testes, setTestes] = useState([]);
+  const [criandoTeste, setCriandoTeste] = useState(false);
+
+  const criarTeste = async (dados) => {
+    await supabase.from('followup_ab_tests').insert(dados);
+    // Refresh
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <h3 className="text-xl font-bold">Testes A/B Ativos</h3>
+        <button
+          onClick={() => setCriandoTeste(true)}
+          className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+        >
+          + Novo Teste A/B
+        </button>
+      </div>
+
+      <div className="grid gap-4">
+        {testes.map((teste) => (
+          <div key={teste.id} className="border rounded-lg p-6">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h4 className="font-semibold text-lg">{teste.nome}</h4>
+                <p className="text-sm text-gray-600">Mensagem #{teste.mensagem_numero}</p>
+              </div>
+              <div className={`px-3 py-1 rounded ${teste.ativo ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
+                {teste.ativo ? 'Ativo' : 'Finalizado'}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-6">
+              {/* Variante A */}
+              <div className="border-r pr-6">
+                <div className="text-sm font-semibold mb-2">Variante A</div>
+                <div className="bg-gray-50 p-3 rounded text-sm mb-3">
+                  {teste.variante_a}
+                </div>
+                <div className="space-y-1 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Enviadas:</span>
+                    <span className="font-semibold">{teste.total_enviadas_a}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Taxa Resposta:</span>
+                    <span className="font-semibold">{teste.taxa_resposta_a}%</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Taxa Conversão:</span>
+                    <span className="font-semibold">{teste.taxa_conversao_a}%</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Variante B */}
+              <div className="pl-6">
+                <div className="text-sm font-semibold mb-2">Variante B</div>
+                <div className="bg-gray-50 p-3 rounded text-sm mb-3">
+                  {teste.variante_b}
+                </div>
+                <div className="space-y-1 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Enviadas:</span>
+                    <span className="font-semibold">{teste.total_enviadas_b}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Taxa Resposta:</span>
+                    <span className="font-semibold">{teste.taxa_resposta_b}%</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Taxa Conversão:</span>
+                    <span className="font-semibold">{teste.taxa_conversao_b}%</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {teste.vencedor && (
+              <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded">
+                <div className="text-sm font-semibold text-yellow-800">
+                  🏆 Vencedor: Variante {teste.vencedor}
+                </div>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+```
+
+---
+
+## 🔄 ATUALIZAR WORKFLOW 04 (N8N)
+
+Adicionar nó após "Enviar WhatsApp" para salvar log:
+
+### NÓ NOVO: Salvar Log Follow-up (Supabase)
+
+**Operation:** Create
+
+**Table:** `followup_logs`
+
+**Fields:**
+```json
+{
+  "conversa_id": "={{ $('Gerar Prompt IA').first().json.conversa_id }}",
+  "mensagem_numero": "={{ $('Gerar Prompt IA').first().json.proxima_mensagem }}",
+  "mensagem_dia": "={{ Math.ceil($('Gerar Prompt IA').first().json.proxima_mensagem / 3) }}",
+  "estrategia": "={{ $('Gerar Prompt IA').first().json.estrategia_resumo }}",
+  "prompt_usado": "={{ $('Gerar Prompt IA').first().json.prompt }}",
+  "mensagem_gerada": "={{ $('Chamar OpenAI').first().json.choices[0].message.content }}",
+  "mensagem_enviada": "={{ $('Chamar OpenAI').first().json.choices[0].message.content.trim() }}",
+  "enviada_em": "={{ $now.toISO() }}",
+  "metadata": {
+    "etiqueta_funil": "={{ $('Gerar Prompt IA').first().json.etiqueta_funil }}",
+    "produtos_interesse": "={{ $('Gerar Prompt IA').first().json.produtos_interesse }}"
+  }
+}
+```
+
+---
+
+## 📊 FUNÇÃO PARA ATUALIZAR MÉTRICAS
+
+Criar função SQL que roda diariamente (via cron job ou workflow):
+
+```sql
+CREATE OR REPLACE FUNCTION atualizar_metricas_followup_diarias()
+RETURNS void AS $$
+BEGIN
+  -- Limpar métricas de hoje (se já existirem)
+  DELETE FROM followup_metricas_diarias WHERE data = CURRENT_DATE;
+  
+  -- Inserir métricas atualizadas
+  INSERT INTO followup_metricas_diarias (
+    data,
+    mensagem_numero,
+    total_enviadas,
+    total_respondidas,
+    taxa_resposta,
+    tempo_medio_resposta,
+    total_conversoes,
+    taxa_conversao,
+    horario_envio,
+    melhor_etiqueta_funil,
+    melhor_produto
+  )
+  SELECT 
+    CURRENT_DATE,
+    mensagem_numero,
+    COUNT(*),
+    COUNT(*) FILTER (WHERE respondida = true),
+    ROUND(
+      COUNT(*) FILTER (WHERE respondida = true)::numeric / 
+      NULLIF(COUNT(*), 0) * 100,
+      2
+    ),
+    AVG(tempo_ate_resposta) FILTER (WHERE respondida = true),
+    COUNT(*) FILTER (WHERE converteu = true),
+    ROUND(
+      COUNT(*) FILTER (WHERE converteu = true)::numeric / 
+      NULLIF(COUNT(*), 0) * 100,
+      2
+    ),
+    CASE 
+      WHEN mensagem_numero % 3 = 1 THEN '09:00'::TIME
+      WHEN mensagem_numero % 3 = 2 THEN '13:00'::TIME
+      ELSE '16:00'::TIME
+    END,
+    (
+      SELECT e.nome
+      FROM followup_logs fl2
+      JOIN conversas c ON c.id = fl2.conversa_id
+      LEFT JOIN conversas_etiquetas ce ON ce.conversa_id = c.id
+      LEFT JOIN etiquetas e ON e.id = ce.etiqueta_id AND e.tipo = 'funil'
+      WHERE fl2.mensagem_numero = fl.mensagem_numero
+        AND fl2.converteu = true
+        AND e.nome IS NOT NULL
+      GROUP BY e.nome
+      ORDER BY COUNT(*) DESC
+      LIMIT 1
+    ),
+    NULL -- melhor_produto (implementar depois)
+  FROM followup_logs fl
+  WHERE DATE(enviada_em) = CURRENT_DATE
+  GROUP BY mensagem_numero;
+END;
+$$ LANGUAGE plpgsql;
+```
+
+---
+
+## 🎯 WEBHOOK PARA MARCAR RESPOSTA
+
+Criar endpoint que o n8n chama quando cliente responde:
+
+**POST /api/webhook/marcar-resposta-followup**
+
+```typescript
+import { supabase } from '@/lib/supabase';
+
+export default async function handler(req, res) {
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  const { conversa_id, tipo_resposta, converteu, motivo_nao_conversao } = req.body;
+
+  try {
+    // Buscar último follow-up não respondido
+    const { data: ultimoLog } = await supabase
+      .from('followup_logs')
+      .select('*')
+      .eq('conversa_id', conversa_id)
+      .eq('respondida', false)
+      .order('enviada_em', { ascending: false })
+      .limit(1)
+      .single();
+
+    if (!ultimoLog) {
+      return res.status(404).json({ error: 'Log não encontrado' });
+    }
+
+    // Calcular tempo até resposta
+    const agora = new Date();
+    const enviada = new Date(ultimoLog.enviada_em);
+    const tempoAteResposta = agora - enviada;
+
+    // Atualizar log
+    await supabase
+      .from('followup_logs')
+      .update({
+        respondida: true,
+        respondida_em: agora.toISOString(),
+        tempo_ate_resposta: `${Math.floor(tempoAteResposta / 1000)} seconds`,
+        tipo_resposta: tipo_resposta || 'neutral',
+        converteu: converteu || false,
+        motivo_nao_conversao: motivo_nao_conversao
+      })
+      .eq('id', ultimoLog.id);
+
+    return res.status(200).json({ success: true });
+  } catch (error) {
+    console.error('Erro ao marcar resposta:', error);
+    return res.status(500).json({ error: error.message });
+  }
+}
+```
+
+---
+
+## 📋 CHECKLIST DE IMPLEMENTAÇÃO
+
+1. [ ] Criar tabelas: `followup_logs`, `followup_metricas_diarias`, `followup_ab_tests`
+2. [ ] Criar views de analytics
+3. [ ] Criar função `atualizar_metricas_followup_diarias()`
+4. [ ] Adicionar nó "Salvar Log" no Workflow 04
+5. [ ] Criar webhook `/api/webhook/marcar-resposta-followup`
+6. [ ] Criar página `FollowUpAnalytics.tsx` com todas as seções
+7. [ ] Adicionar rota no menu: "Analytics Follow-up"
+8. [ ] Criar job diário para atualizar métricas
+9. [ ] Testar fluxo completo
+10. [ ] Criar primeiros testes A/B
+
+---
+
+## 🎯 QUERIES ÚTEIS PARA INSIGHTS
+
+```sql
+-- Qual mensagem converte mais?
+SELECT mensagem_numero, taxa_conversao_pct 
+FROM followup_performance_mensagem 
+ORDER BY taxa_conversao_pct DESC 
+LIMIT 1;
+
+-- Qual etapa do funil responde melhor?
+SELECT etiqueta_funil, AVG(taxa_resposta_pct) as media_resposta
+FROM followup_performance_funil
+GROUP BY etiqueta_funil
+ORDER BY media_resposta DESC;
+
+-- Leads que responderam mas não converteram
+SELECT 
+  c.id,
+  cl.nome,
+  fl.mensagem_numero,
+  fl.motivo_nao_conversao
+FROM followup_logs fl
+JOIN conversas c ON c.id = fl.conversa_id
+JOIN clientes cl ON cl.id = c.cliente_id
+WHERE fl.respondida = true AND fl.converteu = false
+ORDER BY fl.respondida_em DESC;
+
+-- Taxa de conversão por dia da semana
+SELECT 
+  EXTRACT(DOW FROM enviada_em) as dia_semana,
+  COUNT(*) as total,
+  COUNT(*) FILTER (WHERE converteu = true) as conversoes,
+  ROUND(COUNT(*) FILTER (WHERE converteu = true)::numeric / COUNT(*) * 100, 2) as taxa
+FROM followup_logs
+GROUP BY EXTRACT(DOW FROM enviada_em)
+ORDER BY taxa DESC;
+```
+
+---
+
+## 🚀 PRÓXIMOS PASSOS DE OTIMIZAÇÃO
+
+1. **Machine Learning:** Prever qual mensagem tem mais chance de converter baseado no perfil
+2. **Personalização dinâmica:** Ajustar mensagens em tempo real baseado em dados
+3. **Horários inteligentes:** Enviar no melhor horário para cada cliente
+4. **Segmentação:** Criar sequências diferentes para diferentes perfis
+5. **Retargeting:** Re-engajar leads que não converteram após 30 dias
+
+---
+
+Implemente tudo isso e você terá o sistema de follow-up mais avançado e orientado por dados do mercado. 🚀📊

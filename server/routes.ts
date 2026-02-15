@@ -744,6 +744,61 @@ export async function registerRoutes(
     }
   });
 
+  app.post("/api/webhook/marcar-resposta-followup", async (req, res) => {
+    try {
+      const { conversa_id, tipo_resposta, converteu, motivo_nao_conversao } = req.body;
+
+      if (!conversa_id) {
+        return res.status(400).json({ error: "conversa_id é obrigatório" });
+      }
+
+      if (!supabaseServer) {
+        return res.status(500).json({ error: "Supabase não configurado" });
+      }
+
+      const { data: ultimoLog, error: fetchError } = await supabaseServer
+        .from('followup_logs')
+        .select('*')
+        .eq('conversa_id', conversa_id)
+        .eq('respondida', false)
+        .order('enviada_em', { ascending: false })
+        .limit(1)
+        .single();
+
+      if (fetchError || !ultimoLog) {
+        return res.status(404).json({ error: "Log de follow-up não encontrado para esta conversa" });
+      }
+
+      const agora = new Date();
+      const enviada = new Date(ultimoLog.enviada_em);
+      const diffMs = agora.getTime() - enviada.getTime();
+      const diffSeconds = Math.floor(diffMs / 1000);
+
+      const { error: updateError } = await supabaseServer
+        .from('followup_logs')
+        .update({
+          respondida: true,
+          respondida_em: agora.toISOString(),
+          tempo_ate_resposta: `${diffSeconds} seconds`,
+          tipo_resposta: tipo_resposta || 'neutral',
+          converteu: converteu || false,
+          motivo_nao_conversao: motivo_nao_conversao || null
+        })
+        .eq('id', ultimoLog.id);
+
+      if (updateError) {
+        console.error("[followup] Erro ao atualizar log:", updateError.message);
+        return res.status(500).json({ error: updateError.message });
+      }
+
+      console.log(`[followup] Resposta marcada para conversa ${conversa_id}, log ${ultimoLog.id}`);
+      res.json({ success: true, log_id: ultimoLog.id });
+    } catch (error: any) {
+      console.error("[followup] Erro:", error.message);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   app.get("/api/webhook/distribuicao-status", async (_req, res) => {
     try {
       if (!supabaseServer) {
