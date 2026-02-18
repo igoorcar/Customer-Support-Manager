@@ -27,16 +27,17 @@ import {
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/use-auth";
 import { api } from "@/services/api";
 
 const menuItems = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard },
   { title: "Conversas", url: "/conversas", icon: MessageSquare, hasBadge: true },
-  { title: "Clientes", url: "/clientes", icon: Users },
+  { title: "Clientes", url: "/clientes", icon: Users, adminOnly: true },
   { title: "Respostas Rápidas", url: "/respostas", icon: Zap },
   { title: "Produtos", url: "/produtos", icon: Package },
-  { title: "Relatórios", url: "/relatorios", icon: BarChart3 },
-  { title: "Follow-up 72h", url: "/followup", icon: Crosshair },
+  { title: "Relatórios", url: "/relatorios", icon: BarChart3, adminOnly: true },
+  { title: "Follow-up 72h", url: "/followup", icon: Crosshair, adminOnly: true },
   { title: "Configurações", url: "/configuracoes", icon: Settings },
 ];
 
@@ -106,6 +107,10 @@ function useNewLeadNotification() {
 
 export function AppSidebar() {
   const [location] = useLocation();
+  const { user } = useAuth();
+  const isAdmin = user?.role === "admin";
+
+  const visibleMenuItems = menuItems.filter(item => !item.adminOnly || isAdmin);
 
   const { data: stats } = useQuery({
     queryKey: ["sidebar-stats"],
@@ -136,7 +141,7 @@ export function AppSidebar() {
           <SidebarGroupLabel>Menu</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {menuItems.map((item) => {
+              {visibleMenuItems.map((item) => {
                 const isActive = location === item.url || (item.url !== "/" && location.startsWith(item.url));
                 return (
                   <SidebarMenuItem key={item.title}>
@@ -168,13 +173,13 @@ export function AppSidebar() {
           <div className="relative">
             <Avatar className="w-9 h-9" data-testid="avatar-sidebar-user">
               <AvatarFallback className="bg-primary/10 text-primary text-sm font-semibold">
-                SU
+                {(user?.username || "U").substring(0, 2).toUpperCase()}
               </AvatarFallback>
             </Avatar>
             <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-status-online border-2 border-sidebar" data-testid="status-sidebar-user" />
           </div>
           <div className="flex flex-col min-w-0">
-            <span className="text-sm font-medium truncate" data-testid="text-sidebar-username">Suellen</span>
+            <span className="text-sm font-medium truncate" data-testid="text-sidebar-username">{user?.username || "Usuário"}</span>
             <span className="text-xs text-muted-foreground" data-testid="text-sidebar-status">Online</span>
           </div>
         </div>
