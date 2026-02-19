@@ -44,7 +44,7 @@ export function setupAuth(app: Express) {
         connectionString: process.env.DATABASE_URL,
         ssl: (process.env.DATABASE_URL?.includes("supabase.com") || process.env.DATABASE_URL?.includes("neon.tech")) ? { rejectUnauthorized: false } : undefined,
       },
-      createTableIfMissing: true,
+      createTableIfMissing: false,
     }),
     secret: process.env.SESSION_SECRET || "otica-suellen-secret-key-dev",
     resave: false,
