@@ -1,0 +1,54 @@
+version: "3.8"
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        - VITE_SUPABASE_URL=${VITE_SUPABASE_URL}
+        - VITE_SUPABASE_ANON_KEY=${VITE_SUPABASE_ANON_KEY}
+    container_name: otica-suellen-app
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    environment:
+      - NODE_ENV=production
+      - PORT=5000
+      - DATABASE_URL=postgresql://otica:otica123@postgres:5432/otica_suellen
+      - SESSION_SECRET=${SESSION_SECRET:-otica-suellen-prod-secret-change-me}
+      - VITE_SUPABASE_URL=${VITE_SUPABASE_URL}
+      - VITE_SUPABASE_ANON_KEY=${VITE_SUPABASE_ANON_KEY}
+      - WHATSAPP_ACCESS_TOKEN=${WHATSAPP_ACCESS_TOKEN}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - otica-network
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: otica-suellen-db
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=otica
+      - POSTGRES_PASSWORD=otica123
+      - POSTGRES_DB=otica_suellen
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U otica -d otica_suellen"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - otica-network
+
+volumes:
+  postgres_data:
+
+networks:
+  otica-network:
+    driver: bridge
