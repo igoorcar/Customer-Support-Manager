@@ -42,7 +42,7 @@ export function setupAuth(app: Express) {
     store: new PgStore({
       conObject: {
         connectionString: process.env.DATABASE_URL,
-        ssl: process.env.DATABASE_URL?.includes("pooler.supabase.com") ? { rejectUnauthorized: false } : undefined,
+        ssl: (process.env.DATABASE_URL?.includes("supabase.com") || process.env.DATABASE_URL?.includes("neon.tech")) ? { rejectUnauthorized: false } : undefined,
       },
       createTableIfMissing: true,
     }),
