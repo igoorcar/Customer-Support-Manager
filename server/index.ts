@@ -63,6 +63,13 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+  const { runMigrations } = await import("./migrate");
+  try {
+    await runMigrations();
+  } catch (e) {
+    console.error("Migration error:", e);
+  }
+
   const { seedDatabase } = await import("./seed");
   try {
     await seedDatabase();
