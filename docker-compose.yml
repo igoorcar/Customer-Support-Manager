@@ -19,7 +19,7 @@ services:
       - SESSION_SECRET=${SESSION_SECRET:-otica-suellen-prod-secret-change-me}
       - VITE_SUPABASE_URL=${VITE_SUPABASE_URL}
       - VITE_SUPABASE_ANON_KEY=${VITE_SUPABASE_ANON_KEY}
-      - WHATSAPP_ACCESS_TOKEN=${WHATSAPP_ACCESS_TOKEN}
+      - WHATSAPP_ACCESS_TOKEN=${WHATSAPP_ACCESS_TOKEN:-}
     depends_on:
       postgres:
         condition: service_healthy
