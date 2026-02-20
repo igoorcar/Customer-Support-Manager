@@ -480,7 +480,11 @@ export default function RespostasRapidas() {
               ))
             ) : filteredBotoes && filteredBotoes.length > 0 ? (
               filteredBotoes.map((botao) => (
-                <BotaoCard key={botao.id} botao={botao} />
+                <BotaoCard 
+                  key={botao.id} 
+                  botao={botao} 
+                  deleteBotaoMutation={deleteBotaoMutation}
+                />
               ))
             ) : (
               <Card className="md:col-span-2 xl:col-span-3">
@@ -509,7 +513,13 @@ export default function RespostasRapidas() {
   );
 }
 
-function BotaoCard({ botao }: { botao: BotaoResposta }) {
+function BotaoCard({ 
+  botao, 
+  deleteBotaoMutation 
+}: { 
+  botao: BotaoResposta;
+  deleteBotaoMutation: any;
+}) {
   const [midias, setMidias] = useState<BotaoMidia[]>([]);
   const [midiasLoaded, setMidiasLoaded] = useState(false);
   const [expanded, setExpanded] = useState(false);
