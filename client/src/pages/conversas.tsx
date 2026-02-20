@@ -255,9 +255,9 @@ function BotaoRespostaPanel({
     <div className="space-y-1">
       {botoes.map((botao) => (
         <div key={botao.id}>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1">
             <button
-              className="flex-1 text-left p-2 rounded-md hover-elevate transition-colors"
+              className="flex-1 min-w-0 text-left p-2 rounded-md hover-elevate transition-colors"
               onClick={() => loadMidias(botao.id)}
               data-testid={`button-botao-preview-${botao.id}`}
             >
@@ -267,8 +267,9 @@ function BotaoRespostaPanel({
               )}
             </button>
             <Button
-              size="sm"
+              size="icon"
               variant="ghost"
+              className="flex-shrink-0 h-8 w-8"
               onClick={() => onEnviar(botao)}
               disabled={isPending}
               data-testid={`button-enviar-botao-${botao.id}`}
