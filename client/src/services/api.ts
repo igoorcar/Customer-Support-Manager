@@ -344,6 +344,26 @@ export const api = {
     }
   },
 
+  async deletarBotao(id: number) {
+    // 1. Deletar mídias associadas (estrangeiras)
+    const { error: midiaError } = await supabase
+      .from('botoes_midias')
+      .delete()
+      .eq('botao_id', id);
+
+    if (midiaError) throw midiaError;
+
+    // 2. Deletar o botão
+    const { error: botaoError } = await supabase
+      .from('botoes_resposta')
+      .delete()
+      .eq('id', id);
+
+    if (botaoError) throw botaoError;
+
+    return true;
+  },
+
   async uploadMidia(file: File, isAudio?: boolean) {
     const mimeBase = file.type.split(';')[0].trim();
 

@@ -169,6 +169,23 @@ export default function RespostasRapidas() {
   const totalActive = replies?.filter(r => r.active).length || 0;
   const totalInactive = replies?.filter(r => !r.active).length || 0;
 
+  const deleteBotaoMutation = useMutation({
+    mutationFn: async (id: number) => {
+      await api.deletarBotao(id);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["supabase-botoes"] });
+      toast({ title: "Botão removido com sucesso" });
+    },
+    onError: (error: any) => {
+      toast({ 
+        title: "Erro ao remover botão", 
+        description: error.message || "Ocorreu um erro inesperado",
+        variant: "destructive" 
+      });
+    },
+  });
+
   const filteredBotoes = botoes?.filter((b) => {
     if (!searchTerm) return true;
     return b.label.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -572,6 +589,23 @@ function BotaoCard({ botao }: { botao: BotaoResposta }) {
             )}
           </div>
         )}
+        <div className="flex items-center justify-end gap-1 mt-4 pt-3 border-t">
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="text-destructive hover:text-destructive hover:bg-destructive/10"
+            onClick={(e) => {
+              e.stopPropagation();
+              if (confirm("Tem certeza que deseja apagar este botão e todas as suas mídias?")) {
+                deleteBotaoMutation.mutate(botao.id);
+              }
+            }}
+            disabled={deleteBotaoMutation.isPending}
+          >
+            <Trash2 className="w-3.5 h-3.5 mr-1.5" />
+            Apagar Botão
+          </Button>
+        </div>
       </CardContent>
     </Card>
   );
