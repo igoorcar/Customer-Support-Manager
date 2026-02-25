@@ -228,7 +228,7 @@ function BotaoRespostaPanel({
   onEnviar,
   isPending,
 }: {
-  botoes: BotaoResposta[];
+  botoes: BotaoResposta[] | undefined;
   onEnviar: (botao: BotaoResposta) => void;
   isPending: boolean;
 }) {
@@ -249,7 +249,7 @@ function BotaoRespostaPanel({
     }
   };
 
-  if (!botoes.length) return null;
+  if (!botoes || !botoes.length) return null;
 
   return (
     <div className="space-y-1">
@@ -577,7 +577,7 @@ export default function Conversas() {
   };
 
   useEffect(() => {
-    if (mensagens && mensagens.length > 0) {
+    if (selectedConvId && mensagens && mensagens.length > 0) {
       const container = chatContainerRef.current;
       if (container) {
         const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 200;
@@ -589,7 +589,7 @@ export default function Conversas() {
         }
       }
     }
-  }, [mensagens]);
+  }, [mensagens, selectedConvId]);
 
   const handleScroll = useCallback(() => {
     if (!chatContainerRef.current) return;
