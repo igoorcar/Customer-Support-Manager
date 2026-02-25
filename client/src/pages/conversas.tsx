@@ -386,8 +386,7 @@ export default function Conversas() {
     enabled: !!selectedConvId,
   });
 
-  const { etiquetas: allEtiquetasRaw } = useEtiquetas();
-  const allEtiquetas = allEtiquetasRaw ?? [];
+  const allEtiquetas = useEtiquetas();
 
   const selectedConv = useMemo(() => 
     conversations?.find((c) => c.id === selectedConvId),
