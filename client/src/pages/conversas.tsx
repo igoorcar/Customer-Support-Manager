@@ -399,13 +399,18 @@ export default function Conversas() {
       return api.enviarMensagem(
         selectedConvId,
         selectedConv.clientes.whatsapp,
+        "text",
         text,
+        undefined,
         user?.id || ""
       );
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["supabase-mensagens", selectedConvId] });
       queryClient.invalidateQueries({ queryKey: ["supabase-ultimas-mensagens"] });
+    },
+    onError: (error: any) => {
+      toast({ title: "Erro ao enviar mensagem", description: error?.message || "Tente novamente", variant: "destructive" });
     },
   });
 
@@ -501,7 +506,9 @@ export default function Conversas() {
         await api.enviarMensagem(
           selectedConvId,
           selectedConv.clientes.whatsapp,
+          "text",
           text,
+          undefined,
           user?.id || ""
         );
       }

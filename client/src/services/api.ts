@@ -153,7 +153,6 @@ export const api = {
 
     const conversaUpdate: Record<string, any> = {
       ultima_mensagem_em: now,
-      updated_at: now,
       status: 'em_atendimento',
     };
     if (atendenteId) {
