@@ -902,7 +902,7 @@ export default function Conversas() {
               />
             </div>
           </div>
-          <div className="flex-1 overflow-y-auto">
+          <div className="flex-1 overflow-y-auto min-h-0" data-testid="sidebar-scroll-area">
             {filtered?.map((conv) => {
               const st = statusConfig[conv.status] || statusConfig.nova;
               const isSelected = conv.id === selectedConvId;
@@ -950,7 +950,7 @@ export default function Conversas() {
             <Zap className="w-4 h-4 text-primary" />
             <span className="text-sm font-semibold">Botões de Resposta</span>
           </div>
-          <div className="flex-1 overflow-y-auto p-2">
+          <div className="flex-1 overflow-y-auto p-2 min-h-0" data-testid="botoes-scroll-area">
             {botoes && botoes.length > 0 ? (
               <BotaoRespostaPanel
                 botoes={botoes}
@@ -963,7 +963,7 @@ export default function Conversas() {
           </div>
         </div>
 
-        <div className="flex flex-col flex-1 min-w-0">
+        <div className="flex flex-col flex-1 min-w-0 overflow-hidden h-full">
           <div className="flex items-center justify-between gap-2 p-3 border-b bg-background">
             <div className="flex items-center gap-3 min-w-0">
               <Button variant="ghost" size="icon" onClick={() => setSelectedConvId(null)} data-testid="button-back-to-list">
@@ -1060,7 +1060,7 @@ export default function Conversas() {
             </div>
           )}
 
-          <div className="flex-1 overflow-y-auto p-4 space-y-3 relative" ref={chatContainerRef} onScroll={handleScroll} data-testid="chat-messages-area">
+          <div className="flex-1 overflow-y-auto p-4 space-y-3 relative touch-pan-y" ref={chatContainerRef} onScroll={handleScroll} data-testid="chat-messages-area" style={{ WebkitOverflowScrolling: 'touch' }}>
             {messagesLoading ? (
               <div className="flex flex-col items-center justify-center h-full gap-2">
                 <Skeleton className="w-8 h-8 rounded-full" />
