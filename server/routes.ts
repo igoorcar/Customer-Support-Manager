@@ -267,6 +267,13 @@ export async function registerRoutes(
     "fbsbx.net",
     "fbcdn-photos-a-a.akamaihd.net",
     "scontent-*.fna.fbcdn.net",
+    "replit.app",
+    "replit.dev",
+    "janeway.replit.dev",
+    "unsplash.com",
+    "images.unsplash.com",
+    "supabase.co",
+    "supabase.in",
   ];
 
   app.get("/api/media-proxy", requireAuth, async (req, res) => {

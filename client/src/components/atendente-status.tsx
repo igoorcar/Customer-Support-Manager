@@ -29,13 +29,15 @@ export function AtendenteStatus({ atendenteNome }: AtendenteStatusProps) {
         .from('atendentes')
         .select('*')
         .ilike('email', atendenteNome)
-        .single();
+        .limit(1)
+        .maybeSingle();
       if (!result.data) {
         result = await supabase
           .from('atendentes')
           .select('*')
           .ilike('nome', atendenteNome)
-          .single();
+          .limit(1)
+          .maybeSingle();
       }
       if (result.error && !result.data) {
         console.warn(`[AtendenteStatus] Atendente não encontrado para "${atendenteNome}":`, result.error.message);
@@ -139,7 +141,7 @@ export function AtendenteStatus({ atendenteNome }: AtendenteStatusProps) {
           .from('atendentes')
           .select('*')
           .eq('id', atendente.id)
-          .single();
+          .maybeSingle();
         if (data) setAtendente(data);
       }
     } catch (error) {

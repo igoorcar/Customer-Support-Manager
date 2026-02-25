@@ -35,13 +35,15 @@ export const useConversasPorAtendente = ({
         .from('atendentes')
         .select('id')
         .ilike('email', atendenteNome)
-        .single();
+        .limit(1)
+        .maybeSingle();
       if (!result.data) {
         result = await supabase
           .from('atendentes')
           .select('id')
           .ilike('nome', atendenteNome)
-          .single();
+          .limit(1)
+          .maybeSingle();
       }
       if (result.data) setAtendenteId(result.data.id);
     };

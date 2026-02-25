@@ -46,7 +46,7 @@ export function EtiquetasManager({ clienteId, conversaId }: EtiquetasManagerProp
         .from('clientes')
         .select('tags')
         .eq('id', clienteId)
-        .single();
+        .maybeSingle();
 
       if (data?.tags) {
         setClienteTags(data.tags || []);
