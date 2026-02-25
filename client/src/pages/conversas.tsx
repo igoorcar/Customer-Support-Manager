@@ -303,259 +303,74 @@ function BotaoRespostaPanel({
 }
 
 export default function Conversas() {
-  const { user } = useAuth();
-  const [searchTerm, setSearchTerm] = useState("");
-  const [activeFilter, setActiveFilter] = useState<string>("todas");
-  const [etiquetaFilter, setEtiquetaFilter] = useState<string | null>(null);
-  const allEtiquetas = useEtiquetas();
   const [selectedConvId, setSelectedConvId] = useState<string | null>(null);
-  const [rightPanelOpen, setRightPanelOpen] = useState(() => {
-    const saved = localStorage.getItem("rightPanelOpen");
-    return saved !== null ? saved === "true" : true;
-  });
+  const [activeFilter, setActiveFilter] = useState("todas");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [rightPanelOpen, setRightPanelOpen] = useState(true);
+  const [newNote, setNewNote] = useState("");
   const [transferDialogOpen, setTransferDialogOpen] = useState(false);
-  const [finalizeDialogOpen, setFinalizeDialogOpen] = useState(false);
-  const [transferReason, setTransferReason] = useState("");
   const [transferAttendantId, setTransferAttendantId] = useState("");
+  const [transferReason, setTransferReason] = useState("");
+  const [finalizeDialogOpen, setFinalizeDialogOpen] = useState(false);
   const [finalizeReason, setFinalizeReason] = useState("atendido");
   const [finalizeNotes, setFinalizeNotes] = useState("");
-  const [showScrollDown, setShowScrollDown] = useState(false);
-  const [sendingBotao, setSendingBotao] = useState(false);
-  const [botoesOpenMobile, setBotoesOpenMobile] = useState(false);
   const [quoteDialogOpen, setQuoteDialogOpen] = useState(false);
-  const [newNote, setNewNote] = useState("");
-  const [quoteItems, setQuoteItems] = useState<Array<{ productId: string; productName: string; quantity: number; unitPrice: number }>>([]);
+  const [quoteItems, setQuoteItems] = useState<any[]>([]);
   const [quoteObservacoes, setQuoteObservacoes] = useState("");
   const [productSearch, setProductSearch] = useState("");
   const [productPickerOpen, setProductPickerOpen] = useState(false);
   const [productPickerSearch, setProductPickerSearch] = useState("");
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  const chatContainerRef = useRef<HTMLDivElement>(null);
+  const [botoesOpenMobile, setBotoesOpenMobile] = useState(false);
+  const [sendingBotao, setSendingBotao] = useState(false);
+  const [showScrollDown, setShowScrollDown] = useState(false);
+  const [etiquetaFilter, setEtiquetaFilter] = useState<string | null>(null);
+
+  const { user } = useAuth();
+  const isAdmin = user?.role === "admin";
   const { toast } = useToast();
-  const [atendenteId, setAtendenteId] = useState<string | null>(null);
-  const isAdmin = user?.role === 'admin';
-  const stickyConversasRef = useRef<Map<string, { conversa: Conversa; missCount: number }>>(new Map());
+  const chatContainerRef = useRef<HTMLDivElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    localStorage.setItem("rightPanelOpen", String(rightPanelOpen));
-  }, [rightPanelOpen]);
-
-  useEffect(() => {
-    if (!user) return;
-    if (isAdmin) {
-      setAtendenteId('__admin__');
-      return;
-    }
-    const fetchAtendenteId = async () => {
-      let result = await supabase
-        .from('atendentes')
-        .select('id')
-        .ilike('email', user.username)
-        .single();
-      if (!result.data) {
-        result = await supabase
-          .from('atendentes')
-          .select('id')
-          .ilike('nome', user.username)
-          .single();
-      }
-      if (result.error && !result.data) {
-        console.warn(`[Conversas] Atendente não encontrado para "${user.username}":`, result.error.message);
-      }
-      if (result.data) setAtendenteId(result.data.id);
-    };
-    fetchAtendenteId();
-  }, [user, isAdmin]);
-
-  const { data: rawConversations, isLoading } = useQuery<Conversa[]>({
-    queryKey: ["supabase-conversas", activeFilter, atendenteId],
-    queryFn: () => {
-      const filteredAtendenteId = isAdmin ? undefined : atendenteId || undefined;
-      if (!isAdmin && !atendenteId) return Promise.resolve([]);
-      if (activeFilter === "todas") return api.getConversas('todas', filteredAtendenteId);
-      if (activeFilter === "nova") return api.getConversas('aguardando', filteredAtendenteId);
-      if (activeFilter === "finalizada") return api.getConversas('finalizadas', filteredAtendenteId);
-      return api.getConversas('ativas', filteredAtendenteId);
-    },
-    enabled: !!atendenteId,
+  const { data: conversations, isLoading } = useQuery<Conversa[]>({
+    queryKey: ["supabase-conversas"],
+    queryFn: () => api.getConversas(),
     refetchInterval: 5000,
   });
 
-  const conversations = useMemo(() => {
-    if (!rawConversations) return undefined;
-    if (isAdmin) return rawConversations;
-    const currentIds = new Set(rawConversations.map(c => c.id));
-    const sticky = stickyConversasRef.current;
-
-    rawConversations.forEach(conv => {
-      sticky.set(conv.id, { conversa: conv, missCount: 0 });
-    });
-
-    Array.from(sticky.entries()).forEach(([id, entry]) => {
-      if (!currentIds.has(id)) {
-        entry.missCount++;
-        if (entry.missCount > 3) {
-          sticky.delete(id);
-        }
-      }
-    });
-
-    const merged = [...rawConversations];
-    Array.from(sticky.entries()).forEach(([id, entry]) => {
-      if (!currentIds.has(id) && entry.missCount <= 3) {
-        merged.push(entry.conversa);
-      }
-    });
-
-    return merged.sort((a, b) => {
-      const ta = a.updated_at || a.iniciada_em || '';
-      const tb = b.updated_at || b.iniciada_em || '';
-      return tb.localeCompare(ta);
-    });
-  }, [rawConversations, isAdmin]);
-
-  const conversaIds = conversations?.map(c => c.id) || [];
-  const { data: ultimasMensagens } = useQuery<Record<string, { conteudo: string; tipo: string; direcao: string; enviada_em: string }>>({
-    queryKey: ["ultimas-mensagens", conversaIds.join(",")],
-    queryFn: () => api.getUltimasMensagens(conversaIds),
-    enabled: conversaIds.length > 0,
+  const { data: ultimasMensagens } = useQuery<Record<string, Mensagem>>({
+    queryKey: ["supabase-ultimas-mensagens"],
+    queryFn: () => api.getUltimasMensagens(),
     refetchInterval: 5000,
   });
 
-  useEffect(() => {
-    const channel = supabase
-      .channel('conversas-realtime')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'conversas' },
-        () => {
-          queryClient.invalidateQueries({ queryKey: ["supabase-conversas"] });
-        }
-      )
-      .subscribe();
-
-    return () => { supabase.removeChannel(channel); };
-  }, []);
-
-  const optimisticMsgsRef = useRef<Mensagem[]>([]);
-  const realSentIdsRef = useRef<Set<string>>(new Set());
-
-  useEffect(() => {
-    optimisticMsgsRef.current = [];
-    realSentIdsRef.current = new Set();
-  }, [selectedConvId]);
-
-  const { data: rawMensagens, isLoading: messagesLoading } = useQuery<Mensagem[]>({
+  const { data: mensagens, isLoading: messagesLoading } = useQuery<Mensagem[]>({
     queryKey: ["supabase-mensagens", selectedConvId],
-    queryFn: () => api.getMensagens(selectedConvId!),
+    queryFn: () => selectedConvId ? api.getMensagens(selectedConvId) : Promise.resolve([]),
     enabled: !!selectedConvId,
     refetchInterval: 3000,
   });
 
-  useEffect(() => {
-    if (!selectedConvId) return;
-
-    const channel = supabase
-      .channel(`mensagens-realtime-${selectedConvId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'mensagens',
-          filter: `conversa_id=eq.${selectedConvId}`
-        },
-        () => {
-          queryClient.invalidateQueries({ queryKey: ["supabase-mensagens", selectedConvId] });
-        }
-      )
-      .subscribe();
-
-    return () => { supabase.removeChannel(channel); };
-  }, [selectedConvId]);
-
-  const mensagens = (() => {
-    const real = rawMensagens || [];
-    const currentRealSentIds = new Set(
-      real.filter(r => r.direcao === "enviada").map(r => r.id)
-    );
-
-    const newRealIds = new Set<string>();
-    currentRealSentIds.forEach(id => {
-      if (!realSentIdsRef.current.has(id)) newRealIds.add(id);
-    });
-
-    let remaining = [...optimisticMsgsRef.current];
-    if (newRealIds.size > 0) {
-      const newRealMsgs = real.filter(r => newRealIds.has(r.id));
-      for (const newMsg of newRealMsgs) {
-        const matchIdx = remaining.findIndex(opt => opt.tipo === newMsg.tipo);
-        if (matchIdx !== -1) {
-          remaining.splice(matchIdx, 1);
-        }
-      }
-    }
-
-    remaining = remaining.filter(opt => {
-      const age = Date.now() - new Date(opt.enviada_em).getTime();
-      return age < 120000;
-    });
-
-    optimisticMsgsRef.current = remaining;
-    realSentIdsRef.current = currentRealSentIds;
-
-    const all = [...real, ...remaining];
-    all.sort((a, b) => {
-      const tA = new Date(a.created_at || a.enviada_em).getTime();
-      const tB = new Date(b.created_at || b.enviada_em).getTime();
-      return tA - tB;
-    });
-    return all;
-  })();
-
-  const { data: botoes } = useQuery<BotaoResposta[]>({
-    queryKey: ["supabase-botoes"],
-    queryFn: () => api.getBotoes(),
-  });
-
-  const { data: atendentes } = useQuery({
+  const { data: atendentes } = useQuery<any[]>({
     queryKey: ["supabase-atendentes"],
     queryFn: () => api.getAtendentes(),
   });
 
-  const selectedConv = conversations?.find(c => c.id === selectedConvId);
-  const clienteId = selectedConv?.clientes?.id;
-
   const { data: clientNotes, isLoading: notesLoading } = useQuery<any[]>({
-    queryKey: ["/api/clients", clienteId, "notes"],
+    queryKey: ["/api/clients", selectedConvId ? (conversations?.find(c => c.id === selectedConvId)?.cliente_id) : "", "notes"],
     queryFn: async () => {
-      const res = await fetch(`/api/clients/${clienteId}/notes`, { credentials: "include" });
-      if (!res.ok) throw new Error("Erro ao buscar notas");
+      const conv = conversations?.find(c => c.id === selectedConvId);
+      if (!conv?.cliente_id) return [];
+      const res = await apiRequest("GET", `/api/clients/${conv.cliente_id}/notes`);
       return res.json();
     },
-    enabled: !!clienteId,
-  });
-
-  const addNoteMutation = useMutation({
-    mutationFn: async (content: string) => {
-      const res = await apiRequest("POST", `/api/clients/${clienteId}/notes`, { content, author: "Atendente" });
-      return res.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/clients", clienteId, "notes"] });
-      setNewNote("");
-      toast({ title: "Nota adicionada" });
-    },
-    onError: () => {
-      toast({ title: "Erro ao adicionar nota", variant: "destructive" });
-    },
+    enabled: !!selectedConvId && !!conversations,
   });
 
   const { data: quotes, isLoading: quotesLoading } = useQuery<any[]>({
     queryKey: ["/api/quotes", selectedConvId],
     queryFn: async () => {
-      const res = await fetch(`/api/quotes?conversaId=${selectedConvId}`, { credentials: "include" });
-      if (!res.ok) throw new Error("Erro ao buscar orçamentos");
+      if (!selectedConvId) return [];
+      const res = await apiRequest("GET", `/api/quotes?conversaId=${selectedConvId}`);
       return res.json();
     },
     enabled: !!selectedConvId,
@@ -563,240 +378,170 @@ export default function Conversas() {
 
   const { data: productsData } = useQuery<any[]>({
     queryKey: ["/api/products"],
-    queryFn: async () => {
-      const res = await fetch("/api/products", { credentials: "include" });
-      if (!res.ok) throw new Error("Erro ao buscar produtos");
-      return res.json();
-    },
-    enabled: quoteDialogOpen,
   });
 
-  const createQuoteMutation = useMutation({
-    mutationFn: async () => {
-      if (!selectedConvId || !clienteId) throw new Error("Dados incompletos");
-      const res = await apiRequest("POST", "/api/quotes", {
-        conversaId: selectedConvId,
-        clienteId,
-        clienteNome: selectedConv?.clientes?.nome || "",
-        observacoes: quoteObservacoes || null,
-        items: quoteItems.map(item => ({
-          quoteId: "",
-          productId: item.productId,
-          productName: item.productName,
-          quantity: item.quantity,
-          unitPrice: item.unitPrice,
-        })),
-      });
-      return res.json();
-    },
-    onSuccess: (data: any) => {
-      const savedItems = [...quoteItems];
-      const clienteName = selectedConv?.clientes?.nome || "";
-
-      queryClient.invalidateQueries({ queryKey: ["/api/quotes", selectedConvId] });
-      setQuoteDialogOpen(false);
-      setQuoteItems([]);
-      setQuoteObservacoes("");
-      setProductSearch("");
-      toast({ title: "Orçamento criado" });
-
-      const total = savedItems.reduce((acc, item) => acc + item.quantity * item.unitPrice, 0);
-      const itemsText = savedItems.map(item =>
-        `${item.productName} - ${item.quantity}x R$ ${(item.unitPrice / 100).toFixed(2).replace(".", ",")}`
-      ).join("\n");
-      const message = `*ORÇAMENTO - Ótica Suellen*\n\nCliente: ${clienteName}\n\n${itemsText}\n\n*Total: R$ ${(total / 100).toFixed(2).replace(".", ",")}*`;
-
-      if (confirm("Deseja enviar o orçamento por WhatsApp?")) {
-        sendMessageMutation.mutate(message);
-      }
-    },
-    onError: () => {
-      toast({ title: "Erro ao criar orçamento", variant: "destructive" });
-    },
+  const { data: botoes } = useQuery<BotaoResposta[]>({
+    queryKey: ["supabase-botoes", "active"],
+    queryFn: () => api.getBotoes(false),
+    enabled: !!selectedConvId,
   });
 
-  const filteredProducts = productsData?.filter(p =>
-    p.active !== false &&
-    (productSearch ? p.name.toLowerCase().includes(productSearch.toLowerCase()) : true)
-  ) || [];
+  const { etiquetas: allEtiquetas } = useEtiquetas();
 
-  const addOptimisticMessage = (content: string, tipo: string, midiaUrl?: string) => {
-    if (!selectedConvId) return;
-    const optimistic: Mensagem = {
-      id: `opt-${Date.now()}`,
-      conversa_id: selectedConvId,
-      whatsapp_message_id: null,
-      direcao: "enviada",
-      tipo: tipo as Mensagem["tipo"],
-      conteudo: content || null,
-      midia_url: midiaUrl || null,
-      midia_mime_type: null,
-      status: "enviada",
-      enviada_em: new Date().toISOString(),
-      entregue_em: null,
-      lida_em: null,
-      enviada_por: null,
-      metadata: null,
-      atendentes: null,
-    };
-    optimisticMsgsRef.current = [...optimisticMsgsRef.current, optimistic];
-    queryClient.invalidateQueries({ queryKey: ["supabase-mensagens", selectedConvId] });
-  };
+  const selectedConv = useMemo(() => 
+    conversations?.find((c) => c.id === selectedConvId),
+    [conversations, selectedConvId]
+  );
 
   const sendMessageMutation = useMutation({
-    mutationFn: async (content: string) => {
-      if (!selectedConv) throw new Error("Nenhuma conversa selecionada");
-      addOptimisticMessage(content, "text");
-      const sendAtendenteId = isAdmin ? (selectedConv.atendente_id || undefined) : (atendenteId || undefined);
+    mutationFn: async (text: string) => {
+      if (!selectedConvId || !selectedConv) throw new Error("Sem conversa selecionada");
       return api.enviarMensagem(
-        selectedConv.id,
+        selectedConvId,
         selectedConv.clientes.whatsapp,
-        "text",
-        content,
-        undefined,
-        sendAtendenteId
+        text,
+        user?.id || ""
       );
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["supabase-mensagens", selectedConvId] });
-    },
-    onError: () => {
-      toast({ title: "Erro ao enviar mensagem", variant: "destructive" });
+      queryClient.invalidateQueries({ queryKey: ["supabase-ultimas-mensagens"] });
     },
   });
 
-  const handleSendMedia = async (file: File, type: string, caption: string) => {
-    if (!selectedConv) throw new Error("Nenhuma conversa selecionada");
+  const finalizeMutation = useMutation({
+    mutationFn: async (reason: string) => {
+      if (!selectedConvId) return;
+      return api.finalizarConversa(selectedConvId, reason, finalizeNotes);
+    },
+    onSuccess: () => {
+      setFinalizeDialogOpen(false);
+      setSelectedConvId(null);
+      queryClient.invalidateQueries({ queryKey: ["supabase-conversas"] });
+      toast({ title: "Conversa finalizada" });
+    },
+  });
+
+  const transferMutation = useMutation({
+    mutationFn: async () => {
+      if (!selectedConvId || !transferAttendantId) return;
+      return api.transferirConversa(selectedConvId, transferAttendantId, transferReason);
+    },
+    onSuccess: () => {
+      setTransferDialogOpen(false);
+      setSelectedConvId(null);
+      queryClient.invalidateQueries({ queryKey: ["supabase-conversas"] });
+      toast({ title: "Conversa transferida" });
+    },
+  });
+
+  const addNoteMutation = useMutation({
+    mutationFn: async (content: string) => {
+      if (!selectedConv?.cliente_id) return;
+      const res = await apiRequest("POST", `/api/clients/${selectedConv.cliente_id}/notes`, {
+        content,
+        author: user?.username || "Atendente",
+      });
+      return res.json();
+    },
+    onSuccess: () => {
+      setNewNote("");
+      queryClient.invalidateQueries({ 
+        queryKey: ["/api/clients", selectedConv?.cliente_id, "notes"] 
+      });
+      toast({ title: "Nota adicionada" });
+    },
+  });
+
+  const createQuoteMutation = useMutation({
+    mutationFn: async () => {
+      if (!selectedConvId || !selectedConv) return;
+      const res = await apiRequest("POST", "/api/quotes", {
+        conversaId: selectedConvId,
+        clienteId: selectedConv.cliente_id,
+        items: quoteItems,
+        observacoes: quoteObservacoes,
+      });
+      return res.json();
+    },
+    onSuccess: () => {
+      setQuoteDialogOpen(false);
+      setQuoteItems([]);
+      setQuoteObservacoes("");
+      queryClient.invalidateQueries({ queryKey: ["/api/quotes", selectedConvId] });
+      toast({ title: "Orçamento criado" });
+    },
+  });
+
+  const filteredProducts = useMemo(() => {
+    if (!productSearch) return [];
+    return (productsData || []).filter(p => 
+      p.name.toLowerCase().includes(productSearch.toLowerCase()) ||
+      (p.sku && p.sku.toLowerCase().includes(productSearch.toLowerCase()))
+    );
+  }, [productsData, productSearch]);
+
+  const handleSendProduct = async (product: any) => {
+    if (!selectedConvId || !selectedConv) return;
+    const price = product.promoPrice || product.price;
+    const formattedPrice = (price / 100).toFixed(2).replace(".", ",");
+    const text = `Gostaria de te indicar este produto:\n\n*${product.name}*\n${product.brand ? `Marca: ${product.brand}\n` : ""}${product.description ? `${product.description}\n` : ""}Preço: *R$ ${formattedPrice}*\n\nO que achou?`;
+    
     try {
-      const isAudio = type === "audio";
-      const uploadResult = await api.uploadMidia(file, isAudio);
-      addOptimisticMessage(caption, type, uploadResult.url);
-      const sendAtendenteId2 = isAdmin ? (selectedConv.atendente_id || undefined) : (atendenteId || undefined);
-      await api.enviarMensagem(
-        selectedConv.id,
-        selectedConv.clientes.whatsapp,
-        type,
-        caption || "",
-        uploadResult.url,
-        sendAtendenteId2
-      );
-      queryClient.invalidateQueries({ queryKey: ["supabase-mensagens", selectedConvId] });
-    } catch {
-      toast({ title: "Erro ao enviar mídia", variant: "destructive" });
-    }
-  };
-
-  const handleSendProduct = async (product: import("@shared/schema").Product) => {
-    if (!selectedConv) return;
-    try {
-      const price = product.promoPrice || product.price;
-      const priceFormatted = `R$ ${(price / 100).toFixed(2).replace(".", ",")}`;
-      const lines = [`*${product.name}*`];
-      if (product.brand) lines.push(`Marca: ${product.brand}`);
-      if (product.description) lines.push(`\n${product.description}`);
-      lines.push(`\n*Preço: ${priceFormatted}*`);
-      if (product.promoPrice && product.price > product.promoPrice) {
-        lines.push(`~De: R$ ${(product.price / 100).toFixed(2).replace(".", ",")}~`);
-      }
-      if (product.material) lines.push(`Material: ${product.material}`);
-      if (product.color) lines.push(`Cor: ${product.color}`);
-      if (product.format) lines.push(`Formato: ${product.format}`);
-      if (product.stock > 0) lines.push(`Estoque: ${product.stock} un.`);
-      const text = lines.join("\n");
-
-      let imageUrl = product.image;
-      if (imageUrl && !imageUrl.includes('supabase')) {
-        try {
-          const imgResp = await fetch(imageUrl);
-          const imgBlob = await imgResp.blob();
-          const ext = imageUrl.split('.').pop()?.split('?')[0] || 'png';
-          const fileName = `produtos/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
-          const { error } = await supabase.storage
-            .from('midias')
-            .upload(fileName, imgBlob, {
-              contentType: imgBlob.type || 'image/png',
-              cacheControl: '3600',
-              upsert: false,
-            });
-          if (!error) {
-            const { data } = supabase.storage.from('midias').getPublicUrl(fileName);
-            imageUrl = data.publicUrl;
-          }
-        } catch (e) {
-          console.warn('Falha ao enviar imagem para Supabase Storage, enviando como texto:', e);
-          imageUrl = null;
-        }
-      }
-
-      const sendAid = isAdmin ? (selectedConv.atendente_id || undefined) : (atendenteId || undefined);
-      if (imageUrl) {
-        addOptimisticMessage(text, "image", imageUrl);
-        await api.enviarMensagem(
-          selectedConv.id,
+      if (product.image) {
+        await api.enviarMidia(
+          selectedConvId,
           selectedConv.clientes.whatsapp,
-          "image",
+          product.image,
+          "image/jpeg",
           text,
-          imageUrl,
-          sendAid
+          user?.id || ""
         );
       } else {
-        addOptimisticMessage(text, "text");
         await api.enviarMensagem(
-          selectedConv.id,
+          selectedConvId,
           selectedConv.clientes.whatsapp,
-          "text",
           text,
-          undefined,
-          sendAid
+          user?.id || ""
         );
       }
-      queryClient.invalidateQueries({ queryKey: ["supabase-mensagens", selectedConvId] });
       setProductPickerOpen(false);
-      setProductPickerSearch("");
+      queryClient.invalidateQueries({ queryKey: ["supabase-mensagens", selectedConvId] });
       toast({ title: "Produto enviado" });
     } catch {
       toast({ title: "Erro ao enviar produto", variant: "destructive" });
     }
   };
 
-  const finalizeMutation = useMutation({
-    mutationFn: async (motivo: string) => {
-      if (!selectedConvId) throw new Error("Nenhuma conversa selecionada");
-      return api.finalizarConversa(selectedConvId, motivo);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["supabase-conversas"] });
-      toast({ title: "Conversa finalizada" });
-      setFinalizeDialogOpen(false);
-      setFinalizeReason("atendido");
-      setFinalizeNotes("");
-    },
-    onError: () => {
-      toast({ title: "Erro ao finalizar conversa", variant: "destructive" });
-    },
-  });
+  const handleSendMedia = async (file: File, caption?: string) => {
+    if (!selectedConvId || !selectedConv) return;
+    
+    const formData = new FormData();
+    formData.append("file", file);
 
-  const transferMutation = useMutation({
-    mutationFn: async () => {
-      if (!selectedConvId || !transferAttendantId) throw new Error("Dados incompletos");
-      return api.transferirConversa(
+    try {
+      const uploadRes = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+      });
+      
+      if (!uploadRes.ok) throw new Error("Erro no upload");
+      const { url, mimeType } = await uploadRes.json();
+
+      await api.enviarMidia(
         selectedConvId,
-        transferAttendantId,
-        selectedConv?.atendentes?.id || "",
-        transferReason
+        selectedConv.clientes.whatsapp,
+        url,
+        mimeType,
+        caption || "",
+        user?.id || ""
       );
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["supabase-conversas"] });
-      toast({ title: "Conversa transferida" });
-      setTransferDialogOpen(false);
-      setTransferAttendantId("");
-      setTransferReason("");
-    },
-    onError: () => {
-      toast({ title: "Erro ao transferir conversa", variant: "destructive" });
-    },
-  });
+      
+      queryClient.invalidateQueries({ queryKey: ["supabase-mensagens", selectedConvId] });
+    } catch (e) {
+      toast({ title: "Erro ao enviar mídia", variant: "destructive" });
+    }
+  };
 
   const handleEnviarBotao = async (botao: BotaoResposta) => {
     if (!selectedConv) return;
@@ -833,7 +578,6 @@ export default function Conversas() {
 
   useEffect(() => {
     if (mensagens && mensagens.length > 0) {
-      // Somente rola para baixo se o usuário estiver próximo do fundo ou se for uma mensagem enviada por ele
       const container = chatContainerRef.current;
       if (container) {
         const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 200;
@@ -888,7 +632,7 @@ export default function Conversas() {
     const clientAvatar = selectedConv.clientes?.avatar_url;
 
     return (
-      <div className="flex h-full">
+      <div className="flex h-screen overflow-hidden">
         <div className="hidden md:flex flex-col w-72 border-r bg-background flex-shrink-0">
           <div className="p-3 border-b">
             <div className="relative">
@@ -963,7 +707,7 @@ export default function Conversas() {
           </div>
         </div>
 
-        <div className="flex flex-col flex-1 min-w-0 overflow-hidden h-full">
+        <div className="flex flex-col flex-1 min-w-0 overflow-hidden h-screen">
           <div className="flex items-center justify-between gap-2 p-3 border-b bg-background">
             <div className="flex items-center gap-3 min-w-0">
               <Button variant="ghost" size="icon" onClick={() => setSelectedConvId(null)} data-testid="button-back-to-list">
@@ -1287,7 +1031,7 @@ export default function Conversas() {
               </div>
               <div className="flex gap-2 justify-end">
                 <Button variant="outline" onClick={() => setTransferDialogOpen(false)} data-testid="button-cancel-transfer">Cancelar</Button>
-                <Button onClick={handleTransfer} disabled={!transferAttendantId || transferMutation.isPending} data-testid="button-confirm-transfer">
+                <Button onClick={handleTransfer} disabled={transferMutation.isPending || !transferAttendantId} data-testid="button-confirm-transfer">
                   {transferMutation.isPending ? "Transferindo..." : "Transferir"}
                 </Button>
               </div>
@@ -1553,93 +1297,95 @@ export default function Conversas() {
   }
 
   return (
-    <div className="space-y-6 p-4 md:p-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-xl font-bold" data-testid="text-conversas-title">Conversas</h1>
-          <p className="text-sm text-muted-foreground" data-testid="text-conversas-subtitle">Gerencie todas as conversas do WhatsApp</p>
+    <div className="flex flex-col h-screen overflow-hidden">
+      <div className="space-y-6 p-4 md:p-6 flex-shrink-0">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-xl font-bold" data-testid="text-conversas-title">Conversas</h1>
+            <p className="text-sm text-muted-foreground" data-testid="text-conversas-subtitle">Gerencie todas as conversas do WhatsApp</p>
+          </div>
         </div>
-      </div>
 
-      {user && (
-        <AtendenteStatus atendenteNome={user.username} />
-      )}
-
-      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
-        <div className="relative flex-1 w-full sm:max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input
-            placeholder="Buscar por nome ou telefone..."
-            className="pl-9"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            data-testid="input-search-conversations"
-          />
-        </div>
-        <div className="flex items-center gap-1.5 flex-wrap">
-          <Filter className="w-4 h-4 text-muted-foreground mr-1" />
-          {filters.map((f) => (
-            <Button
-              key={f.key}
-              variant={activeFilter === f.key ? "default" : "outline"}
-              size="sm"
-              onClick={() => setActiveFilter(f.key)}
-              data-testid={`button-filter-${f.key}`}
-            >
-              {f.label}
-            </Button>
-          ))}
-        </div>
-        {allEtiquetas.length > 0 && (
-          <Collapsible>
-            <div className="flex items-center gap-1.5">
-              <CollapsibleTrigger asChild>
-                <Button variant="ghost" size="sm" className="gap-1.5 text-muted-foreground" data-testid="button-toggle-etiquetas">
-                  <Tag className="w-3.5 h-3.5" />
-                  <span className="text-xs">Etiquetas</span>
-                  <ChevronDown className="w-3 h-3" />
-                </Button>
-              </CollapsibleTrigger>
-              {etiquetaFilter && (
-                <>
-                  <Badge
-                    className="cursor-pointer text-xs text-white"
-                    style={{ backgroundColor: allEtiquetas.find(e => e.id === etiquetaFilter)?.cor, borderColor: allEtiquetas.find(e => e.id === etiquetaFilter)?.cor }}
-                    data-testid="badge-active-etiqueta-filter"
-                  >
-                    {allEtiquetas.find(e => e.id === etiquetaFilter)?.nome}
-                  </Badge>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setEtiquetaFilter(null)}
-                    data-testid="button-clear-etiqueta-filter"
-                  >
-                    <X className="w-3 h-3" />
-                  </Button>
-                </>
-              )}
-            </div>
-            <CollapsibleContent className="mt-2">
-              <div className="flex items-center gap-1.5 flex-wrap">
-                {allEtiquetas.map((et) => (
-                  <Badge
-                    key={et.id}
-                    className={`cursor-pointer text-xs text-white ${etiquetaFilter === et.id ? 'ring-2 ring-offset-1 ring-foreground' : 'opacity-70'}`}
-                    style={{ backgroundColor: et.cor, borderColor: et.cor }}
-                    onClick={() => setEtiquetaFilter(etiquetaFilter === et.id ? null : et.id)}
-                    data-testid={`filter-etiqueta-${et.id}`}
-                  >
-                    {et.nome}
-                  </Badge>
-                ))}
-              </div>
-            </CollapsibleContent>
-          </Collapsible>
+        {user && (
+          <AtendenteStatus atendenteNome={user.username} />
         )}
+
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+          <div className="relative flex-1 w-full sm:max-w-sm">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input
+              placeholder="Buscar por nome ou telefone..."
+              className="pl-9"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              data-testid="input-search-conversations"
+            />
+          </div>
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <Filter className="w-4 h-4 text-muted-foreground mr-1" />
+            {filters.map((f) => (
+              <Button
+                key={f.key}
+                variant={activeFilter === f.key ? "default" : "outline"}
+                size="sm"
+                onClick={() => setActiveFilter(f.key)}
+                data-testid={`button-filter-${f.key}`}
+              >
+                {f.label}
+              </Button>
+            ))}
+          </div>
+          {allEtiquetas.length > 0 && (
+            <Collapsible>
+              <div className="flex items-center gap-1.5">
+                <CollapsibleTrigger asChild>
+                  <Button variant="ghost" size="sm" className="gap-1.5 text-muted-foreground" data-testid="button-toggle-etiquetas">
+                    <Tag className="w-3.5 h-3.5" />
+                    <span className="text-xs">Etiquetas</span>
+                    <ChevronDown className="w-3 h-3" />
+                  </Button>
+                </CollapsibleTrigger>
+                {etiquetaFilter && (
+                  <>
+                    <Badge
+                      className="cursor-pointer text-xs text-white"
+                      style={{ backgroundColor: allEtiquetas.find(e => e.id === etiquetaFilter)?.cor, borderColor: allEtiquetas.find(e => e.id === etiquetaFilter)?.cor }}
+                      data-testid="badge-active-etiqueta-filter"
+                    >
+                      {allEtiquetas.find(e => e.id === etiquetaFilter)?.nome}
+                    </Badge>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setEtiquetaFilter(null)}
+                      data-testid="button-clear-etiqueta-filter"
+                    >
+                      <X className="w-3 h-3" />
+                    </Button>
+                  </>
+                )}
+              </div>
+              <CollapsibleContent className="mt-2">
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  {allEtiquetas.map((et) => (
+                    <Badge
+                      key={et.id}
+                      className={`cursor-pointer text-xs text-white ${etiquetaFilter === et.id ? 'ring-2 ring-offset-1 ring-foreground' : 'opacity-70'}`}
+                      style={{ backgroundColor: et.cor, borderColor: et.cor }}
+                      onClick={() => setEtiquetaFilter(etiquetaFilter === et.id ? null : et.id)}
+                      data-testid={`filter-etiqueta-${et.id}`}
+                    >
+                      {et.nome}
+                    </Badge>
+                  ))}
+                </div>
+              </CollapsibleContent>
+            </Collapsible>
+          )}
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-3">
+      <div className="grid grid-cols-1 gap-3 flex-1 overflow-y-auto p-4 md:p-6 pt-0">
         {isLoading ? (
           Array.from({ length: 6 }).map((_, i) => (
             <Card key={i}>
