@@ -632,7 +632,7 @@ export default function Conversas() {
     const clientAvatar = selectedConv.clientes?.avatar_url;
 
     return (
-      <div className="flex h-screen overflow-hidden">
+      <div className="flex h-full overflow-hidden">
         <div className="hidden md:flex flex-col w-72 border-r bg-background flex-shrink-0">
           <div className="p-3 border-b">
             <div className="relative">
@@ -707,7 +707,7 @@ export default function Conversas() {
           </div>
         </div>
 
-        <div className="flex flex-col flex-1 min-w-0 overflow-hidden h-screen">
+        <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
           <div className="flex items-center justify-between gap-2 p-3 border-b bg-background">
             <div className="flex items-center gap-3 min-w-0">
               <Button variant="ghost" size="icon" onClick={() => setSelectedConvId(null)} data-testid="button-back-to-list">
@@ -1297,7 +1297,7 @@ export default function Conversas() {
   }
 
   return (
-    <div className="flex flex-col h-screen overflow-hidden">
+    <div className="flex flex-col h-full overflow-hidden">
       <div className="space-y-6 p-4 md:p-6 flex-shrink-0">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
