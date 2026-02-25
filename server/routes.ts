@@ -253,6 +253,20 @@ export async function registerRoutes(
     "media.fgru",
     "pps.whatsapp.net",
     "web.whatsapp.com",
+    "fbcdn.net",
+    "external.fbel10-1.fna.fbcdn.net",
+    "static.xx.fbcdn.net",
+    "fbcdn.com",
+    "facebook.net",
+    "messenger.com",
+    "fbsbx.com",
+    "fb.com",
+    "whatsapp.com",
+    "facebook.com",
+    "fb.cdn",
+    "fbsbx.net",
+    "fbcdn-photos-a-a.akamaihd.net",
+    "scontent-*.fna.fbcdn.net",
   ];
 
   app.get("/api/media-proxy", requireAuth, async (req, res) => {
@@ -261,7 +275,15 @@ export async function registerRoutes(
 
     try {
       const parsed = new URL(url);
-      const isAllowed = ALLOWED_MEDIA_DOMAINS.some(d => parsed.hostname.includes(d));
+      const hostname = parsed.hostname.toLowerCase();
+      const isAllowed = ALLOWED_MEDIA_DOMAINS.some(d => {
+        if (d.includes("*")) {
+          const regex = new RegExp("^" + d.replace(/\./g, "\\.").replace(/\*/g, ".*") + "$");
+          return regex.test(hostname);
+        }
+        return hostname.includes(d);
+      });
+
       if (!isAllowed) {
         return res.status(403).json({ error: "Domínio não permitido" });
       }
