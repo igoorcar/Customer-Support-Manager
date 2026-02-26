@@ -193,6 +193,19 @@ export const api = {
     }
   },
 
+  async enviarMidia(conversaId: string, numero: string, url: string, mimeType: string, caption?: string, atendenteId?: string) {
+    const tipoMap: Record<string, string> = {
+      'image': 'image',
+      'video': 'video',
+      'audio': 'audio',
+      'application': 'document',
+    };
+    const baseType = mimeType.split('/')[0];
+    const tipo = tipoMap[baseType] || 'document';
+
+    return this.enviarMensagem(conversaId, numero, tipo, caption || '', url, atendenteId);
+  },
+
   async transferirConversa(conversaId: string, novoAtendenteId: string, atendenteOrigemId: string, motivo: string) {
     const response = await fetch(`${N8N_BASE_URL}/webhook/whatsapp/transferir`, {
       method: 'POST',
