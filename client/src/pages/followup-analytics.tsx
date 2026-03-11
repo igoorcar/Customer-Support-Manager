@@ -55,8 +55,8 @@ const tooltipStyle = {
 const axisTickStyle = { fontSize: 11, fill: "hsl(var(--muted-foreground))" };
 
 const CHART_COLORS = [
-  "#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6",
-  "#ec4899", "#14b8a6", "#f97316",
+  "#171717", "#525252", "#737373", "#a3a3a3", "#d4d4d4",
+  "#e5e5e5", "#404040", "#8a8a8a",
 ];
 
 function formatMinutes(minutes: number): string {
@@ -79,43 +79,43 @@ function OverviewSection({ periodo }: { periodo: number }) {
       title: "Total de Leads",
       value: overview?.total_leads ?? 0,
       icon: Users,
-      color: "text-blue-600 dark:text-blue-400",
-      bg: "bg-blue-50 dark:bg-blue-950/30",
+      color: "text-foreground",
+      bg: "bg-muted",
     },
     {
       title: "Taxa de Resposta",
       value: `${overview?.taxa_resposta_geral ?? 0}%`,
       icon: Reply,
-      color: "text-emerald-600 dark:text-emerald-400",
-      bg: "bg-emerald-50 dark:bg-emerald-950/30",
+      color: "text-foreground",
+      bg: "bg-muted",
     },
     {
       title: "Taxa de Conversao",
       value: `${overview?.taxa_conversao_geral ?? 0}%`,
       icon: Target,
-      color: "text-purple-600 dark:text-purple-400",
-      bg: "bg-purple-50 dark:bg-purple-950/30",
+      color: "text-foreground",
+      bg: "bg-muted",
     },
     {
       title: "Tempo Medio Resposta",
       value: formatMinutes(overview?.tempo_medio_resposta_minutos ?? 0),
       icon: Clock,
-      color: "text-amber-600 dark:text-amber-400",
-      bg: "bg-amber-50 dark:bg-amber-950/30",
+      color: "text-foreground",
+      bg: "bg-muted",
     },
     {
       title: "Melhor Mensagem",
       value: overview?.melhor_mensagem ? `#${overview.melhor_mensagem} (${overview.melhor_mensagem_taxa}%)` : "--",
       icon: Award,
-      color: "text-rose-600 dark:text-rose-400",
-      bg: "bg-rose-50 dark:bg-rose-950/30",
+      color: "text-foreground",
+      bg: "bg-muted",
     },
     {
       title: "Melhor Horario",
       value: overview?.melhor_horario != null ? `${overview.melhor_horario}:00` : "--",
       icon: TrendingUp,
-      color: "text-teal-600 dark:text-teal-400",
-      bg: "bg-teal-50 dark:bg-teal-950/30",
+      color: "text-foreground",
+      bg: "bg-muted",
     },
   ];
 
@@ -528,9 +528,9 @@ function JornadasSection() {
                         key={num}
                         className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ${
                           respondeu
-                            ? "bg-emerald-500 text-white"
+                            ? "bg-foreground text-background"
                             : enviou
-                            ? "bg-blue-500 text-white"
+                            ? "bg-secondary text-secondary-foreground border border-border"
                             : "bg-muted text-muted-foreground"
                         }`}
                         data-testid={`jornada-msg-${jornada.conversa_id}-${num}`}

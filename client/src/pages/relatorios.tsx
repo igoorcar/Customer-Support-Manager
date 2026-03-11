@@ -56,14 +56,8 @@ import { api } from "@/services/api";
 import { useEtiquetas } from "@/components/etiquetas-manager";
 
 const CHART_COLORS = [
-  "hsl(var(--primary))",
-  "hsl(var(--chart-2))",
-  "hsl(var(--chart-3))",
-  "hsl(var(--chart-4))",
-  "hsl(var(--chart-5, 280 65% 60%))",
-  "#ec4899",
-  "#14b8a6",
-  "#f97316",
+  "#171717", "#525252", "#737373", "#a3a3a3", "#d4d4d4",
+  "#e5e5e5", "#404040", "#8a8a8a",
 ];
 
 const tooltipStyle = {
@@ -174,10 +168,10 @@ function TabVisaoGeral() {
 
       <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-3">
         <KpiCard title="Conversas" value={m?.totalConversas ?? 0} icon={MessageCircle} iconColor="bg-primary/10 text-primary" isLoading={isLoading} testId="metric-total-conversas" />
-        <KpiCard title="Clientes" value={m?.totalClientes ?? 0} icon={Users} iconColor="bg-chart-2/10 text-chart-2" isLoading={isLoading} testId="metric-total-clientes" />
-        <KpiCard title="Tempo Médio" value={`${m?.tempoMedioResposta ?? 0}min`} icon={Timer} iconColor="bg-chart-4/10 text-chart-4" isLoading={isLoading} testId="metric-tempo-medio" />
-        <KpiCard title="Conversão" value={`${m?.taxaConversao ?? 0}%`} icon={Target} iconColor="bg-chart-3/10 text-chart-3" isLoading={isLoading} testId="metric-taxa-resolucao" />
-        <KpiCard title="Msgs IA" value={m?.totalMensagensIA ?? 0} icon={Bot} iconColor="bg-purple-500/10 text-purple-500" isLoading={isLoading} testId="metric-msgs-ia" />
+        <KpiCard title="Clientes" value={m?.totalClientes ?? 0} icon={Users} iconColor="bg-muted text-muted-foreground" isLoading={isLoading} testId="metric-total-clientes" />
+        <KpiCard title="Tempo Médio" value={`${m?.tempoMedioResposta ?? 0}min`} icon={Timer} iconColor="bg-muted text-muted-foreground" isLoading={isLoading} testId="metric-tempo-medio" />
+        <KpiCard title="Conversão" value={`${m?.taxaConversao ?? 0}%`} icon={Target} iconColor="bg-muted text-muted-foreground" isLoading={isLoading} testId="metric-taxa-resolucao" />
+        <KpiCard title="Msgs IA" value={m?.totalMensagensIA ?? 0} icon={Bot} iconColor="bg-muted text-muted-foreground" isLoading={isLoading} testId="metric-msgs-ia" />
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
@@ -197,8 +191,8 @@ function TabVisaoGeral() {
                     <YAxis tick={axisTickStyle} axisLine={false} tickLine={false} />
                     <Tooltip contentStyle={tooltipStyle} />
                     <Legend />
-                    <Line type="monotone" dataKey="total" stroke="#3b82f6" strokeWidth={2} dot={{ r: 2 }} name="Total" />
-                    <Line type="monotone" dataKey="fechadas" stroke="#10b981" strokeWidth={2} dot={{ r: 2 }} name="Fechadas" />
+                    <Line type="monotone" dataKey="total" stroke="#171717" strokeWidth={2} dot={{ r: 2 }} name="Total" />
+                    <Line type="monotone" dataKey="fechadas" stroke="#a3a3a3" strokeWidth={2} dot={{ r: 2 }} name="Fechadas" />
                   </LineChart>
                 </ResponsiveContainer>
               ) : (
@@ -260,7 +254,7 @@ function TabVisaoGeral() {
                   <XAxis dataKey="hora" tick={axisTickStyle} axisLine={{ stroke: "hsl(var(--border))" }} tickLine={false} interval={2} />
                   <YAxis tick={axisTickStyle} axisLine={false} tickLine={false} />
                   <Tooltip contentStyle={tooltipStyle} />
-                  <Area type="monotone" dataKey="mensagens" stroke="#8b5cf6" fill="#8b5cf6" fillOpacity={0.15} strokeWidth={2} name="Mensagens" />
+                  <Area type="monotone" dataKey="mensagens" stroke="#171717" fill="#171717" fillOpacity={0.08} strokeWidth={2} name="Mensagens" />
                 </AreaChart>
               </ResponsiveContainer>
             ) : (

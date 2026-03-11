@@ -4,6 +4,7 @@
 WhatsApp customer service management panel for an optical shop called "Ótica Suellen". Built with React + TypeScript frontend, Express backend, and PostgreSQL database. Features authentication, product catalog, client management, conversation handling, analytics, and settings.
 
 ## Recent Changes
+- 2026-03-11: Full UI redesign — clean monochromatic theme (white/black/gray), updated index.css color palette, new sidebar design (logo initials, cleaner nav, logout in footer), simplified header, professional auth page, all chart colors updated to neutral grays, all icon colors neutralized to bg-muted, added enviarMidia() function to api.ts
 - 2026-02-15: Follow-up 72h Analytics system - full page with 8 sections (Overview metrics, Conversion funnel, Message performance chart+table, Send time heatmap, Funnel label performance, Loss reasons pie, Lead journeys, A/B tests management)
 - 2026-02-15: SQL migration script (sql/followup-analytics-migration.sql) for Supabase tables: followup_logs, followup_metricas_diarias, followup_ab_tests + views + RPC functions
 - 2026-02-15: Webhook POST /api/webhook/marcar-resposta-followup (marks follow-up responses with timing, type, conversion data)

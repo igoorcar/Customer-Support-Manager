@@ -9,22 +9,20 @@ import {
   Package,
   BarChart3,
   Settings,
-  Glasses,
   Crosshair,
+  LogOut,
 } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
   SidebarGroup,
   SidebarGroupContent,
-  SidebarGroupLabel,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarFooter,
   SidebarHeader,
 } from "@/components/ui/sidebar";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
@@ -85,7 +83,7 @@ function useNewLeadNotification() {
       for (const lead of newLeads) {
         const clientName = lead.clientes?.nome || "Novo cliente";
         toast({
-          title: "Novo Lead!",
+          title: "Novo Lead",
           description: `${clientName} iniciou uma conversa`,
         });
       }
@@ -94,7 +92,7 @@ function useNewLeadNotification() {
 
       if ("Notification" in window && Notification.permission === "granted") {
         const names = newLeads.map(l => l.clientes?.nome || "Novo cliente").join(", ");
-        new Notification("Novo Lead - Ótica Suellen", {
+        new Notification("Novo Lead — Ótica Suellen", {
           body: `${newLeads.length} nova${newLeads.length > 1 ? "s" : ""} conversa${newLeads.length > 1 ? "s" : ""}: ${names}`,
           icon: "/favicon.ico",
         });
@@ -107,7 +105,7 @@ function useNewLeadNotification() {
 
 export function AppSidebar() {
   const [location] = useLocation();
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const isAdmin = user?.role === "admin";
 
   const visibleMenuItems = menuItems.filter(item => !item.adminOnly || isAdmin);
@@ -122,25 +120,30 @@ export function AppSidebar() {
 
   useNewLeadNotification();
 
+  const initials = (user?.username || "U").substring(0, 2).toUpperCase();
+
   return (
     <Sidebar>
-      <SidebarHeader className="p-4">
-        <Link href="/" className="flex items-center gap-2" data-testid="link-sidebar-logo">
-          <div className="flex items-center justify-center w-9 h-9 rounded-md bg-primary text-primary-foreground">
-            <Glasses className="w-5 h-5" />
+      <SidebarHeader className="px-4 py-5 border-b border-sidebar-border">
+        <Link href="/" className="flex items-center gap-3" data-testid="link-sidebar-logo">
+          <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-foreground text-background font-bold text-xs tracking-tight">
+            OS
           </div>
-          <div className="flex flex-col">
-            <span className="text-sm font-bold tracking-tight" data-testid="text-sidebar-brand">Ótica Suellen</span>
-            <span className="text-xs text-muted-foreground" data-testid="text-sidebar-subtitle">Painel de Atendimento</span>
+          <div className="flex flex-col leading-none gap-0.5">
+            <span className="text-[13px] font-semibold tracking-tight text-foreground" data-testid="text-sidebar-brand">
+              Ótica Suellen
+            </span>
+            <span className="text-[11px] text-muted-foreground" data-testid="text-sidebar-subtitle">
+              Painel de Atendimento
+            </span>
           </div>
         </Link>
       </SidebarHeader>
 
-      <SidebarContent>
+      <SidebarContent className="px-2 py-3">
         <SidebarGroup>
-          <SidebarGroupLabel>Menu</SidebarGroupLabel>
           <SidebarGroupContent>
-            <SidebarMenu>
+            <SidebarMenu className="gap-0.5">
               {visibleMenuItems.map((item) => {
                 const isActive = location === item.url || (item.url !== "/" && location.startsWith(item.url));
                 return (
@@ -149,12 +152,16 @@ export function AppSidebar() {
                       asChild
                       isActive={isActive}
                       data-testid={`nav-${item.title.toLowerCase().replace(/\s+/g, "-")}`}
+                      className="h-9 rounded-md text-[13px] font-medium"
                     >
                       <Link href={item.url} data-testid={`link-${item.title.toLowerCase().replace(/\s+/g, "-")}`}>
-                        <item.icon className="w-4 h-4" />
+                        <item.icon className="w-4 h-4 shrink-0" />
                         <span className="flex-1">{item.title}</span>
                         {item.hasBadge && activeConversations > 0 && (
-                          <Badge variant="default" className="text-xs min-w-5 h-5 flex items-center justify-center" data-testid={`badge-${item.title.toLowerCase().replace(/\s+/g, "-")}`}>
+                          <Badge
+                            className="text-[10px] h-4 min-w-4 px-1 rounded-full font-semibold bg-foreground text-background"
+                            data-testid={`badge-${item.title.toLowerCase().replace(/\s+/g, "-")}`}
+                          >
                             {activeConversations}
                           </Badge>
                         )}
@@ -168,20 +175,27 @@ export function AppSidebar() {
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter className="p-4">
-        <div className="flex items-center gap-3" data-testid="sidebar-user-info">
-          <div className="relative">
-            <Avatar className="w-9 h-9" data-testid="avatar-sidebar-user">
-              <AvatarFallback className="bg-primary/10 text-primary text-sm font-semibold">
-                {(user?.username || "U").substring(0, 2).toUpperCase()}
-              </AvatarFallback>
-            </Avatar>
-            <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-status-online border-2 border-sidebar" data-testid="status-sidebar-user" />
+      <SidebarFooter className="px-3 py-3 border-t border-sidebar-border">
+        <div className="flex items-center gap-2.5" data-testid="sidebar-user-info">
+          <div className="flex items-center justify-center w-7 h-7 rounded-full bg-muted text-foreground text-[11px] font-semibold shrink-0">
+            {initials}
           </div>
-          <div className="flex flex-col min-w-0">
-            <span className="text-sm font-medium truncate" data-testid="text-sidebar-username">{user?.username || "Usuário"}</span>
-            <span className="text-xs text-muted-foreground" data-testid="text-sidebar-status">Online</span>
+          <div className="flex flex-col min-w-0 flex-1">
+            <span className="text-[12px] font-medium truncate text-foreground" data-testid="text-sidebar-username">
+              {user?.username || "Usuário"}
+            </span>
+            <span className="text-[11px] text-muted-foreground capitalize" data-testid="text-sidebar-role">
+              {user?.role || "atendente"}
+            </span>
           </div>
+          <button
+            onClick={() => logout()}
+            className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+            title="Sair"
+            data-testid="button-logout-sidebar"
+          >
+            <LogOut className="w-3.5 h-3.5" />
+          </button>
         </div>
       </SidebarFooter>
     </Sidebar>

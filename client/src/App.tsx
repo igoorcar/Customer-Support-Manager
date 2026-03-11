@@ -50,7 +50,7 @@ function MainContent() {
 }
 
 function AuthenticatedApp() {
-  const { user, isLoading, logout } = useAuth();
+  const { user, isLoading } = useAuth();
 
   if (isLoading) {
     return (
@@ -77,20 +77,8 @@ function AuthenticatedApp() {
       <div className="flex h-screen w-full">
         <AppSidebar />
         <div className="flex flex-col flex-1 min-w-0 min-h-0 overflow-hidden">
-          <header className="flex items-center justify-between gap-2 p-3 border-b bg-background flex-shrink-0 z-50">
-            <SidebarTrigger data-testid="button-sidebar-toggle" />
-            <div className="flex items-center gap-3">
-              <span className="text-sm text-muted-foreground" data-testid="text-logged-user">
-                {user.username}
-              </span>
-              <button
-                onClick={() => logout()}
-                className="text-xs text-muted-foreground hover:text-foreground transition-colors"
-                data-testid="button-logout"
-              >
-                Sair
-              </button>
-            </div>
+          <header className="flex items-center gap-2 px-4 py-2.5 border-b bg-background flex-shrink-0 z-50 h-12">
+            <SidebarTrigger data-testid="button-sidebar-toggle" className="text-muted-foreground hover:text-foreground" />
           </header>
           <MainContent />
         </div>

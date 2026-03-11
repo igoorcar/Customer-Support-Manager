@@ -1,11 +1,10 @@
 import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
-import { Glasses, LogIn, UserPlus, Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff } from "lucide-react";
 
 export default function AuthPage() {
   const [isLogin, setIsLogin] = useState(true);
@@ -51,146 +50,144 @@ export default function AuthPage() {
   };
 
   return (
-    <div className="min-h-screen flex">
-      <div className="hidden lg:flex lg:w-1/2 bg-primary items-center justify-center p-12">
-        <div className="max-w-md text-center text-primary-foreground">
-          <div className="flex items-center justify-center w-20 h-20 rounded-2xl bg-primary-foreground/10 mx-auto mb-8">
-            <Glasses className="w-10 h-10" />
+    <div className="min-h-screen flex bg-background">
+      <div className="hidden lg:flex lg:w-1/2 bg-foreground relative overflow-hidden">
+        <div className="absolute inset-0 flex flex-col justify-between p-12">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 bg-background rounded-lg flex items-center justify-center text-foreground font-bold text-xs">
+              OS
+            </div>
+            <span className="text-background font-semibold text-sm">Ótica Suellen</span>
           </div>
-          <h1 className="text-3xl font-bold mb-4">Ótica Suellen</h1>
-          <p className="text-lg opacity-90 mb-6">
-            Painel de Atendimento ao Cliente via WhatsApp
+
+          <div className="max-w-md">
+            <h1 className="text-3xl font-semibold text-background mb-3 leading-tight">
+              Painel de Atendimento
+            </h1>
+            <p className="text-background/60 text-base leading-relaxed mb-10">
+              Gerencie conversas, clientes e vendas via WhatsApp em um único lugar.
+            </p>
+            <div className="space-y-4">
+              {[
+                "Automação com IA e controle manual",
+                "Distribuição de leads entre atendentes",
+                "Relatórios e follow-up de 72h",
+                "Catálogo de produtos integrado",
+              ].map((item) => (
+                <div key={item} className="flex items-center gap-3">
+                  <div className="w-1 h-1 rounded-full bg-background/40 shrink-0" />
+                  <span className="text-background/70 text-sm">{item}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <p className="text-background/30 text-xs">
+            © 2025 Ótica Suellen — Todos os direitos reservados
           </p>
-          <div className="space-y-3 text-sm opacity-80 text-left">
-            <div className="flex items-center gap-3">
-              <span className="w-1.5 h-1.5 rounded-full bg-primary-foreground/60 flex-shrink-0" />
-              <span>Gerencie todas as conversas em um só lugar</span>
-            </div>
-            <div className="flex items-center gap-3">
-              <span className="w-1.5 h-1.5 rounded-full bg-primary-foreground/60 flex-shrink-0" />
-              <span>Catálogo completo de produtos e clientes</span>
-            </div>
-            <div className="flex items-center gap-3">
-              <span className="w-1.5 h-1.5 rounded-full bg-primary-foreground/60 flex-shrink-0" />
-              <span>Relatórios e métricas em tempo real</span>
-            </div>
-            <div className="flex items-center gap-3">
-              <span className="w-1.5 h-1.5 rounded-full bg-primary-foreground/60 flex-shrink-0" />
-              <span>Respostas rápidas e automações</span>
-            </div>
-          </div>
         </div>
       </div>
 
-      <div className="flex-1 flex items-center justify-center p-6 bg-background">
-        <div className="w-full max-w-sm">
-          <div className="flex items-center justify-center gap-2 mb-8 lg:hidden">
-            <div className="flex items-center justify-center w-10 h-10 rounded-md bg-primary text-primary-foreground">
-              <Glasses className="w-5 h-5" />
+      <div className="flex-1 flex items-center justify-center p-6">
+        <div className="w-full max-w-[360px]">
+          <div className="lg:hidden flex items-center gap-2 mb-10">
+            <div className="w-7 h-7 bg-foreground rounded-lg flex items-center justify-center text-background font-bold text-[10px]">
+              OS
             </div>
-            <span className="text-xl font-bold">Ótica Suellen</span>
+            <span className="font-semibold text-sm">Ótica Suellen</span>
           </div>
 
-          <Card>
-            <CardHeader className="pb-4">
-              <CardTitle className="text-lg" data-testid="text-auth-title">
-                {isLogin ? "Entrar no Painel" : "Criar Conta"}
-              </CardTitle>
-              <p className="text-sm text-muted-foreground">
-                {isLogin
-                  ? "Acesse o painel de atendimento"
-                  : "Crie sua conta para acessar o painel"}
-              </p>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="username">Usuário</Label>
-                  <Input
-                    id="username"
-                    type="text"
-                    placeholder="Digite seu usuário"
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
-                    autoComplete="username"
-                    data-testid="input-username"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="password">Senha</Label>
-                  <div className="relative">
-                    <Input
-                      id="password"
-                      type={showPassword ? "text" : "password"}
-                      placeholder="Digite sua senha"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      autoComplete={isLogin ? "current-password" : "new-password"}
-                      data-testid="input-password"
-                    />
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="absolute right-0 top-0"
-                      onClick={() => setShowPassword(!showPassword)}
-                      data-testid="button-toggle-password"
-                    >
-                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                    </Button>
-                  </div>
-                </div>
-                {!isLogin && (
-                  <div className="space-y-2">
-                    <Label htmlFor="confirmPassword">Confirmar Senha</Label>
-                    <Input
-                      id="confirmPassword"
-                      type="password"
-                      placeholder="Confirme sua senha"
-                      value={confirmPassword}
-                      onChange={(e) => setConfirmPassword(e.target.value)}
-                      autoComplete="new-password"
-                      data-testid="input-confirm-password"
-                    />
-                  </div>
-                )}
-                <Button
-                  type="submit"
-                  className="w-full"
-                  disabled={loading}
-                  data-testid="button-submit-auth"
-                >
-                  {loading ? (
-                    "Carregando..."
-                  ) : isLogin ? (
-                    <>
-                      <LogIn className="w-4 h-4 mr-1.5" /> Entrar
-                    </>
-                  ) : (
-                    <>
-                      <UserPlus className="w-4 h-4 mr-1.5" /> Criar Conta
-                    </>
-                  )}
-                </Button>
-              </form>
+          <div className="mb-8">
+            <h2 className="text-xl font-semibold text-foreground mb-1" data-testid="text-auth-title">
+              {isLogin ? "Entrar na conta" : "Criar conta"}
+            </h2>
+            <p className="text-sm text-muted-foreground">
+              {isLogin
+                ? "Acesse o painel de atendimento"
+                : "Preencha os dados para criar sua conta"}
+            </p>
+          </div>
 
-              <div className="mt-4 text-center">
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="username" className="text-sm font-medium">Usuário</Label>
+              <Input
+                id="username"
+                type="text"
+                placeholder="Nome de usuário"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                autoComplete="username"
+                className="h-10"
+                data-testid="input-username"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="password" className="text-sm font-medium">Senha</Label>
+              <div className="relative">
+                <Input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  placeholder="Senha"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  autoComplete={isLogin ? "current-password" : "new-password"}
+                  className="h-10 pr-10"
+                  data-testid="input-password"
+                />
                 <button
                   type="button"
-                  className="text-sm text-primary hover:underline"
-                  onClick={() => {
-                    setIsLogin(!isLogin);
-                    setConfirmPassword("");
-                  }}
-                  data-testid="button-toggle-auth-mode"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                  onClick={() => setShowPassword(!showPassword)}
+                  data-testid="button-toggle-password"
                 >
-                  {isLogin
-                    ? "Não tem conta? Cadastre-se"
-                    : "Já tem conta? Faça login"}
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+
+            {!isLogin && (
+              <div className="space-y-1.5">
+                <Label htmlFor="confirmPassword" className="text-sm font-medium">Confirmar Senha</Label>
+                <Input
+                  id="confirmPassword"
+                  type="password"
+                  placeholder="Confirme sua senha"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  autoComplete="new-password"
+                  className="h-10"
+                  data-testid="input-confirm-password"
+                />
+              </div>
+            )}
+
+            <Button
+              type="submit"
+              className="w-full h-10 font-medium mt-2"
+              disabled={loading}
+              data-testid="button-submit-auth"
+            >
+              {loading ? "Entrando..." : isLogin ? "Entrar" : "Criar Conta"}
+            </Button>
+          </form>
+
+          <div className="mt-6 text-center">
+            <button
+              type="button"
+              className="text-sm text-muted-foreground hover:text-foreground transition-colors underline-offset-4 hover:underline"
+              onClick={() => {
+                setIsLogin(!isLogin);
+                setConfirmPassword("");
+              }}
+              data-testid="button-toggle-auth-mode"
+            >
+              {isLogin
+                ? "Não tem conta? Cadastre-se"
+                : "Já tem conta? Faça login"}
+            </button>
+          </div>
         </div>
       </div>
     </div>
