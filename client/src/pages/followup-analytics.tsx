@@ -55,8 +55,8 @@ const tooltipStyle = {
 const axisTickStyle = { fontSize: 11, fill: "hsl(var(--muted-foreground))" };
 
 const CHART_COLORS = [
-  "#171717", "#525252", "#737373", "#a3a3a3", "#d4d4d4",
-  "#e5e5e5", "#404040", "#8a8a8a",
+  "#6366f1", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6",
+  "#ec4899", "#14b8a6", "#f97316",
 ];
 
 function formatMinutes(minutes: number): string {
@@ -79,43 +79,43 @@ function OverviewSection({ periodo }: { periodo: number }) {
       title: "Total de Leads",
       value: overview?.total_leads ?? 0,
       icon: Users,
-      color: "text-foreground",
-      bg: "bg-muted",
+      color: "text-blue-600",
+      bg: "bg-blue-50",
     },
     {
       title: "Taxa de Resposta",
       value: `${overview?.taxa_resposta_geral ?? 0}%`,
       icon: Reply,
-      color: "text-foreground",
-      bg: "bg-muted",
+      color: "text-emerald-600",
+      bg: "bg-emerald-50",
     },
     {
       title: "Taxa de Conversao",
       value: `${overview?.taxa_conversao_geral ?? 0}%`,
       icon: Target,
-      color: "text-foreground",
-      bg: "bg-muted",
+      color: "text-violet-600",
+      bg: "bg-violet-50",
     },
     {
       title: "Tempo Medio Resposta",
       value: formatMinutes(overview?.tempo_medio_resposta_minutos ?? 0),
       icon: Clock,
-      color: "text-foreground",
-      bg: "bg-muted",
+      color: "text-amber-600",
+      bg: "bg-amber-50",
     },
     {
       title: "Melhor Mensagem",
       value: overview?.melhor_mensagem ? `#${overview.melhor_mensagem} (${overview.melhor_mensagem_taxa}%)` : "--",
       icon: Award,
-      color: "text-foreground",
-      bg: "bg-muted",
+      color: "text-rose-600",
+      bg: "bg-rose-50",
     },
     {
       title: "Melhor Horario",
       value: overview?.melhor_horario != null ? `${overview.melhor_horario}:00` : "--",
       icon: TrendingUp,
-      color: "text-foreground",
-      bg: "bg-muted",
+      color: "text-teal-600",
+      bg: "bg-teal-50",
     },
   ];
 
@@ -528,9 +528,9 @@ function JornadasSection() {
                         key={num}
                         className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ${
                           respondeu
-                            ? "bg-foreground text-background"
+                            ? "bg-emerald-500 text-white"
                             : enviou
-                            ? "bg-secondary text-secondary-foreground border border-border"
+                            ? "bg-blue-500 text-white"
                             : "bg-muted text-muted-foreground"
                         }`}
                         data-testid={`jornada-msg-${jornada.conversa_id}-${num}`}

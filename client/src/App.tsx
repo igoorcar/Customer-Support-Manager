@@ -19,7 +19,26 @@ import AuthPage from "@/pages/auth";
 import NotFound from "@/pages/not-found";
 
 function PageWrapper({ children }: { children: React.ReactNode }) {
-  return <div className="p-4 md:p-6">{children}</div>;
+  return <div className="p-5 md:p-6">{children}</div>;
+}
+
+const pageTitles: Record<string, string> = {
+  "/": "Dashboard",
+  "/conversas": "Conversas",
+  "/clientes": "Clientes",
+  "/respostas": "Respostas Rápidas",
+  "/produtos": "Produtos",
+  "/relatorios": "Relatórios",
+  "/followup": "Follow-up 72h",
+  "/configuracoes": "Configurações",
+};
+
+function PageTitle() {
+  const [location] = useLocation();
+  const title = Object.entries(pageTitles).find(([path]) =>
+    path === "/" ? location === "/" : location.startsWith(path)
+  )?.[1] || "Painel";
+  return <span className="text-sm font-semibold text-foreground">{title}</span>;
 }
 
 function Router() {
@@ -77,8 +96,10 @@ function AuthenticatedApp() {
       <div className="flex h-screen w-full">
         <AppSidebar />
         <div className="flex flex-col flex-1 min-w-0 min-h-0 overflow-hidden">
-          <header className="flex items-center gap-2 px-4 py-2.5 border-b bg-background flex-shrink-0 z-50 h-12">
+          <header className="flex items-center gap-3 px-5 border-b bg-white flex-shrink-0 z-50 h-14 shadow-sm">
             <SidebarTrigger data-testid="button-sidebar-toggle" className="text-muted-foreground hover:text-foreground" />
+            <div className="w-px h-5 bg-border" />
+            <PageTitle />
           </header>
           <MainContent />
         </div>

@@ -51,8 +51,8 @@ const tooltipStyle = {
 const axisTickStyle = { fontSize: 11, fill: "hsl(var(--muted-foreground))" };
 
 const CHART_COLORS = [
-  "#171717", "#525252", "#a3a3a3", "#e5e5e5", "#374151",
-  "#6b7280", "#d1d5db", "#9ca3af",
+  "#6366f1", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6",
+  "#ec4899", "#14b8a6", "#f97316",
 ];
 
 const statusMap: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
@@ -191,18 +191,18 @@ export default function Dashboard() {
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-3">
-        <MetricCard title="Conversas" value={m?.totalConversas ?? 0} subtitle="no período" icon={MessageCircle} iconColor="bg-muted text-foreground" isLoading={isLoading} />
-        <MetricCard title="Ativas" value={m?.conversasAtivas ?? 0} subtitle="em andamento" icon={Clock} iconColor="bg-muted text-muted-foreground" isLoading={isLoading} />
-        <MetricCard title="Fechadas" value={m?.conversasFechadas ?? 0} subtitle="finalizadas" icon={CheckCircle} iconColor="bg-muted text-muted-foreground" isLoading={isLoading} />
-        <MetricCard title="Conversão" value={`${m?.taxaConversao ?? 0}%`} subtitle="taxa" icon={Target} iconColor="bg-muted text-muted-foreground" isLoading={isLoading} />
-        <MetricCard title="Tempo Médio" value={m?.tempoMedioResposta ? `${m.tempoMedioResposta}min` : "--"} subtitle="atendimento" icon={Timer} iconColor="bg-muted text-muted-foreground" isLoading={isLoading} />
+        <MetricCard title="Conversas" value={m?.totalConversas ?? 0} subtitle="no período" icon={MessageCircle} iconColor="bg-primary/10 text-primary" isLoading={isLoading} />
+        <MetricCard title="Ativas" value={m?.conversasAtivas ?? 0} subtitle="em andamento" icon={Clock} iconColor="bg-amber-500/10 text-amber-600" isLoading={isLoading} />
+        <MetricCard title="Fechadas" value={m?.conversasFechadas ?? 0} subtitle="finalizadas" icon={CheckCircle} iconColor="bg-emerald-500/10 text-emerald-600" isLoading={isLoading} />
+        <MetricCard title="Conversão" value={`${m?.taxaConversao ?? 0}%`} subtitle="taxa" icon={Target} iconColor="bg-violet-500/10 text-violet-600" isLoading={isLoading} />
+        <MetricCard title="Tempo Médio" value={m?.tempoMedioResposta ? `${m.tempoMedioResposta}min` : "--"} subtitle="atendimento" icon={Timer} iconColor="bg-rose-500/10 text-rose-500" isLoading={isLoading} />
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <MetricCard title="Msgs IA" value={m?.totalMensagensIA ?? 0} subtitle="enviadas" icon={Bot} iconColor="bg-muted text-muted-foreground" isLoading={isLoading} />
-        <MetricCard title="Online" value={m?.atendenteOnline ?? 0} subtitle="atendentes" icon={Users} iconColor="bg-muted text-muted-foreground" isLoading={isLoading} />
-        <MetricCard title="Clientes" value={m?.totalClientes ?? 0} subtitle="cadastrados" icon={UserPlus} iconColor="bg-muted text-muted-foreground" isLoading={isLoading} />
-        <MetricCard title="Novos" value={m?.novosClientes ?? 0} subtitle="no período" icon={Zap} iconColor="bg-muted text-muted-foreground" isLoading={isLoading} />
+        <MetricCard title="Msgs IA" value={m?.totalMensagensIA ?? 0} subtitle="enviadas" icon={Bot} iconColor="bg-purple-500/10 text-purple-600" isLoading={isLoading} />
+        <MetricCard title="Online" value={m?.atendenteOnline ?? 0} subtitle="atendentes" icon={Users} iconColor="bg-emerald-500/10 text-emerald-600" isLoading={isLoading} />
+        <MetricCard title="Clientes" value={m?.totalClientes ?? 0} subtitle="cadastrados" icon={UserPlus} iconColor="bg-blue-500/10 text-blue-600" isLoading={isLoading} />
+        <MetricCard title="Novos" value={m?.novosClientes ?? 0} subtitle="no período" icon={Zap} iconColor="bg-amber-500/10 text-amber-600" isLoading={isLoading} />
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
@@ -222,9 +222,9 @@ export default function Dashboard() {
                     <YAxis tick={axisTickStyle} axisLine={false} tickLine={false} />
                     <Tooltip contentStyle={tooltipStyle} />
                     <Legend />
-                    <Line type="monotone" dataKey="total" stroke="#171717" strokeWidth={2} dot={{ r: 2 }} name="Total" />
-                    <Line type="monotone" dataKey="fechadas" stroke="#525252" strokeWidth={2} dot={{ r: 2 }} name="Fechadas" />
-                    <Line type="monotone" dataKey="ativas" stroke="#a3a3a3" strokeWidth={2} dot={{ r: 2 }} name="Ativas" />
+                    <Line type="monotone" dataKey="total" stroke="#6366f1" strokeWidth={2} dot={{ r: 2 }} name="Total" />
+                    <Line type="monotone" dataKey="fechadas" stroke="#10b981" strokeWidth={2} dot={{ r: 2 }} name="Fechadas" />
+                    <Line type="monotone" dataKey="ativas" stroke="#f59e0b" strokeWidth={2} dot={{ r: 2 }} name="Ativas" />
                   </LineChart>
                 </ResponsiveContainer>
               ) : (
@@ -250,8 +250,8 @@ export default function Dashboard() {
                     <YAxis tick={axisTickStyle} axisLine={false} tickLine={false} />
                     <Tooltip contentStyle={tooltipStyle} />
                     <Legend />
-                    <Bar dataKey="fechadas" fill="#171717" radius={[4, 4, 0, 0]} name="Fechadas" />
-                    <Bar dataKey="ativas" fill="#a3a3a3" radius={[4, 4, 0, 0]} name="Ativas" />
+                    <Bar dataKey="fechadas" fill="#6366f1" radius={[4, 4, 0, 0]} name="Fechadas" />
+                    <Bar dataKey="ativas" fill="#10b981" radius={[4, 4, 0, 0]} name="Ativas" />
                   </BarChart>
                 </ResponsiveContainer>
               ) : (
@@ -350,7 +350,7 @@ export default function Dashboard() {
                     <XAxis dataKey="hora" tick={axisTickStyle} axisLine={{ stroke: "hsl(var(--border))" }} tickLine={false} interval={2} />
                     <YAxis tick={axisTickStyle} axisLine={false} tickLine={false} />
                     <Tooltip contentStyle={tooltipStyle} />
-                    <Area type="monotone" dataKey="mensagens" stroke="#171717" fill="#171717" fillOpacity={0.08} strokeWidth={2} name="Mensagens" />
+                    <Area type="monotone" dataKey="mensagens" stroke="#6366f1" fill="#6366f1" fillOpacity={0.12} strokeWidth={2} name="Mensagens" />
                   </AreaChart>
                 </ResponsiveContainer>
               ) : (

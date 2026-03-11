@@ -4,7 +4,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
-import { Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff, Glasses, Zap, MessageCircle, BarChart3, Users } from "lucide-react";
+
+const features = [
+  { icon: MessageCircle, text: "Todas as conversas WhatsApp em um só lugar" },
+  { icon: Zap, text: "Automação com IA e atendimento manual" },
+  { icon: BarChart3, text: "Relatórios e follow-up de 72h" },
+  { icon: Users, text: "Gestão de leads e distribuição inteligente" },
+];
 
 export default function AuthPage() {
   const [isLogin, setIsLogin] = useState(true);
@@ -51,89 +58,110 @@ export default function AuthPage() {
 
   return (
     <div className="min-h-screen flex bg-background">
-      <div className="hidden lg:flex lg:w-1/2 bg-foreground relative overflow-hidden">
-        <div className="absolute inset-0 flex flex-col justify-between p-12">
+      {/* Left panel — brand */}
+      <div className="hidden lg:flex lg:w-[55%] relative overflow-hidden"
+        style={{ background: "linear-gradient(135deg, #1e1b4b 0%, #312e81 40%, #4338ca 100%)" }}>
+
+        {/* Decorative blobs */}
+        <div className="absolute top-0 right-0 w-[500px] h-[500px] rounded-full opacity-20"
+          style={{ background: "radial-gradient(circle, #818cf8 0%, transparent 70%)", transform: "translate(30%, -30%)" }} />
+        <div className="absolute bottom-0 left-0 w-[400px] h-[400px] rounded-full opacity-15"
+          style={{ background: "radial-gradient(circle, #a78bfa 0%, transparent 70%)", transform: "translate(-30%, 30%)" }} />
+        <div className="absolute top-1/2 left-1/2 w-[300px] h-[300px] rounded-full opacity-10"
+          style={{ background: "radial-gradient(circle, #c4b5fd 0%, transparent 70%)", transform: "translate(-50%, -50%)" }} />
+
+        <div className="relative z-10 flex flex-col justify-between p-12 w-full">
+          {/* Logo */}
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-background rounded-lg flex items-center justify-center text-foreground font-bold text-xs">
-              OS
+            <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-white/15 border border-white/20 backdrop-blur-sm">
+              <Glasses className="w-5 h-5 text-white" />
             </div>
-            <span className="text-background font-semibold text-sm">Ótica Suellen</span>
+            <span className="text-white font-bold text-lg tracking-tight">Ótica Suellen</span>
           </div>
 
+          {/* Main copy */}
           <div className="max-w-md">
-            <h1 className="text-3xl font-semibold text-background mb-3 leading-tight">
-              Painel de Atendimento
+            <div className="inline-flex items-center gap-2 bg-white/10 border border-white/15 rounded-full px-3 py-1 mb-6">
+              <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              <span className="text-white/80 text-xs font-medium">Sistema em produção</span>
+            </div>
+            <h1 className="text-4xl font-bold text-white mb-4 leading-tight">
+              Painel de Atendimento ao Cliente
             </h1>
-            <p className="text-background/60 text-base leading-relaxed mb-10">
-              Gerencie conversas, clientes e vendas via WhatsApp em um único lugar.
+            <p className="text-indigo-200 text-base leading-relaxed mb-10">
+              Gerencie seus clientes e conversas WhatsApp com inteligência artificial e automação avançada.
             </p>
-            <div className="space-y-4">
-              {[
-                "Automação com IA e controle manual",
-                "Distribuição de leads entre atendentes",
-                "Relatórios e follow-up de 72h",
-                "Catálogo de produtos integrado",
-              ].map((item) => (
-                <div key={item} className="flex items-center gap-3">
-                  <div className="w-1 h-1 rounded-full bg-background/40 shrink-0" />
-                  <span className="text-background/70 text-sm">{item}</span>
+            <div className="space-y-3.5">
+              {features.map(({ icon: Icon, text }) => (
+                <div key={text} className="flex items-center gap-3">
+                  <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-white/10 border border-white/15 shrink-0">
+                    <Icon className="w-3.5 h-3.5 text-indigo-200" />
+                  </div>
+                  <span className="text-indigo-100/80 text-sm">{text}</span>
                 </div>
               ))}
             </div>
           </div>
 
-          <p className="text-background/30 text-xs">
+          <p className="text-indigo-300/40 text-xs">
             © 2025 Ótica Suellen — Todos os direitos reservados
           </p>
         </div>
       </div>
 
-      <div className="flex-1 flex items-center justify-center p-6">
-        <div className="w-full max-w-[360px]">
-          <div className="lg:hidden flex items-center gap-2 mb-10">
-            <div className="w-7 h-7 bg-foreground rounded-lg flex items-center justify-center text-background font-bold text-[10px]">
-              OS
+      {/* Right panel — form */}
+      <div className="flex-1 flex items-center justify-center p-8 bg-white">
+        <div className="w-full max-w-[380px]">
+
+          {/* Mobile logo */}
+          <div className="lg:hidden flex items-center gap-2.5 mb-10">
+            <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-primary/10 border border-primary/20">
+              <Glasses className="w-5 h-5 text-primary" />
             </div>
-            <span className="font-semibold text-sm">Ótica Suellen</span>
+            <span className="font-bold text-base">Ótica Suellen</span>
           </div>
 
           <div className="mb-8">
-            <h2 className="text-xl font-semibold text-foreground mb-1" data-testid="text-auth-title">
-              {isLogin ? "Entrar na conta" : "Criar conta"}
+            <h2 className="text-2xl font-bold text-foreground mb-1.5" data-testid="text-auth-title">
+              {isLogin ? "Bem-vindo de volta" : "Criar conta"}
             </h2>
             <p className="text-sm text-muted-foreground">
               {isLogin
-                ? "Acesse o painel de atendimento"
-                : "Preencha os dados para criar sua conta"}
+                ? "Entre com suas credenciais para acessar o painel"
+                : "Preencha os dados abaixo para criar sua conta"}
             </p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-1.5">
-              <Label htmlFor="username" className="text-sm font-medium">Usuário</Label>
+              <Label htmlFor="username" className="text-sm font-medium text-foreground">
+                Nome de usuário
+              </Label>
               <Input
                 id="username"
                 type="text"
-                placeholder="Nome de usuário"
+                placeholder="Ex: joao.silva"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 autoComplete="username"
-                className="h-10"
+                className="h-11 bg-background"
                 data-testid="input-username"
               />
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="password" className="text-sm font-medium">Senha</Label>
+              <Label htmlFor="password" className="text-sm font-medium text-foreground">
+                Senha
+              </Label>
               <div className="relative">
                 <Input
                   id="password"
                   type={showPassword ? "text" : "password"}
-                  placeholder="Senha"
+                  placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   autoComplete={isLogin ? "current-password" : "new-password"}
-                  className="h-10 pr-10"
+                  className="h-11 bg-background pr-11"
                   data-testid="input-password"
                 />
                 <button
@@ -149,15 +177,17 @@ export default function AuthPage() {
 
             {!isLogin && (
               <div className="space-y-1.5">
-                <Label htmlFor="confirmPassword" className="text-sm font-medium">Confirmar Senha</Label>
+                <Label htmlFor="confirmPassword" className="text-sm font-medium text-foreground">
+                  Confirmar Senha
+                </Label>
                 <Input
                   id="confirmPassword"
                   type="password"
-                  placeholder="Confirme sua senha"
+                  placeholder="••••••••"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   autoComplete="new-password"
-                  className="h-10"
+                  className="h-11 bg-background"
                   data-testid="input-confirm-password"
                 />
               </div>
@@ -165,18 +195,18 @@ export default function AuthPage() {
 
             <Button
               type="submit"
-              className="w-full h-10 font-medium mt-2"
+              className="w-full h-11 font-semibold mt-2 text-base shadow-md"
               disabled={loading}
               data-testid="button-submit-auth"
             >
-              {loading ? "Entrando..." : isLogin ? "Entrar" : "Criar Conta"}
+              {loading ? "Entrando..." : isLogin ? "Entrar no Painel" : "Criar Conta"}
             </Button>
           </form>
 
           <div className="mt-6 text-center">
             <button
               type="button"
-              className="text-sm text-muted-foreground hover:text-foreground transition-colors underline-offset-4 hover:underline"
+              className="text-sm text-muted-foreground hover:text-primary transition-colors"
               onClick={() => {
                 setIsLogin(!isLogin);
                 setConfirmPassword("");

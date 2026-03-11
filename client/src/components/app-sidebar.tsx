@@ -11,12 +11,14 @@ import {
   Settings,
   Crosshair,
   LogOut,
+  Glasses,
 } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
   SidebarGroup,
   SidebarGroupContent,
+  SidebarGroupLabel,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
@@ -87,9 +89,7 @@ function useNewLeadNotification() {
           description: `${clientName} iniciou uma conversa`,
         });
       }
-
       playNotificationSound();
-
       if ("Notification" in window && Notification.permission === "granted") {
         const names = newLeads.map(l => l.clientes?.nome || "Novo cliente").join(", ");
         new Notification("Novo Lead — Ótica Suellen", {
@@ -98,7 +98,6 @@ function useNewLeadNotification() {
         });
       }
     }
-
     knownIdsRef.current = currentIds;
   }, [novasConversas, toast]);
 }
@@ -107,7 +106,6 @@ export function AppSidebar() {
   const [location] = useLocation();
   const { user, logout } = useAuth();
   const isAdmin = user?.role === "admin";
-
   const visibleMenuItems = menuItems.filter(item => !item.adminOnly || isAdmin);
 
   const { data: stats } = useQuery({
@@ -117,31 +115,33 @@ export function AppSidebar() {
   });
 
   const activeConversations = (stats?.waiting || 0) + (stats?.active || 0);
-
   useNewLeadNotification();
 
   const initials = (user?.username || "U").substring(0, 2).toUpperCase();
 
   return (
     <Sidebar>
-      <SidebarHeader className="px-4 py-5 border-b border-sidebar-border">
+      <SidebarHeader className="px-4 py-5">
         <Link href="/" className="flex items-center gap-3" data-testid="link-sidebar-logo">
-          <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-foreground text-background font-bold text-xs tracking-tight">
-            OS
+          <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-sidebar-primary/20 border border-sidebar-primary/30">
+            <Glasses className="w-5 h-5 text-sidebar-primary" />
           </div>
-          <div className="flex flex-col leading-none gap-0.5">
-            <span className="text-[13px] font-semibold tracking-tight text-foreground" data-testid="text-sidebar-brand">
+          <div className="flex flex-col leading-none gap-1">
+            <span className="text-[14px] font-bold tracking-tight text-sidebar-accent-foreground" data-testid="text-sidebar-brand">
               Ótica Suellen
             </span>
-            <span className="text-[11px] text-muted-foreground" data-testid="text-sidebar-subtitle">
+            <span className="text-[11px] text-sidebar-foreground/50" data-testid="text-sidebar-subtitle">
               Painel de Atendimento
             </span>
           </div>
         </Link>
       </SidebarHeader>
 
-      <SidebarContent className="px-2 py-3">
-        <SidebarGroup>
+      <SidebarContent className="px-3 pb-3">
+        <SidebarGroup className="gap-1">
+          <SidebarGroupLabel className="text-[10px] font-semibold uppercase tracking-widest text-sidebar-foreground/35 px-2 mb-1">
+            Menu
+          </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu className="gap-0.5">
               {visibleMenuItems.map((item) => {
@@ -152,14 +152,14 @@ export function AppSidebar() {
                       asChild
                       isActive={isActive}
                       data-testid={`nav-${item.title.toLowerCase().replace(/\s+/g, "-")}`}
-                      className="h-9 rounded-md text-[13px] font-medium"
+                      className="h-9 rounded-lg text-[13px] font-medium"
                     >
                       <Link href={item.url} data-testid={`link-${item.title.toLowerCase().replace(/\s+/g, "-")}`}>
                         <item.icon className="w-4 h-4 shrink-0" />
                         <span className="flex-1">{item.title}</span>
                         {item.hasBadge && activeConversations > 0 && (
                           <Badge
-                            className="text-[10px] h-4 min-w-4 px-1 rounded-full font-semibold bg-foreground text-background"
+                            className="text-[10px] h-4 min-w-4 px-1.5 rounded-full font-semibold bg-sidebar-primary text-sidebar-primary-foreground border-0"
                             data-testid={`badge-${item.title.toLowerCase().replace(/\s+/g, "-")}`}
                           >
                             {activeConversations}
@@ -176,21 +176,21 @@ export function AppSidebar() {
       </SidebarContent>
 
       <SidebarFooter className="px-3 py-3 border-t border-sidebar-border">
-        <div className="flex items-center gap-2.5" data-testid="sidebar-user-info">
-          <div className="flex items-center justify-center w-7 h-7 rounded-full bg-muted text-foreground text-[11px] font-semibold shrink-0">
+        <div className="flex items-center gap-2.5 px-2" data-testid="sidebar-user-info">
+          <div className="flex items-center justify-center w-8 h-8 rounded-full bg-sidebar-primary/20 text-sidebar-primary text-[11px] font-bold shrink-0 border border-sidebar-primary/20">
             {initials}
           </div>
           <div className="flex flex-col min-w-0 flex-1">
-            <span className="text-[12px] font-medium truncate text-foreground" data-testid="text-sidebar-username">
+            <span className="text-[12px] font-semibold truncate text-sidebar-accent-foreground" data-testid="text-sidebar-username">
               {user?.username || "Usuário"}
             </span>
-            <span className="text-[11px] text-muted-foreground capitalize" data-testid="text-sidebar-role">
-              {user?.role || "atendente"}
+            <span className="text-[11px] text-sidebar-foreground/50 capitalize" data-testid="text-sidebar-role">
+              {user?.role === "admin" ? "Administrador" : "Atendente"}
             </span>
           </div>
           <button
             onClick={() => logout()}
-            className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+            className="p-1.5 rounded-lg text-sidebar-foreground/40 hover:text-sidebar-foreground hover:bg-sidebar-accent transition-colors"
             title="Sair"
             data-testid="button-logout-sidebar"
           >
